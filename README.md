@@ -69,3 +69,5 @@ Site goes live in ~1–2 minutes.
 | `edgefield` | McMenamins Edgefield | screening |
 | `bonneville` | Bonneville Hot Springs | retreat |
 | `chapel` | Chapel Pub | preorder |
+| `grand-lodge` | McMenamins Grand Lodge | screening |
+| `kennedy-school` | McMenamins Kennedy School | preorder |

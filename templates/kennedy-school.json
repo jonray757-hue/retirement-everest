@@ -1,0 +1,55 @@
+{
+  "id": "kennedy-school",
+  "slug": "kennedy-school",
+  "type": "preorder",
+  "theme": "gold",
+  "name": "McMenamins Kennedy School",
+  "shortName": "Kennedy School",
+  "city": "Portland, OR",
+  "venue": "Martha Jordan Room",
+  "storageKey": "kennedyschool_orders_v1",
+  "heroSub": "A private film screening and complimentary dinner at McMenamins Kennedy School.",
+  "cta": "Select Your Meal",
+  "meta": [
+    { "strong": "Kennedy School", "label": "Portland, OR" },
+    { "strong": "Complimentary", "label": "Dinner Included" },
+    { "strong": "Limited", "label": "Seats Available" }
+  ],
+  "aboutLabel": "About the Evening",
+  "aboutHeadline": "This is not a seminar.<br>It's a private premiere.",
+  "about": [
+    "You've been personally invited to an exclusive screening of Retirement Everest.",
+    "The evening takes place in the Martha Jordan Room — film and dinner in one historic classroom."
+  ],
+  "expect": [
+    { "title": "Arrive & Be Welcomed", "desc": "Doors open 15 minutes before showtime in the Martha Jordan Room." },
+    { "title": "Watch the Film", "desc": "Retirement Everest screens in a beautifully restored school setting." },
+    { "title": "Dinner & Conversation", "desc": "Courtyard Restaurant fare served at your table after the screening." }
+  ],
+  "formTitle": "Reserve Your Seat at the Table",
+  "formLabel": "Your Meal Selection",
+  "formIntro": "Dinner is included — select your meal below.",
+  "formNote": "Arrival bite at your table; main and drink served after the film.",
+  "footer": "Retirement Everest · Private Screening Series · McMenamins Kennedy School · Portland, OR",
+  "menus": {
+    "starters": [
+      { "id": "s1", "name": "Hummus", "desc": "Marinated olives, veggies, feta, pita bread", "price": 16.50, "veg": true, "cat": "Snack" },
+      { "id": "s2", "name": "Soft Pretzel Sticks", "desc": "Cheese & ale fondue", "price": 15.00, "veg": true, "cat": "Snack" }
+    ],
+    "mains": [
+      { "id": "m1", "name": "Jamaican Rice Bowl", "desc": "Coconut curry, black beans, avocado, mango chutney, cilantro", "price": 19.75, "vegan": true },
+      { "id": "m2", "name": "El Diablo Chicken Sandwich", "desc": "Spiced chicken, pepper jack, avocado, Dark Star mayo", "price": 23.25 }
+    ],
+    "drinks": [
+      { "id": "d1", "name": "McMenamins Beer (Pint)", "desc": "House-brewed craft beer", "price": 6.50 },
+      { "id": "d2", "name": "Edgefield Wine (Glass)", "desc": "Red or white", "price": 8.00 }
+    ]
+  },
+  "costSim": {
+    "note": "From Courtyard Restaurant menu (Spring 2026). Confirm F&B minimum with sales.",
+    "scenarios": [
+      { "guests": 30, "median": 1313, "p10": 1234, "p90": 1395, "perGuest": 44 },
+      { "guests": 40, "median": 1752, "p10": 1652, "p90": 1856, "perGuest": 44 }
+    ]
+  }
+}

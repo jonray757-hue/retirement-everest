@@ -1,0 +1,53 @@
+{
+  "id": "grand-lodge",
+  "slug": "grand-lodge",
+  "type": "screening",
+  "theme": "forest",
+  "name": "McMenamins Grand Lodge",
+  "shortName": "Grand Lodge",
+  "city": "Forest Grove, OR",
+  "venue": "Alice Meek Inkley Room",
+  "storageKey": "grandlodge_orders_v1",
+  "heroSub": "A private film screening & plated dinner in one room at McMenamins Grand Lodge.",
+  "cta": "Reserve Your Seat",
+  "meta": [
+    { "strong": "Grand Lodge", "label": "Forest Grove, OR" },
+    { "strong": "Complimentary", "label": "Dinner Included" },
+    { "strong": "Limited", "label": "Seats Available" }
+  ],
+  "aboutLabel": "About the Evening",
+  "aboutHeadline": "This is not a seminar.<br>It's a private premiere.",
+  "about": [
+    "You've been personally invited to an exclusive screening of Retirement Everest.",
+    "The evening unfolds in the Alice Meek Inkley Room — film first, then plated dinner in the same space."
+  ],
+  "expect": [
+    { "title": "Arrive & Be Welcomed", "desc": "Doors open 15 minutes before showtime in the Alice Meek Inkley Room." },
+    { "title": "Watch the Film", "desc": "Retirement Everest screens with theater seating in the Inkley Room." },
+    { "title": "A Plated Dinner", "desc": "After the film, salad, entrée, and dessert served at your table in the same room." }
+  ],
+  "formTitle": "Reserve Your Seat at the Table",
+  "formLabel": "Your Dinner Selection",
+  "formIntro": "Dinner is included — select your salad, entrée, and dessert below.",
+  "footer": "Retirement Everest · Private Screening Series · McMenamins Grand Lodge · Forest Grove, OR",
+  "menus": {
+    "salads": [
+      { "id": "sal1", "name": "Northwest Spinach Salad", "desc": "Goat cheese, hazelnuts & marionberry vinaigrette", "veg": true },
+      { "id": "sal2", "name": "Brewer's Salad", "desc": "Blue cheese crumbles, marinated red onion, hazelnuts, Ruby-raspberry vinaigrette", "veg": true }
+    ],
+    "entrees": [
+      { "id": "e1", "name": "Lemon & Herb-Roasted Chicken Breast", "desc": "Yukon Gold mashed potatoes, wild rice pilaf & vegetables", "price": 68 },
+      { "id": "e2", "name": "Poached Salmon", "desc": "Pinot gris-shallot beurre blanc, wild rice pilaf & garlic green beans", "price": 79 }
+    ],
+    "desserts": [
+      { "id": "des1", "name": "Ruby's Raspberry Cheesecake", "desc": "Vanilla cheesecake, raspberry swirl, graham cracker crust" }
+    ]
+  },
+  "costSim": {
+    "note": "From Grand Lodge banquet packages (June 2026). Confirm F&B minimum with sales.",
+    "scenarios": [
+      { "guests": 30, "median": 2160, "p10": 2010, "p90": 2310, "perGuest": 72 },
+      { "guests": 40, "median": 2880, "p10": 2680, "p90": 3080, "perGuest": 72 }
+    ]
+  }
+}

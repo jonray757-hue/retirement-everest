@@ -228,6 +228,153 @@ window.RETIREMENT_EVEREST = {
           { guests: 45, median: 1971, p10: 1869, p90: 2076, perGuest: 44 }
         ]
       }
+    },
+    'grand-lodge': {
+      id: 'grand-lodge',
+      slug: 'grand-lodge',
+      type: 'screening',
+      theme: 'forest',
+      name: 'McMenamins Grand Lodge',
+      shortName: 'Grand Lodge',
+      city: 'Forest Grove, OR',
+      venue: 'Alice Meek Inkley Room',
+      storageKey: 'grandlodge_orders_v1',
+      heroSub: 'A private film screening & plated dinner in one room at McMenamins Grand Lodge.',
+      cta: 'Reserve Your Seat',
+      meta: [
+        { strong: 'Grand Lodge', label: 'Forest Grove, OR' },
+        { strong: 'Complimentary', label: 'Dinner Included' },
+        { strong: 'Limited', label: 'Seats Available' }
+      ],
+      aboutLabel: 'About the Evening',
+      aboutHeadline: "This is not a seminar.<br>It's a private premiere.",
+      about: [
+        "You've been personally invited to an exclusive screening of <strong>Retirement Everest</strong> — a powerful documentary that explores the financial risks most Americans face in retirement and the strategies that can make the difference between struggle and security.",
+        "The evening unfolds in the Alice Meek Inkley Room — film first, then a plated dinner in the same space after a quick room reset. No relocating, no separate bookings. Just one private room for the whole night."
+      ],
+      expect: [
+        { title: 'Arrive & Be Welcomed', desc: "Doors open 15 minutes before showtime in the Alice Meek Inkley Room. Settle in — you'll stay in this one space all evening." },
+        { title: 'Watch the Film', desc: 'Retirement Everest screens with theater seating in the Inkley Room — real stories, real clarity, in a historic Masonic lodge setting.' },
+        { title: 'A Plated Dinner', desc: 'After the film, our team resets the room and serves your pre-selected salad, entrée, and dessert at your table — no moving to another venue.' }
+      ],
+      formTitle: 'Reserve Your Seat at the Table',
+      formLabel: 'Your Dinner Selection',
+      formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your salad, entrée, and dessert below so we can have it ready for you.',
+      footer: 'Retirement Everest · Private Screening Series · McMenamins Grand Lodge · Forest Grove, OR',
+      menus: {
+        salads: [
+          { id: 'sal1', name: 'Northwest Spinach Salad', desc: 'Goat cheese, hazelnuts & marionberry vinaigrette', veg: true },
+          { id: 'sal2', name: "Brewer's Salad", desc: 'Blue cheese crumbles, marinated red onion, hazelnuts, Ruby-raspberry vinaigrette', veg: true },
+          { id: 'sal3', name: 'Pub Green', desc: 'Mixed greens, grape tomatoes, cucumber, marinated red onion, croutons, Parmesan, peppercorn ranch', veg: true },
+          { id: 'sal4', name: 'Aztec Salad', desc: 'Romaine, corn & black bean salsa, avocado, tortilla strips, cheddar, tomato, jalapeño, cilantro, onion, chipotle dressing', veg: true }
+        ],
+        entrees: [
+          { id: 'e1', name: 'Spinach & Cheese Cannelloni', desc: 'Rosemary Alfredo & Spar Vodka tomato sauces', price: 68, veg: true },
+          { id: 'e2', name: 'Wild Mushroom Ravioli', desc: 'Roasted garlic-basil cream sauce', price: 68, veg: true },
+          { id: 'e3', name: 'Lemon & Herb-Roasted Chicken Breast', desc: "Yukon Gold mashed potatoes, wild rice pilaf & chef's vegetables", price: 68 },
+          { id: 'e4', name: 'Northern Star Baked Cod', desc: 'White Rabbit-herb cream sauce, herbed bread crumbs, garlic broccolini', price: 68 },
+          { id: 'e5', name: 'Herb-Roasted Turkey Breast', desc: 'Old fashioned turkey gravy, Fireside cranberry relish & sides', price: 64 },
+          { id: 'e6', name: 'Honey-Glazed Baked Ham', desc: 'Hogshead-Whiskey mustard sauce & sides', price: 68 },
+          { id: 'e7', name: 'Pepper-Crusted Round of Beef', desc: 'Black Rabbit Red jus, horseradish sauce & sides', price: 70 },
+          { id: 'e8', name: 'Poached Salmon', desc: 'Pinot gris-shallot beurre blanc, wild rice pilaf & garlic green beans', price: 79 },
+          { id: 'e9', name: 'Tournedos of Beef', desc: 'Wild mushroom demi-glace, herb-roasted fingerlings & wild rice pilaf', price: 88 }
+        ],
+        desserts: [
+          { id: 'des1', name: "Phil's Salted Caramel Tart", desc: 'Dark chocolate, Oregon filberts' },
+          { id: 'des2', name: "Ruby's Raspberry Cheesecake", desc: 'Vanilla cheesecake, raspberry swirl, graham cracker crust' },
+          { id: 'des3', name: 'Blueberries & Cream Basque Cheesecake', desc: 'Deeply caramelized center, blueberry custard sauce, whipped cream & fresh blueberries' },
+          { id: 'des4', name: 'Hopscotch Peanut Butter Pie', desc: 'Peanut butter mousse, chocolate cookie crust, dark chocolate ganache, butterscotch & chocolate sauces' },
+          { id: 'des5', name: 'Black & Tan Brownie Sundae', desc: 'Caram-ale & chocolate sauces, vanilla bean ice cream, whipped cream & Amarena cherry' },
+          { id: 'des6', name: 'Cast Iron Chocolate Chip Cookie', desc: 'Baked to order — add vanilla bean ice cream on request' }
+        ]
+      },
+      costSim: {
+        note: 'Oregon has no sales tax. Menu pricing from Grand Lodge banquet packages (Hearthstone $68, Cascadia $88 pp). Figures include ~20% F&B service charge. F&B minimum varies by date — confirm with sales coordinator (503.992.9530).',
+        scenarios: [
+          { guests: 30, median: 2160, p10: 2010, p90: 2310, perGuest: 72 },
+          { guests: 40, median: 2880, p10: 2680, p90: 3080, perGuest: 72 },
+          { guests: 50, median: 3600, p10: 3350, p90: 3850, perGuest: 72 }
+        ]
+      }
+    },
+    'kennedy-school': {
+      id: 'kennedy-school',
+      slug: 'kennedy-school',
+      type: 'preorder',
+      theme: 'gold',
+      name: 'McMenamins Kennedy School',
+      shortName: 'Kennedy School',
+      city: 'Portland, OR',
+      venue: 'Martha Jordan Room',
+      storageKey: 'kennedyschool_orders_v1',
+      heroSub: 'A private film screening and complimentary dinner at McMenamins Kennedy School.',
+      cta: 'Select Your Meal',
+      meta: [
+        { strong: 'Kennedy School', label: 'Portland, OR' },
+        { strong: 'Complimentary', label: 'Dinner Included' },
+        { strong: 'Limited', label: 'Seats Available' }
+      ],
+      aboutLabel: 'About the Evening',
+      aboutHeadline: "This is not a seminar.<br>It's a private premiere.",
+      about: [
+        "You've been personally invited to an exclusive screening of <strong>Retirement Everest</strong> — a powerful documentary that explores the financial risks most Americans face in retirement and the strategies that can make the difference between struggle and security.",
+        "The evening takes place in the Martha Jordan Room — a historic classroom turned private event space. Watch the film, then enjoy Courtyard Restaurant fare at your table in the same room. No moving between buildings."
+      ],
+      expect: [
+        { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime in the Martha Jordan Room. Our team guides you to your seat in this single, private space.' },
+        { title: 'Watch the Film', desc: 'Retirement Everest delivers the kind of clarity most people never get from a financial advisor — told through real stories in a beautifully restored school setting.' },
+        { title: 'Dinner & Conversation', desc: 'After the screening, enjoy a full dinner on us. Your pre-selected meal from the Courtyard Restaurant menu is served at your table — no lines, no waiting.' }
+      ],
+      formTitle: 'Reserve Your Seat at the Table',
+      formLabel: 'Your Meal Selection',
+      formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your meal below so we can have it ready for you.',
+      formNote: '🍽 Your arrival bite is waiting at the table when you sit down. Dinner is served <strong>after the film</strong> — your main and drink are prepared fresh and brought out following the screening.',
+      footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Portland, OR',
+      menus: {
+        starters: [
+          { id: 's1', name: 'Hummus', desc: 'Marinated olives, veggies, feta, pita bread', price: 16.50, veg: true, cat: 'Snack' },
+          { id: 's2', name: 'Soft Pretzel Sticks', desc: 'Served with cheese & ale fondue', price: 15.00, veg: true, cat: 'Snack' },
+          { id: 's3', name: 'Cheeseburger Slider Trio', desc: 'Most Awesome French Onion seasoning, American cheese, Mystic 18 sauce, Hawaiian roll', price: 15.00, cat: 'Snack' },
+          { id: 's4', name: 'Cajun Tots', desc: 'Served with peppercorn ranch', price: 12.25, veg: true, cat: 'Snack' },
+          { id: 's5', name: 'McMenamins Fries', desc: 'Served with Mystic 18 sauce', price: 12.25, vegan: true, cat: 'Snack' },
+          { id: 's6', name: 'Sesame Seared Ahi', desc: 'Ginger-wasabi mayo, spicy-sweet slaw, scallions', price: 18.75, cat: 'Snack' },
+          { id: 's7', name: 'Cellarmasters Steak & Mushroom Bites', desc: 'Beef ribeye, button mushrooms, Black Rabbit Red demi-glace, horseradish sour cream, garlic bread', price: 23.00, cat: 'Snack' },
+          { id: 's8', name: 'Pub Green Salad', desc: 'Mixed greens, grape tomatoes, cucumber, marinated red onion, croutons, Parmesan, choice of dressing', price: 14.25, veg: true, cat: 'Salad' },
+          { id: 's9', name: 'Aztec Salad', desc: 'Romaine, corn & black bean salsa, avocado, tortilla strips, cheddar, tomato, jalapeño, cilantro, onion, chipotle dressing', price: 18.25, veg: true, cat: 'Salad' },
+          { id: 's10', name: 'Six Arms Goddess Salad', desc: 'Romaine, cucumber, tomato, bell peppers, marinated onion, pita chips, Goddess dressing', price: 16.25, vegan: true, cat: 'Salad' }
+        ],
+        mains: [
+          { id: 'm1', name: 'Jamaican Rice Bowl', desc: 'Coconut curry, squash, cabbage, red bell pepper, carrot, celery, onion, black beans, avocado, mango chutney, cilantro', price: 19.75, vegan: true },
+          { id: 'm2', name: 'Hogshead Crispy Chicken', desc: 'Fried chicken, Hogshead honey mustard mayo, lettuce & pickle chips on a bun', price: 19.75 },
+          { id: 'm3', name: 'El Diablo Chicken Sandwich', desc: 'Spiced chicken, pepper jack, avocado, Dark Star mayo, lettuce, tomato & red onion', price: 23.25 },
+          { id: 'm4', name: 'Ale-Battered Fish & Chips', desc: 'Wild Alaskan cod, fries, tartar sauce, buttermilk coleslaw', price: 25.00 },
+          { id: 'm5', name: 'Bacon Cheeseburger', desc: '6-oz beef patty, lettuce, tomato, red onion, pickles, secret sauce', price: 21.50 },
+          { id: 'm6', name: "JR's Jumbo Deluxe Burger", desc: 'Bacon, cheddar & fried egg — served with fries or tots', price: 22.50 },
+          { id: 'm7', name: 'MYSTIC 18 Beyond Burger', desc: 'Beyond patty, Mystic 18 sauce, creamy Chao slice — fries or tots', price: 22.00, vegan: true },
+          { id: 'm8', name: 'Hammerhead Garden Burger', desc: 'Housemade garden patty, lettuce, tomato, onion, pickles', price: 19.00, veg: true },
+          { id: 'm9', name: 'The Grand Reuben', desc: 'Corned beef, Swiss, kümmel sauerkraut, Mystic 18 sauce, grilled marbled rye', price: 25.50 },
+          { id: 'm10', name: 'Primavera Pesto Pasta', desc: 'Broccolini, arugula, grape tomatoes, basil pesto, White Rabbit wine, Parmesan, linguini, garlic bread', price: 21.25, veg: true, special: true },
+          { id: 'm11', name: 'Grilled Lemon-Pepper Salmon', desc: 'White Rabbit-herb butter, Yukon Gold mashed potatoes, grilled asparagus', price: 27.00, special: true },
+          { id: 'm12', name: 'Terminator Steak & Frites', desc: 'New York steak, Terminator steak & horseradish sauces, fries', price: 35.50, special: true }
+        ],
+        drinks: [
+          { id: 'd1', name: 'McMenamins Beer (Pint)', desc: 'House-brewed craft beer on site', price: 6.50 },
+          { id: 'd2', name: 'Edgefield Hard Cider (Pint)', desc: 'McMenamins Edgefield cider', price: 6.50 },
+          { id: 'd3', name: 'Edgefield Wine (Glass)', desc: "Red or white — ask staff for the evening's pour", price: 8.00 },
+          { id: 'd4', name: 'Well Cocktail', desc: 'Bourbon, gin, vodka, tequila, rum, scotch, or brandy', price: 8.00 },
+          { id: 'd5', name: 'Featured Illustrated Cocktail', desc: "Tonight's special hand-crafted cocktail", price: 12.00 },
+          { id: 'd6', name: 'Brewery Flight', desc: 'Six samples of McMenamins house-brewed beers', price: 13.50 },
+          { id: 'd7', name: 'Soft Drink / Non-Alcoholic', desc: 'Soda, sparkling water, or juice', price: 4.25 }
+        ]
+      },
+      costSim: {
+        note: 'Oregon has no sales tax. Menu pricing from Courtyard Restaurant (Spring \'26). Figures include subtotal + 20% gratuity. Arrival bites modeled at ~33% skip rate. F&B minimum applies — confirm with sales coordinator (503.288.3286).',
+        scenarios: [
+          { guests: 30, median: 1313, p10: 1234, p90: 1395, perGuest: 44 },
+          { guests: 37, median: 1621, p10: 1529, p90: 1713, perGuest: 44 },
+          { guests: 40, median: 1752, p10: 1652, p90: 1856, perGuest: 44 }
+        ]
+      }
     }
   }
 };
