@@ -24,15 +24,27 @@
         <button type="button" class="host-tab active" data-view="overview">Overview</button>
         <button type="button" class="host-tab" data-view="location">Location Report</button>
         <button type="button" class="host-tab" data-view="planner">Event Planner</button>
+        <button type="button" class="host-tab" data-view="outreach">Outreach</button>
       </nav>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <div id="loc-toolbar" style="display:none;gap:8px;align-items:center">
         <select class="loc-select" id="locSelect"></select>
+        <button class="btn-sm btn-accent" type="button" onclick="openInviteModal()">Send guest link</button>
         <button class="btn-sm" onclick="window.print()">Print</button>
-        <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
+        <div class="export-menu">
+          <button class="btn-sm" type="button" onclick="toggleExportMenu(event)">Export ▾</button>
+          <div class="export-dropdown" id="exportDropdown">
+            <button type="button" onclick="exportData('orders-csv')">Orders → CSV download</button>
+            <button type="button" onclick="exportData('orders-tsv')">Orders → copy for Sheets</button>
+            <button type="button" onclick="exportData('guest-list')">Guest list → CSV</button>
+            <button type="button" onclick="exportData('cost-summary')">Cost summary → CSV</button>
+            <button type="button" onclick="exportData('sheets-push')">Push orders to Google Sheet</button>
+          </div>
+        </div>
         <button class="btn-sm" onclick="clearAll()">Clear</button>
       </div>
+      <a class="btn-sm" href="marketing-kit.html" style="text-decoration:none">Marketing kit</a>
       <a class="btn-sm" href="index.html" style="text-decoration:none">← Hub</a>
       <a class="btn-sm" href="cost-simulation.html" style="text-decoration:none">Cost planning</a>
     </div>
@@ -43,10 +55,33 @@
       <div id="report-body"></div>
     </div>
     <div id="view-planner" class="host-view"></div>
+    <div id="view-outreach" class="host-view"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal-box">
+    <h2>Send guest link</h2>
+    <p class="modal-sub" id="inviteModalSub">Share the RSVP page with a prospect.</p>
+    <div class="modal-field"><span>First name</span><input type="text" id="invFirst" autocomplete="given-name"></div>
+    <div class="modal-field"><span>Last name</span><input type="text" id="invLast" autocomplete="family-name"></div>
+    <div class="modal-field"><span>Email</span><input type="email" id="invEmail" autocomplete="email" placeholder="name@email.com"></div>
+    <div class="modal-field"><span>Phone</span><input type="tel" id="invPhone" autocomplete="tel" placeholder="(503) 555-0100"></div>
+    <div class="modal-field"><span>Message preview</span><textarea id="invMessage" rows="6" readonly></textarea></div>
+    <div class="modal-actions">
+      <button type="button" class="lock-btn btn-accent" onclick="sendInviteEmail()">Open email</button>
+      <button type="button" class="lock-btn" onclick="sendInviteSMS()">Open SMS</button>
+      <button type="button" class="lock-btn" onclick="copyInvite()">Copy message</button>
+      <button type="button" class="lock-btn" onclick="queueInvite()">Save to queue</button>
+    </div>
+    <p class="integration-note" style="margin-top:16px">GHL webhook fires when you save to queue (if configured in Outreach → Integrations).</p>
+    <button type="button" class="btn-sm" style="margin-top:12px" onclick="closeInviteModal()">Close</button>
   </div>
 </div>
 
 <script src="locations.js"></script>
+<script src="checklist-defaults.js"></script>
+<script src="integrations.js"></script>
 <script src="shared.js"></script>
 <script src="app-dashboard.js"></script>
 <script src="app-host.js"></script>

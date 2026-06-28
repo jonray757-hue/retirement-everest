@@ -20,7 +20,7 @@ function initHost() {
     `<option value="${l.slug}">${l.shortName} — ${typeLabels[l.type] || 'Event'}</option>`
   ).join('');
   const p = new URLSearchParams(location.search);
-  const startView = p.get('view') || 'overview';
+  const startView = ['overview', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
   currentSlug = p.get('location') || 'edgefield';
   sel.value = currentSlug;
   Object.values(RETIREMENT_EVEREST.locations).forEach(l => {
@@ -186,6 +186,21 @@ function renderRetreatReport(orders, loc) {
     </div>`;
 }
 
+function renderShareBar(loc) {
+  const link = absoluteGuestLink(loc.slug);
+  return `<div class="card-box" style="margin-bottom:20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+    <div>
+      <h3 style="margin-bottom:6px">Guest RSVP page</h3>
+      <code style="font-size:0.78rem;word-break:break-all">${link}</code>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn-sm btn-accent" onclick="openInviteModal('${loc.slug}')">Send guest link</button>
+      <a class="btn-sm" href="${link}" target="_blank" style="text-decoration:none">Open page ↗</a>
+      <button type="button" class="btn-sm" data-copy-link="${esc(link)}">Copy link</button>
+    </div>
+  </div>`;
+}
+
 function renderReport() {
   const loc = getLoc();
   document.body.className = 'theme-hub';
@@ -194,13 +209,17 @@ function renderReport() {
   }
   const orders = getOrders();
   const body = document.getElementById('report-body');
+  const share = renderShareBar(loc);
   if (!orders.length) {
-    body.innerHTML = `<div class="empty">No reservations yet for ${loc.shortName}. Share: <code>guest.html?location=${loc.slug}</code></div>`;
-    return;
+    body.innerHTML = `${share}<div class="empty">No reservations yet for ${loc.shortName}. Use <strong>Send guest link</strong> to invite prospects.</div>`;
+  } else {
+    body.innerHTML = share + (loc.type === 'screening' ? renderScreeningReport(orders, loc)
+      : loc.type === 'preorder' ? renderPreorderReport(orders, loc)
+      : renderRetreatReport(orders, loc));
   }
-  body.innerHTML = loc.type === 'screening' ? renderScreeningReport(orders, loc)
-    : loc.type === 'preorder' ? renderPreorderReport(orders, loc)
-    : renderRetreatReport(orders, loc);
+  body.querySelector('[data-copy-link]')?.addEventListener('click', e => {
+    copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
+  });
 }
 
 function adjustRate() {
@@ -220,32 +239,209 @@ function clearAll() {
   renderReport();
 }
 
-function exportCSV() {
+let inviteModalSlug = null;
+
+function toggleExportMenu(e) {
+  e.stopPropagation();
+  document.getElementById('exportDropdown').classList.toggle('open');
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('exportDropdown')?.classList.remove('open');
+});
+
+function exportData(type) {
+  document.getElementById('exportDropdown')?.classList.remove('open');
   const loc = getLoc();
   const orders = getOrders();
-  if (!orders.length) return alert('No data to export.');
-  let rows;
-  if (loc.type === 'screening') {
-    const hasDrinks = !!loc.menus.drinks?.length;
-    rows = hasDrinks
-      ? [['#','Name','Salad','Entrée','Dessert','Drink','Drink Price','Entrée Price','Total','Time'],
-        ...orders.map((o,i) => [i+1,o.name,o.salad,o.entree,o.dessert,o.drink||'—',o.drinkPrice||0,o.entreePrice||'',
-          (o.entreePrice||0)+(o.drinkPrice||0),new Date(o.ts).toLocaleString()])]
-      : [['#','Name','Salad','Entrée','Dessert','Price','Time'], ...orders.map((o,i) => [i+1,o.name,o.salad,o.entree,o.dessert,o.entreePrice||'',new Date(o.ts).toLocaleString()])];
-  } else if (loc.type === 'preorder') {
-    rows = [['#','Name','Arrival Bite','Bite Price','Main','Main Price','Drink','Drink Price','Subtotal','Time'],
-      ...orders.map((o,i) => [i+1,o.name,o.starter||'—',o.starterPrice||0,o.main,o.mainPrice||0,o.drink,o.drinkPrice||0,
-        (o.starterPrice||0)+(o.mainPrice||0)+(o.drinkPrice||0),new Date(o.ts).toLocaleString()])];
-  } else {
-    rows = [['#','Name','Room','Party','Person','Dinner','Starter','Drink','Price','Time']];
-    orders.forEach((o,i) => {
-      const people = o.people || [{ dinner: o.dinner, dinnerPrice: o.dinnerPrice }];
-      people.forEach((p,pi) => rows.push([i+1,o.name,o.room,o.partySize||1,pi+1,p.dinner,p.starter||'',p.drink||'',p.dinnerPrice||'',new Date(o.ts).toLocaleString()]));
-    });
+  if (type !== 'cost-summary' && !orders.length) return alert('No orders to export yet.');
+
+  const rows = type === 'guest-list' ? buildExportRows(loc, orders, 'guest-list')
+    : type === 'cost-summary' ? buildExportRows(loc, orders, 'cost-summary')
+    : buildExportRows(loc, orders, 'orders');
+
+  if (type === 'orders-tsv') {
+    copyText(rowsToTSV(rows)).then(() => alert('Copied! Paste into Google Sheets with Cmd/Ctrl+V.'));
+    return;
   }
-  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `${loc.slug}_reservations.csv`;
-  a.click();
+  if (type === 'sheets-push') {
+    pushToGoogleSheets(rows, { location: loc.shortName, exportType: 'orders', sheetName: loc.shortName })
+      .then(() => alert(`Sent to Google Sheet. Check tab "${loc.shortName}" (may take a few seconds).`))
+      .catch(err => alert(err.message));
+    return;
+  }
+  const csv = rowsToCSV(rows);
+  const suffix = type === 'guest-list' ? 'guests' : type === 'cost-summary' ? 'cost-summary' : 'orders';
+  downloadText(`${loc.slug}_${suffix}.csv`, csv, 'text/csv;charset=utf-8');
+}
+
+function exportCSV() { exportData('orders-csv'); }
+
+function openInviteModal(slug) {
+  inviteModalSlug = slug || currentSlug;
+  const loc = RETIREMENT_EVEREST.locations[inviteModalSlug];
+  const ev = getLocationEvent(inviteModalSlug);
+  const link = absoluteGuestLink(inviteModalSlug);
+  document.getElementById('inviteModalSub').textContent = `${loc.shortName} · ${loc.city}`;
+  document.getElementById('invFirst').value = '';
+  document.getElementById('invLast').value = '';
+  document.getElementById('invEmail').value = '';
+  document.getElementById('invPhone').value = '';
+  document.getElementById('invMessage').value = buildInviteMessage(loc, link, ev, '');
+  document.getElementById('inviteModal').classList.add('open');
+  ['invFirst', 'invLast'].forEach(id => {
+    document.getElementById(id).oninput = updateInvitePreview;
+  });
+}
+
+function closeInviteModal() {
+  document.getElementById('inviteModal').classList.remove('open');
+}
+
+function updateInvitePreview() {
+  const loc = RETIREMENT_EVEREST.locations[inviteModalSlug];
+  const first = document.getElementById('invFirst').value.trim();
+  const last = document.getElementById('invLast').value.trim();
+  const name = [first, last].filter(Boolean).join(' ');
+  document.getElementById('invMessage').value = buildInviteMessage(loc, absoluteGuestLink(inviteModalSlug), getLocationEvent(inviteModalSlug), name);
+}
+
+function buildInviteRecord() {
+  const loc = RETIREMENT_EVEREST.locations[inviteModalSlug];
+  const first = document.getElementById('invFirst').value.trim();
+  const last = document.getElementById('invLast').value.trim();
+  const email = document.getElementById('invEmail').value.trim();
+  const phone = document.getElementById('invPhone').value.trim();
+  const message = document.getElementById('invMessage').value;
+  const link = absoluteGuestLink(inviteModalSlug);
+  return {
+    id: Date.now(),
+    firstName: first,
+    lastName: last,
+    email,
+    phone,
+    locationSlug: inviteModalSlug,
+    locationName: loc.shortName,
+    guestLink: link,
+    message,
+    ts: new Date().toISOString(),
+    status: 'queued'
+  };
+}
+
+function sendInviteEmail() {
+  const inv = buildInviteRecord();
+  if (!inv.email) return alert('Enter an email address.');
+  const subject = encodeURIComponent(`You're invited — Retirement Everest at ${inv.locationName}`);
+  const body = encodeURIComponent(inv.message);
+  window.location.href = `mailto:${inv.email}?subject=${subject}&body=${body}`;
+  saveInvite({ ...inv, status: 'email-opened' });
+}
+
+function sendInviteSMS() {
+  const inv = buildInviteRecord();
+  if (!inv.phone) return alert('Enter a phone number.');
+  const digits = inv.phone.replace(/\D/g, '');
+  const smsBody = encodeURIComponent(inv.message);
+  window.location.href = `sms:${digits}?&body=${smsBody}`;
+  saveInvite({ ...inv, status: 'sms-opened' });
+}
+
+function copyInvite() {
+  const inv = buildInviteRecord();
+  copyText(inv.message).then(() => alert('Invite message copied.'));
+  saveInvite({ ...inv, status: 'copied' });
+}
+
+async function queueInvite() {
+  const inv = buildInviteRecord();
+  if (!inv.firstName && !inv.email && !inv.phone) return alert('Enter at least a name, email, or phone.');
+  saveInvite(inv);
+  try {
+    await pushToGHL(inv);
+    alert('Saved to invite queue and sent to GHL webhook.');
+  } catch {
+    alert('Saved to invite queue. Configure GHL webhook in Outreach → Integrations to auto-sync.');
+  }
+  if (document.getElementById('view-outreach').classList.contains('active')) renderOutreach();
+  closeInviteModal();
+}
+
+function renderOutreach() {
+  const cfg = getIntegrations();
+  const queue = getInviteQueue();
+  const locs = getAllLocations();
+
+  const locCards = locs.map(loc => {
+    const link = absoluteGuestLink(loc.slug);
+    const ev = getLocationEvent(loc.slug);
+    return `<div class="card-box">
+      <h3>${esc(loc.shortName)}</h3>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">${esc(loc.name)} · ${esc(loc.city)}</p>
+      <div class="status-row"><span>Event date</span><strong>${ev?.eventDate ? formatEventDate(ev.eventDate) : 'Not set'}</strong></div>
+      <div class="status-row"><span>Orders</span><strong>${getOrdersForLocation(loc).length}</strong></div>
+      <code style="display:block;font-size:0.7rem;margin:12px 0;word-break:break-all">${esc(link)}</code>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button type="button" class="btn-sm btn-accent" onclick="openInviteModal('${loc.slug}')">Send guest link</button>
+        <a class="btn-sm" href="marketing-kit.html?location=${loc.slug}" style="text-decoration:none">Marketing creatives</a>
+        <a class="btn-sm" href="${link}" target="_blank" style="text-decoration:none">Open RSVP ↗</a>
+      </div>
+    </div>`;
+  }).join('');
+
+  const queueHTML = queue.length
+    ? queue.slice(0, 30).map(inv => `<div class="invite-row">
+        <strong>${esc(inv.firstName || '')} ${esc(inv.lastName || '')}</strong> · ${esc(inv.locationName)}
+        <div style="font-size:0.75rem;color:var(--muted)">${esc(inv.email || '—')} · ${esc(inv.phone || '—')} · ${inv.status} · ${new Date(inv.ts).toLocaleString()}</div>
+      </div>`).join('')
+    : '<p class="empty" style="padding:16px">No invites queued yet.</p>';
+
+  document.getElementById('view-outreach').innerHTML = `
+    <div class="two-col" style="margin-bottom:24px">
+      <div class="card-box">
+        <h3>Integrations</h3>
+        <p class="integration-note">Connect GoHighLevel and Google Sheets when ready. Until then, use email/SMS buttons and copy-paste export.</p>
+        <div class="planner-form" style="margin-top:16px">
+          <label class="planner-field full"><span>GHL webhook URL</span>
+            <input type="url" id="intGhl" value="${esc(cfg.ghlWebhookUrl)}" placeholder="https://services.leadconnectorhq.com/hooks/..."></label>
+          <label class="planner-field full"><span>Google Sheets webhook URL</span>
+            <input type="url" id="intSheets" value="${esc(cfg.googleSheetsWebhookUrl)}" placeholder="https://script.google.com/macros/s/.../exec"></label>
+          <label class="planner-field"><span>Google Sheet ID</span>
+            <input type="text" id="intSheetId" value="${esc(cfg.googleSheetId)}" placeholder="From sheet URL"></label>
+          <label class="planner-field"><span>Default tab name</span>
+            <input type="text" id="intSheetTab" value="${esc(cfg.defaultSheetTab)}"></label>
+          <label class="planner-field"><span>Your name (invites)</span>
+            <input type="text" id="intOrgName" value="${esc(cfg.organizerName)}"></label>
+          <label class="planner-field"><span>Your email</span>
+            <input type="email" id="intOrgEmail" value="${esc(cfg.organizerEmail)}"></label>
+        </div>
+        <div class="planner-actions">
+          <button type="button" class="lock-btn" id="saveIntegrationsBtn" style="max-width:none;width:auto;padding:12px 24px">Save integrations</button>
+          <a class="btn-sm" href="docs/INTEGRATIONS.md" target="_blank" style="text-decoration:none">Setup guide ↗</a>
+        </div>
+      </div>
+      <div class="card-box">
+        <h3>Invite queue <span style="color:var(--muted);font-weight:400">(${queue.length})</span></h3>
+        <div class="invite-queue">${queueHTML}</div>
+      </div>
+    </div>
+    <h3 class="dash-section-title">Send links by location</h3>
+    <div class="dash-loc-grid">${locCards}</div>
+    <div class="card-box" style="margin-top:8px">
+      <h3>Marketing kit</h3>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px">Flyers, postcard mailers, social ads, and email banners — all using your Retirement Everest poster.</p>
+      <a class="btn-sm btn-accent" href="marketing-kit.html" style="text-decoration:none;display:inline-block">Open marketing kit →</a>
+    </div>`;
+
+  document.getElementById('saveIntegrationsBtn').addEventListener('click', () => {
+    saveIntegrations({
+      ghlWebhookUrl: document.getElementById('intGhl').value.trim(),
+      googleSheetsWebhookUrl: document.getElementById('intSheets').value.trim(),
+      googleSheetId: document.getElementById('intSheetId').value.trim(),
+      defaultSheetTab: document.getElementById('intSheetTab').value.trim() || 'Orders',
+      organizerName: document.getElementById('intOrgName').value.trim(),
+      organizerEmail: document.getElementById('intOrgEmail').value.trim()
+    });
+    alert('Integrations saved.');
+  });
 }

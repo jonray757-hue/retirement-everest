@@ -28,8 +28,13 @@ python3 -m http.server 8080
 | Tab | Purpose |
 |-----|---------|
 | **Overview** | Series-wide totals, all locations, upcoming events |
-| **Location Report** | Per-venue orders, rankings, CSV export (dropdown) |
+| **Location Report** | Per-venue orders, rankings, export menu |
 | **Event Planner** | Set event date → auto-checklist with due dates |
+| **Outreach** | Send guest links, invite queue, GHL + Sheets webhooks |
+
+**Marketing kit:** `marketing-kit.html` — flyers, mailers, social ads per location.
+
+**Integrations:** See `docs/INTEGRATIONS.md` for Google Sheets (jonray757@gmail.com) and GHL setup.
 
 Event dates and checklists save to browser localStorage (`re_events_v1`).
 

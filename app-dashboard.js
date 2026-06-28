@@ -3,12 +3,15 @@ let plannerSlug = null;
 
 async function loadChecklistDefaults() {
   if (checklistDefaults) return checklistDefaults;
+  if (window.CHECKLIST_DEFAULTS) {
+    checklistDefaults = window.CHECKLIST_DEFAULTS;
+    return checklistDefaults;
+  }
   try {
     const res = await fetch('data/checklist-defaults.json');
-    checklistDefaults = await res.json();
-  } catch {
-    checklistDefaults = { shared: [], screening: [], preorder: [], retreat: [] };
-  }
+    if (res.ok) checklistDefaults = await res.json();
+  } catch { /* file:// or offline — fall through */ }
+  checklistDefaults = checklistDefaults || { shared: [], screening: [], preorder: [], retreat: [] };
   return checklistDefaults;
 }
 
@@ -68,6 +71,10 @@ function renderOverview() {
         </div>
         <div class="dash-loc-date">${esc(dateLine)}</div>
         ${ev?.checklist?.length ? `<div class="dash-progress"><div class="dash-progress-bar" style="width:${progress}%"></div></div><div class="dash-progress-label">${progress}% checklist</div>` : ''}
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap" onclick="event.preventDefault();event.stopPropagation()">
+          <button type="button" class="btn-sm btn-accent" data-invite="${loc.slug}">Send link</button>
+          <a class="btn-sm" href="marketing-kit.html?location=${loc.slug}" style="text-decoration:none">Marketing</a>
+        </div>
       </a>`;
   }).join('');
 
@@ -107,6 +114,7 @@ function renderOverview() {
 
   document.querySelectorAll('[data-goto="location"]').forEach(el => {
     el.addEventListener('click', e => {
+      if (e.target.closest('[data-invite]')) return;
       e.preventDefault();
       switchHostView('location');
       document.getElementById('locSelect').value = el.dataset.slug;
@@ -114,15 +122,31 @@ function renderOverview() {
       renderReport();
     });
   });
+  document.querySelectorAll('[data-invite]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      openInviteModal(btn.dataset.invite);
+    });
+  });
 }
 
-function renderPlanner() {
+async function renderPlanner() {
+  await loadChecklistDefaults();
   const locs = getAllLocations();
   if (!plannerSlug || !RETIREMENT_EVEREST.locations[plannerSlug]) {
     plannerSlug = locs[0]?.slug;
   }
   const loc = RETIREMENT_EVEREST.locations[plannerSlug];
-  const ev = getLocationEvent(plannerSlug) || {};
+  let ev = getLocationEvent(plannerSlug) || {};
+
+  // Repair: date saved but checklist empty (e.g. prior file:// fetch failure)
+  if (ev.eventDate && !ev.checklist?.length) {
+    const rebuilt = buildChecklist(loc, ev.eventDate);
+    if (rebuilt.length) {
+      ev = setLocationEvent(plannerSlug, { ...ev, checklist: rebuilt });
+    }
+  }
 
   const checklistHTML = (ev.checklist || []).map((item, idx) => {
     const overdue = !item.done && item.dueDate < new Date().toISOString().slice(0, 10);
@@ -140,7 +164,8 @@ function renderPlanner() {
       <select class="loc-select" id="plannerSelect">
         ${locs.map(l => `<option value="${l.slug}"${l.slug === plannerSlug ? ' selected' : ''}>${esc(l.shortName)}</option>`).join('')}
       </select>
-      <a class="btn-sm" href="${guestLink(plannerSlug)}" target="_blank">Open guest page ↗</a>
+          <button type="button" class="btn-sm btn-accent" onclick="openInviteModal('${plannerSlug}')">Send guest link</button>
+          <a class="btn-sm" href="${guestLink(plannerSlug)}" target="_blank">Open guest page ↗</a>
     </div>
     <div class="two-col" style="margin-bottom:24px">
       <div class="card-box">
@@ -187,9 +212,12 @@ function renderPlanner() {
     if (!date) { alert('Pick an event date first.'); return; }
     await loadChecklistDefaults();
     const existing = getLocationEvent(plannerSlug);
-    const checklist = existing?.eventDate === date && existing?.checklist?.length
-      ? existing.checklist
-      : buildChecklist(loc, date);
+    const keepExisting = existing?.eventDate === date && existing?.checklist?.length;
+    const checklist = keepExisting ? existing.checklist : buildChecklist(loc, date);
+    if (!checklist.length) {
+      alert('Checklist template failed to load. Refresh the page and try again.');
+      return;
+    }
     setLocationEvent(plannerSlug, {
       eventDate: date,
       doorsTime: document.getElementById('eventDoors').value.trim(),
@@ -232,9 +260,11 @@ function switchHostView(view) {
   document.getElementById('hostTitle').textContent =
     view === 'overview' ? 'Series Overview'
     : view === 'planner' ? 'Event Planner'
+    : view === 'outreach' ? 'Outreach & Integrations'
     : `${getLoc().shortName} · Report`;
 
   if (view === 'overview') renderOverview();
   if (view === 'planner') renderPlanner();
   if (view === 'location') renderReport();
+  if (view === 'outreach') renderOutreach();
 }

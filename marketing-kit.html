@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retirement Everest — Marketing Kit</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-hub mkt-page">
+<header class="mkt-header">
+  <div>
+    <h1>Marketing Kit</h1>
+    <p>Flyers, mailers &amp; digital creatives for every location — using your Retirement Everest poster art.</p>
+  </div>
+  <div class="mkt-header-links">
+    <a href="host.html?view=outreach" class="btn-sm">Command center</a>
+    <a href="index.html" class="btn-sm">← Hub</a>
+  </div>
+</header>
+
+<div class="mkt-toolbar">
+  <select class="loc-select" id="mktLocSelect"></select>
+  <label class="mkt-field"><span>Event date</span><input type="date" id="mktDate"></label>
+  <label class="mkt-field"><span>Doors</span><input type="text" id="mktDoors" placeholder="5:45 PM"></label>
+  <label class="mkt-field"><span>Film</span><input type="text" id="mktShow" placeholder="6:30 PM"></label>
+</div>
+
+<div class="mkt-cats">
+  <button type="button" class="mkt-cat-btn active" data-cat="all">All</button>
+  <button type="button" class="mkt-cat-btn" data-cat="flyer">Flyers</button>
+  <button type="button" class="mkt-cat-btn" data-cat="mailer">Mailers</button>
+  <button type="button" class="mkt-cat-btn" data-cat="digital">Digital ads</button>
+  <button type="button" class="mkt-cat-btn" data-cat="email">Email</button>
+</div>
+
+<div class="mkt-actions-bar">
+  <span id="mktSelCount">0 selected</span>
+  <button type="button" class="lock-btn mkt-dl-btn" id="mktDownloadSel">Print selected pack</button>
+</div>
+
+<div class="mkt-grid" id="mktGrid"></div>
+
+<div class="mkt-modal" id="mktModal">
+  <div class="mkt-modal-inner">
+    <button type="button" class="mkt-modal-close" id="mktModalClose">×</button>
+    <div id="mktModalBody"></div>
+    <button type="button" class="lock-btn" id="mktModalPrint" style="margin-top:20px;max-width:280px">Print / Save as PDF</button>
+  </div>
+</div>
+
+<script src="locations.js"></script>
+<script src="integrations.js"></script>
+<script src="shared.js"></script>
+<script src="app-marketing.js"></script>
+</body>
+</html>
