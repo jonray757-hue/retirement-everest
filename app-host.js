@@ -100,14 +100,25 @@ function renderPreorderReport(orders, loc) {
 function renderScreeningReport(orders, loc) {
   const prices = {};
   loc.menus.entrees.forEach(e => { prices[e.id] = e.price; });
-  const enriched = orders.map(o => ({ ...o, entreePrice: prices[o.entreeId] || o.entreePrice || 66 }));
-  const total = enriched.reduce((s,o) => s + o.entreePrice, 0);
-  const saladCounts = {}, entreeCounts = {}, dessertCounts = {};
+  (loc.menus.drinks || []).forEach(d => { prices[d.id] = d.price; });
+  const enriched = orders.map(o => ({
+    ...o,
+    entreePrice: prices[o.entreeId] || o.entreePrice || 66,
+    drinkPrice: prices[o.drinkId] || o.drinkPrice || 0,
+    total: (prices[o.entreeId] || o.entreePrice || 66) + (prices[o.drinkId] || o.drinkPrice || 0)
+  }));
+  const total = enriched.reduce((s,o) => s + o.total, 0);
+  const saladCounts = {}, entreeCounts = {}, dessertCounts = {}, drinkCounts = {};
   enriched.forEach(o => {
     saladCounts[o.salad] = (saladCounts[o.salad] || 0) + 1;
     entreeCounts[o.entree] = (entreeCounts[o.entree] || 0) + 1;
     dessertCounts[o.dessert] = (dessertCounts[o.dessert] || 0) + 1;
+    if (o.drink) drinkCounts[o.drink] = (drinkCounts[o.drink] || 0) + 1;
   });
+  const drinkBox = loc.menus.drinks?.length
+    ? `<div class="card-box"><h3>Drink selections</h3>${rankBars(drinkCounts)}</div>` : '';
+  const drinkCol = loc.menus.drinks?.length ? '<th>Drink</th>' : '';
+  const drinkCells = o => loc.menus.drinks?.length ? `<td>${o.drink || '—'}</td>` : '';
   return `
     <div class="stats">
       <div class="stat"><div class="stat-label">Guests ordered</div><div class="stat-val">${enriched.length}</div></div>
@@ -119,12 +130,15 @@ function renderScreeningReport(orders, loc) {
       <div class="card-box"><h3>Salad selections</h3>${rankBars(saladCounts)}</div>
       <div class="card-box"><h3>Dessert selections</h3>${rankBars(dessertCounts)}</div>
     </div>
-    <div class="card-box"><h3>Entrée selections</h3>${rankBars(entreeCounts)}</div>
+    <div class="two-col">
+      <div class="card-box"><h3>Entrée selections</h3>${rankBars(entreeCounts)}</div>
+      ${drinkBox}
+    </div>
     <div class="card-box">
       <h3>All orders (${enriched.length})</h3>
       <div style="overflow-x:auto;margin-top:12px"><table>
-        <thead><tr><th>#</th><th>Guest</th><th>Salad</th><th>Entrée</th><th>Dessert</th><th>Cost</th><th>Time</th></tr></thead>
-        <tbody>${enriched.map((o,i) => `<tr><td>${i+1}</td><td><strong>${o.name}</strong></td><td>${o.salad}</td><td>${o.entree}</td><td>${o.dessert}</td><td>${fmt(o.entreePrice)}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>#</th><th>Guest</th><th>Salad</th><th>Entrée</th><th>Dessert</th>${drinkCol}<th>Cost</th><th>Time</th></tr></thead>
+        <tbody>${enriched.map((o,i) => `<tr><td>${i+1}</td><td><strong>${o.name}</strong></td><td>${o.salad}</td><td>${o.entree}</td><td>${o.dessert}</td>${drinkCells(o)}<td>${fmt(o.total)}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`).join('')}</tbody>
       </table></div>
     </div>`;
 }
@@ -212,7 +226,12 @@ function exportCSV() {
   if (!orders.length) return alert('No data to export.');
   let rows;
   if (loc.type === 'screening') {
-    rows = [['#','Name','Salad','Entrée','Dessert','Price','Time'], ...orders.map((o,i) => [i+1,o.name,o.salad,o.entree,o.dessert,o.entreePrice||'',new Date(o.ts).toLocaleString()])];
+    const hasDrinks = !!loc.menus.drinks?.length;
+    rows = hasDrinks
+      ? [['#','Name','Salad','Entrée','Dessert','Drink','Drink Price','Entrée Price','Total','Time'],
+        ...orders.map((o,i) => [i+1,o.name,o.salad,o.entree,o.dessert,o.drink||'—',o.drinkPrice||0,o.entreePrice||'',
+          (o.entreePrice||0)+(o.drinkPrice||0),new Date(o.ts).toLocaleString()])]
+      : [['#','Name','Salad','Entrée','Dessert','Price','Time'], ...orders.map((o,i) => [i+1,o.name,o.salad,o.entree,o.dessert,o.entreePrice||'',new Date(o.ts).toLocaleString()])];
   } else if (loc.type === 'preorder') {
     rows = [['#','Name','Arrival Bite','Bite Price','Main','Main Price','Drink','Drink Price','Subtotal','Time'],
       ...orders.map((o,i) => [i+1,o.name,o.starter||'—',o.starterPrice||0,o.main,o.mainPrice||0,o.drink,o.drinkPrice||0,

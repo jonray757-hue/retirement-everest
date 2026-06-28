@@ -286,6 +286,15 @@ window.RETIREMENT_EVEREST = {
           { id: 'des4', name: 'Hopscotch Peanut Butter Pie', desc: 'Peanut butter mousse, chocolate cookie crust, dark chocolate ganache, butterscotch & chocolate sauces' },
           { id: 'des5', name: 'Black & Tan Brownie Sundae', desc: 'Caram-ale & chocolate sauces, vanilla bean ice cream, whipped cream & Amarena cherry' },
           { id: 'des6', name: 'Cast Iron Chocolate Chip Cookie', desc: 'Baked to order — add vanilla bean ice cream on request' }
+        ],
+        drinks: [
+          { id: 'd1', name: 'McMenamins Beer (Pint)', desc: 'House-brewed craft beer on site', price: 6.50 },
+          { id: 'd2', name: 'Edgefield Hard Cider (Pint)', desc: 'McMenamins Edgefield cider', price: 6.50 },
+          { id: 'd3', name: 'Edgefield Wine (Glass)', desc: "Red or white — ask staff for the evening's pour", price: 8.00 },
+          { id: 'd4', name: 'Well Cocktail', desc: 'Bourbon, gin, vodka, tequila, rum, scotch, or brandy', price: 8.00 },
+          { id: 'd5', name: 'Featured Illustrated Cocktail', desc: "Tonight's special hand-crafted cocktail", price: 12.00 },
+          { id: 'd6', name: 'Brewery Flight', desc: 'Six samples of McMenamins house-brewed beers', price: 13.25 },
+          { id: 'd7', name: 'Soft Drink / Non-Alcoholic', desc: 'Soda, sparkling water, coffee, tea, or juice', price: 4.25 }
         ]
       },
       costSim: {

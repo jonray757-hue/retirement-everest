@@ -54,7 +54,9 @@ function estimateCostForLocation(loc, orders, roomRates) {
   if (loc.type === 'screening') {
     const prices = {};
     loc.menus.entrees.forEach(e => { prices[e.id] = e.price; });
-    return orders.reduce((s, o) => s + (prices[o.entreeId] || o.entreePrice || 66), 0);
+    (loc.menus.drinks || []).forEach(d => { prices[d.id] = d.price; });
+    return orders.reduce((s, o) =>
+      s + (prices[o.entreeId] || o.entreePrice || 66) + (prices[o.drinkId] || o.drinkPrice || 0), 0);
   }
   if (loc.type === 'preorder') {
     const prices = {};

@@ -128,6 +128,11 @@ function renderFormFields() {
       <div class="err-msg" id="err-drink">Please choose a drink.</div>`;
     renderStarterCards();
   } else if (LOC.type === 'screening') {
+    const drinkSection = LOC.menus.drinks?.length ? `
+      <div class="section-gap"></div>
+      <div class="pick-head"><span class="pick-title">Choose Your Drink</span><span class="pick-req">Select one</span></div>
+      <div class="cards" id="drink-cards">${LOC.menus.drinks.map(d => cardHTML('drink', 'drink', null, d, false)).join('')}</div>
+      <div class="err-msg" id="err-drink">Please choose a drink.</div>` : '';
     el.innerHTML = `
       <div class="pick-head"><span class="pick-title">Salad</span><span class="pick-req">Select one</span></div>
       <div class="cards" id="salad-cards">${LOC.menus.salads.map(s => cardHTML('salad','salad',null,s,false)).join('')}</div>
@@ -139,7 +144,7 @@ function renderFormFields() {
       <div class="section-gap"></div>
       <div class="pick-head"><span class="pick-title">Dessert</span><span class="pick-req">Select one</span></div>
       <div class="cards" id="dessert-cards">${LOC.menus.desserts.map(s => cardHTML('dessert','dessert',null,s,false)).join('')}</div>
-      <div class="err-msg" id="err-dessert">Please choose a dessert.</div>`;
+      <div class="err-msg" id="err-dessert">Please choose a dessert.</div>${drinkSection}`;
   } else {
     el.innerHTML = `
       <div class="field-wrap"><label class="field-label">Who's Joining You?</label>
@@ -253,10 +258,19 @@ function handleCardClick(e) {
   }
 
   if (LOC.type === 'screening') {
-    const map = { salad: 'selSalad', entree: 'selEntree', dessert: 'selDessert' };
-    const prev = window[map[pick]];
-    if (prev) document.getElementById(`card-${pick}-${prev}`)?.classList.remove('selected');
-    window[map[pick]] = id;
+    if (pick === 'salad') {
+      if (selSalad) document.getElementById(`card-salad-${selSalad}`)?.classList.remove('selected');
+      selSalad = id;
+    } else if (pick === 'entree') {
+      if (selEntree) document.getElementById(`card-entree-${selEntree}`)?.classList.remove('selected');
+      selEntree = id;
+    } else if (pick === 'dessert') {
+      if (selDessert) document.getElementById(`card-dessert-${selDessert}`)?.classList.remove('selected');
+      selDessert = id;
+    } else if (pick === 'drink') {
+      if (selDrink) document.getElementById(`card-drink-${selDrink}`)?.classList.remove('selected');
+      selDrink = id;
+    }
     card.classList.add('selected');
     document.getElementById(`err-${pick}`)?.classList.remove('show');
     return;
@@ -305,15 +319,25 @@ function submitOrder() {
     if (!selSalad) { document.getElementById('err-salad').classList.add('show'); ok = false; }
     if (!selEntree) { document.getElementById('err-entree').classList.add('show'); ok = false; }
     if (!selDessert) { document.getElementById('err-dessert').classList.add('show'); ok = false; }
+    if (LOC.menus.drinks?.length && !selDrink) { document.getElementById('err-drink').classList.add('show'); ok = false; }
     if (!ok) return;
     const salad = LOC.menus.salads.find(s => s.id === selSalad);
     const entree = LOC.menus.entrees.find(s => s.id === selEntree);
     const dessert = LOC.menus.desserts.find(s => s.id === selDessert);
-    order = { id: Date.now(), locationId: LOC.id, name, salad: salad.name, saladId: salad.id, entree: entree.name, entreeId: entree.id, entreePrice: entree.price, dessert: dessert.name, dessertId: dessert.id, ts: new Date().toISOString() };
+    const drink = selDrink ? LOC.menus.drinks.find(d => d.id === selDrink) : null;
+    order = {
+      id: Date.now(), locationId: LOC.id, name,
+      salad: salad.name, saladId: salad.id,
+      entree: entree.name, entreeId: entree.id, entreePrice: entree.price,
+      dessert: dessert.name, dessertId: dessert.id,
+      drink: drink?.name || null, drinkId: drink?.id || null, drinkPrice: drink?.price || 0,
+      ts: new Date().toISOString()
+    };
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
       <div class="sc-row"><div class="sc-label">Salad</div><div class="sc-val">${esc(salad.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Entrée</div><div class="sc-val">${esc(entree.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Dessert</div><div class="sc-val">${esc(dessert.name)}</div></div>`;
+      <div class="sc-row"><div class="sc-label">Dessert</div><div class="sc-val">${esc(dessert.name)}</div></div>
+      ${drink ? `<div class="sc-row"><div class="sc-label">Drink</div><div class="sc-val">${esc(drink.name)}</div></div>` : ''}`;
   } else if (LOC.type === 'retreat') {
     let ok = true;
     if (!selRoom) { document.getElementById('err-room').classList.add('show'); ok = false; }
