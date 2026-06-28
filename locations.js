@@ -39,7 +39,7 @@ window.RETIREMENT_EVEREST = {
       ],
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
-      formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your salad, entrée, and dessert below so we can have it ready for you.',
+      formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your salad, entrée, dessert, and drink below so we can have it ready for you.',
       footer: 'Retirement Everest · Private Screening Series · McMenamins Edgefield · Troutdale, OR',
       menus: {
         salads: [
@@ -60,6 +60,15 @@ window.RETIREMENT_EVEREST = {
           { id: 'des2', name: 'Chocolate Terminator Stout Bundt Cake', desc: 'Chocolate sauce, raspberry ruby sauce & whipped cream' },
           { id: 'des3', name: 'Lemon Bundt Cake', desc: 'Fresh mixed berries & whipped cream' },
           { id: 'des4', name: "Satin's Tiramisu", desc: 'Espresso & rum-soaked sponge, mascarpone mousse, whipped cream, Dutch cocoa' }
+        ],
+        drinks: [
+          { id: 'd1', name: 'McMenamins Beer (Pint)', desc: 'House-brewed craft beer — brewed on property at Edgefield', price: 6.50 },
+          { id: 'd2', name: 'Edgefield Hard Cider (Pint)', desc: 'McMenamins Edgefield cider', price: 6.50 },
+          { id: 'd3', name: 'Edgefield Wine (Glass)', desc: "Red or white — Black Rabbit Red, White Rabbit, Pinot Noir & more", price: 8.00 },
+          { id: 'd4', name: 'Well Cocktail', desc: 'Bourbon, gin, vodka, tequila, rum, scotch, or brandy', price: 8.00 },
+          { id: 'd5', name: 'Featured Illustrated Cocktail', desc: "Tonight's special hand-crafted cocktail", price: 12.00 },
+          { id: 'd6', name: 'Brewery Flight', desc: 'Six samples of McMenamins house-brewed beers', price: 13.50 },
+          { id: 'd7', name: 'Soft Drink / Non-Alcoholic', desc: 'Soda, sparkling water, coffee, tea, or juice', price: 4.25 }
         ]
       },
       costSim: {
@@ -259,7 +268,7 @@ window.RETIREMENT_EVEREST = {
       ],
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
-      formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your salad, entrée, and dessert below so we can have it ready for you.',
+      formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your salad, entrée, dessert, and drink below so we can have it ready for you.',
       footer: 'Retirement Everest · Private Screening Series · McMenamins Grand Lodge · Forest Grove, OR',
       menus: {
         salads: [
