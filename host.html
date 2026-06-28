@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retirement Everest — Command Center</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-hub">
+<div id="lock-screen">
+  <div style="font-size:2rem;margin-bottom:20px">🔒</div>
+  <h2 style="font-family:var(--heading-font);margin-bottom:8px">Host Access</h2>
+  <p style="color:var(--muted);margin-bottom:28px;font-size:0.85rem">Enter password to open the command center.</p>
+  <input type="password" class="lock-input" id="pwInput" placeholder="••••" onkeydown="if(event.key==='Enter')unlock()">
+  <button class="lock-btn" onclick="unlock()">Enter</button>
+  <div id="lockErr" style="color:var(--red);margin-top:10px;display:none">Incorrect password.</div>
+</div>
+
+<div id="report" style="display:none">
+  <div class="topbar host-topbar">
+    <div class="host-topbar-left">
+      <h1 id="hostTitle" style="font-family:var(--heading-font);font-size:1.2rem;color:var(--accent)">Series Overview</h1>
+      <nav class="host-nav">
+        <button type="button" class="host-tab active" data-view="overview">Overview</button>
+        <button type="button" class="host-tab" data-view="location">Location Report</button>
+        <button type="button" class="host-tab" data-view="planner">Event Planner</button>
+      </nav>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div id="loc-toolbar" style="display:none;gap:8px;align-items:center">
+        <select class="loc-select" id="locSelect"></select>
+        <button class="btn-sm" onclick="window.print()">Print</button>
+        <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
+        <button class="btn-sm" onclick="clearAll()">Clear</button>
+      </div>
+      <a class="btn-sm" href="index.html" style="text-decoration:none">← Hub</a>
+      <a class="btn-sm" href="cost-simulation.html" style="text-decoration:none">Cost planning</a>
+    </div>
+  </div>
+  <div class="main-wrap">
+    <div id="view-overview" class="host-view active"></div>
+    <div id="view-location" class="host-view">
+      <div id="report-body"></div>
+    </div>
+    <div id="view-planner" class="host-view"></div>
+  </div>
+</div>
+
+<script src="locations.js"></script>
+<script src="shared.js"></script>
+<script src="app-dashboard.js"></script>
+<script src="app-host.js"></script>
+</body>
+</html>

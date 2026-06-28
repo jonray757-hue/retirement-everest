@@ -1,0 +1,67 @@
+{
+  "_instructions": "Fill this out and send to Grok. Remove _instructions before saving. Pick one type: screening | preorder | retreat",
+
+  "id": "venue-slug",
+  "slug": "venue-slug",
+  "type": "preorder",
+  "theme": "navy",
+  "name": "Full Venue Name",
+  "shortName": "Short Name",
+  "city": "City, ST",
+  "venue": "Room or restaurant name",
+  "storageKey": "venue_slug_orders_v1",
+
+  "heroSub": "One sentence describing the event at this venue.",
+  "cta": "Reserve Your Seat",
+  "meta": [
+    { "strong": "Venue Name", "label": "City, ST" },
+    { "strong": "Complimentary", "label": "Dinner Included" },
+    { "strong": "Limited", "label": "Seats Available" }
+  ],
+
+  "aboutLabel": "About the Evening",
+  "aboutHeadline": "This is not a seminar.<br>It's a private premiere.",
+  "about": [
+    "Paragraph one about Retirement Everest and the invitation.",
+    "Paragraph two about the experience at this venue."
+  ],
+  "expect": [
+    { "title": "Arrive & Be Welcomed", "desc": "What happens when guests arrive." },
+    { "title": "Watch the Film", "desc": "Screening experience." },
+    { "title": "Dinner", "desc": "Meal service description." }
+  ],
+
+  "formTitle": "Reserve Your Seat at the Table",
+  "formLabel": "Your Meal Selection",
+  "formIntro": "Dinner is included — select below so we can have it ready.",
+  "formNote": "Optional note shown above the form.",
+
+  "footer": "Retirement Everest · Private Screening Series · Venue · City, ST",
+
+  "menus": {
+    "_screening_example": {
+      "salads": [{ "id": "sal1", "name": "Salad Name", "desc": "Description", "veg": true }],
+      "entrees": [{ "id": "e1", "name": "Entrée", "desc": "Description", "price": 66 }],
+      "desserts": [{ "id": "des1", "name": "Dessert", "desc": "Description" }]
+    },
+    "_preorder_example": {
+      "starters": [{ "id": "s1", "name": "Arrival bite", "desc": "Description", "price": 12.00, "cat": "Snack" }],
+      "mains": [{ "id": "m1", "name": "Main", "desc": "Description", "price": 20.00 }],
+      "drinks": [{ "id": "d1", "name": "Drink", "desc": "Description", "price": 6.50 }]
+    },
+    "_retreat_example": {
+      "rooms": [{ "id": "r1", "name": "King Room", "desc": "Sleeps 2", "sleeps": 2 }],
+      "starters": [{ "id": "st1", "name": "Starter", "desc": "Description" }],
+      "drinks": [{ "id": "dr1", "name": "Drink", "desc": "Description" }],
+      "dinners": [{ "id": "d1", "name": "Dinner", "desc": "Description", "price": 28 }]
+    }
+  },
+
+  "avgRoomRate": 150,
+  "costSim": {
+    "note": "Planning assumptions for this venue.",
+    "scenarios": [
+      { "guests": 30, "median": 1300, "p10": 1200, "p90": 1400, "perGuest": 44 }
+    ]
+  }
+}
