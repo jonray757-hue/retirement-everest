@@ -57,9 +57,16 @@ git branch -M main
 git push -u origin main
 ```
 
-In GitHub → **Settings → Pages** → Source: **Deploy from branch** → `main` / `/ (root)`.
+**Enable Pages (one-time):**
 
-Site goes live in ~1–2 minutes.
+1. Repo → **Settings → Pages**
+2. **Build and deployment → Source:** choose **GitHub Actions** (recommended)
+3. After the deploy workflow runs, the site is live at:
+   `https://jonray757-hue.github.io/retirement-everest/`
+
+Alternative: Source **Deploy from branch** → `main` / `/ (root)` also works.
+
+If you see 404, Pages simply isn't enabled yet — the code is fine.
 
 ## Data notes
 
