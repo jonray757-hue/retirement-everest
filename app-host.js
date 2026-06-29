@@ -1,18 +1,6 @@
 let currentSlug = 'edgefield';
 let roomRates = getRoomRates();
 
-function unlock() {
-  const pw = document.getElementById('pwInput').value;
-  if (pw === RETIREMENT_EVEREST.hostPassword) {
-    document.getElementById('lock-screen').style.display = 'none';
-    document.getElementById('report').style.display = 'block';
-    initHost();
-  } else {
-    document.getElementById('lockErr').style.display = 'block';
-    document.getElementById('pwInput').value = '';
-  }
-}
-
 function initHost() {
   const sel = document.getElementById('locSelect');
   const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder' };

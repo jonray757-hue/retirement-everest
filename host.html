@@ -7,15 +7,6 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body class="theme-hub">
-<div id="lock-screen">
-  <div style="font-size:2rem;margin-bottom:20px">🔒</div>
-  <h2 style="font-family:var(--heading-font);margin-bottom:8px">Host Access</h2>
-  <p style="color:var(--muted);margin-bottom:28px;font-size:0.85rem">Enter password to open the command center.</p>
-  <input type="password" class="lock-input" id="pwInput" placeholder="••••" onkeydown="if(event.key==='Enter')unlock()">
-  <button class="lock-btn" onclick="unlock()">Enter</button>
-  <div id="lockErr" style="color:var(--red);margin-top:10px;display:none">Incorrect password.</div>
-</div>
-
 <div id="report" style="display:none">
   <div class="topbar host-topbar">
     <div class="host-topbar-left">
@@ -85,5 +76,14 @@
 <script src="shared.js"></script>
 <script src="app-dashboard.js"></script>
 <script src="app-host.js"></script>
+<script src="host-auth.js"></script>
+<script>
+initHostLock({
+  contentId: 'report',
+  title: 'Host Access',
+  subtitle: 'Enter password to open the command center.',
+  onUnlock: initHost
+});
+</script>
 </body>
 </html>

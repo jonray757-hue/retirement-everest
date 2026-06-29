@@ -287,7 +287,7 @@ function bindMarketingEvents() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function bootMarketingPage() {
   const sel = document.getElementById('mktLocSelect');
   sel.innerHTML = Object.values(RETIREMENT_EVEREST.locations).map(l =>
     `<option value="${l.slug}"${l.slug === mktSlug ? ' selected' : ''}>${l.shortName} — ${l.city}</option>`
@@ -298,4 +298,4 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('mktShow').value = ev.show;
   bindMarketingEvents();
   initMarketing();
-});
+}

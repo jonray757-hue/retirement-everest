@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body class="theme-hub mkt-page">
+<div id="host-content" style="display:none">
 <header class="mkt-header">
   <div>
     <h1>Marketing Kit</h1>
@@ -47,10 +48,20 @@
     <button type="button" class="lock-btn" id="mktModalPrint" style="margin-top:20px;max-width:280px">Print / Save as PDF</button>
   </div>
 </div>
+</div>
 
 <script src="locations.js"></script>
 <script src="integrations.js"></script>
 <script src="shared.js"></script>
+<script src="host-auth.js"></script>
 <script src="app-marketing.js"></script>
+<script>
+initHostLock({
+  contentId: 'host-content',
+  title: 'Host Access',
+  subtitle: 'Enter password to open the marketing kit.',
+  onUnlock: bootMarketingPage
+});
+</script>
 </body>
 </html>
