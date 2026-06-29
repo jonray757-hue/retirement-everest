@@ -70,7 +70,7 @@ function renderPage() {
 
   document.getElementById('app').innerHTML = `
     <a class="back-link" href="index.html">← All locations</a>
-    <div class="hero">
+    <div class="hero${hero?.image ? ' hero--has-poster' : ''}">
       <div class="hero-bg theme-${LOC.theme}-bg${hero?.image ? ' has-image' : ''}">${heroImgHTML}</div>
       <div class="hero-content">
         <div class="eyebrow">From Award-Winning Film Producers Brett Kitchen &amp; Ethan Kap</div>

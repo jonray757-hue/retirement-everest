@@ -112,6 +112,80 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
 .back-link { position: fixed; top: 16px; left: 16px; z-index: 10; font-size: 0.72rem; color: var(--muted); text-decoration: none; padding: 8px 12px; background: rgba(0,0,0,0.4); border-radius: 4px; }
 .back-link:hover { color: var(--accent); }
 
+/* ── MOBILE HERO (poster art already shows the title) ── */
+@media (max-width: 768px) {
+  .hero.hero--has-poster {
+    min-height: 100svh;
+    justify-content: flex-end;
+    padding: 0 18px 32px;
+  }
+  .hero.hero--has-poster .hero-content {
+    padding-top: 46vh;
+    max-width: 100%;
+  }
+  .hero.hero--has-poster .hero-content h1 {
+    display: none;
+  }
+  .hero.hero--has-poster .eyebrow {
+    flex-wrap: wrap;
+    font-size: 0.58rem;
+    letter-spacing: 2px;
+    line-height: 1.55;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+  .hero.hero--has-poster .eyebrow::before,
+  .hero.hero--has-poster .eyebrow::after {
+    display: none;
+  }
+  .hero.hero--has-poster .hero-sub {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    margin: 10px 0 22px;
+    padding: 0 6px;
+  }
+  .hero.hero--has-poster .event-meta {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto 28px;
+    text-align: center;
+  }
+  .hero.hero--has-poster .meta-item {
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    padding: 14px 16px;
+  }
+  .hero.hero--has-poster .meta-item:last-child {
+    border-bottom: none;
+  }
+  .hero.hero--has-poster .meta-item strong {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+  }
+  .hero.hero--has-poster .hero-bg.has-image .hero-overlay {
+    background: linear-gradient(180deg,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0.1) 38%,
+      rgba(0,0,0,0.62) 58%,
+      rgba(0,0,0,0.9) 100%);
+  }
+  .hero.hero--has-poster .hero-bg img {
+    object-position: center 12%;
+  }
+  .hero--hub.hero--has-poster .hero-content {
+    padding-top: 50vh;
+  }
+  .hero--hub.hero--has-poster .hero-content p {
+    font-size: 0.92rem;
+    line-height: 1.65;
+    padding: 0 8px;
+    margin-bottom: 0;
+  }
+}
+
 .about, .expect, .divider, .order-section { max-width: 900px; margin: 0 auto; padding: 64px 24px; }
 .about { max-width: 700px; text-align: center; border-bottom: 1px solid var(--border); }
 .section-label { font-size: 0.62rem; letter-spacing: 4px; text-transform: uppercase; color: var(--accent); margin-bottom: 18px; }
