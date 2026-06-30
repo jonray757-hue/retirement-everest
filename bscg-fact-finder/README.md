@@ -4,13 +4,24 @@ Client-facing interactive click-through based on the BSCG Business Owner Tax Str
 
 ## Live site
 
-https://jonray757-hue.github.io/bscg-fact-finder/
+https://jonray757-hue.github.io/retirement-everest/bscg-fact-finder/
 
 ## Client link with advisor pre-filled
 
 ```
-https://jonray757-hue.github.io/bscg-fact-finder/?advisor=Johnny%20Harris&email=johnny@retirementfoundationforamerica.com
+https://jonray757-hue.github.io/retirement-everest/bscg-fact-finder/?advisor=Johnny%20Harris&email=johnny@retirementfoundationforamerica.com
 ```
+
+## Standalone repo (optional cleaner URL)
+
+Create an empty repo `bscg-fact-finder` at [github.com/new](https://github.com/new), then:
+
+```bash
+cd /Users/ramseykoaharris/Work/projects/bscg-fact-finder
+./tools/push-to-github.sh
+```
+
+Enable Pages: Repo → Settings → Pages → **GitHub Actions**.
 
 ## Local preview
 
