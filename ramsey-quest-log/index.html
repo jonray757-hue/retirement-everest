@@ -95,7 +95,10 @@
       display:flex; align-items:flex-start; gap:10px;
       padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.1);
       cursor:pointer; transition:opacity .2s;
+      color:inherit; text-decoration:none;
+      -webkit-tap-highlight-color: rgba(255,255,255,0.2);
     }
+    a.idea-link:hover .idea-name { text-decoration:underline; }
     .idea-item:last-child { border-bottom:none; padding-bottom:0; }
     .idea-item:active { opacity:.6; }
     .idea-check {
@@ -681,17 +684,20 @@ function render() {
       const panel = document.createElement('div');
       panel.className = `ideas-panel${isOpen?' open':''}`;
       const picked = state.ideaPicked[i] || {};
-      panel.innerHTML = `<div class="ideas-panel-inner"><h4>💡 Pick an activity</h4>${item.ideas.map((idea,j) => {
+      panel.innerHTML = `<div class="ideas-panel-inner"><h4>💡 Tap an activity — links open in a new tab</h4>${item.ideas.map((idea,j) => {
         const isPicked = !!picked[j];
         let badge = idea.type==='game'?'<span class="badge-game">🎮 PLAY</span>':idea.type==='link'?'<span class="badge-link">🔗 OPEN</span>':idea.type==='quest'?'<span class="badge-quest">⚔️ QUEST</span>':'';
-        return `<div class="idea-item${isPicked?' picked':''}" data-block="${i}" data-idea="${j}" ${idea.gameId?`data-game="${idea.gameId}"`:''} ${idea.url?`data-link="${idea.url}"`:''} ${idea.questId?`data-quest="${idea.questId}"`:''}>
-          <div class="idea-check"></div><div class="idea-text"><div class="idea-name">${idea.emoji} ${idea.name}${badge}</div><div class="idea-sub">${idea.sub}</div></div></div>`;
+        const inner = `<div class="idea-check"></div><div class="idea-text"><div class="idea-name">${idea.emoji} ${idea.name}${badge}</div><div class="idea-sub">${idea.sub}</div></div>`;
+        if (idea.type === 'link') {
+          return `<a class="idea-item idea-link${isPicked?' picked':''}" href="${idea.url}" target="_blank" rel="noopener noreferrer" data-block="${i}" data-idea="${j}">${inner}</a>`;
+        }
+        return `<div class="idea-item${isPicked?' picked':''}" data-block="${i}" data-idea="${j}" ${idea.gameId?`data-game="${idea.gameId}"`:''} ${idea.questId?`data-quest="${idea.questId}"`:''}>${inner}</div>`;
       }).join('')}</div>`;
       block.appendChild(panel);
     }
 
     block.querySelector('.block-main').addEventListener('click', e => {
-      if (e.target.closest('.ideas-btn')) return;
+      if (e.target.closest('.ideas-btn') || e.target.closest('.ideas-panel')) return;
       state.blockDone[i] = !state.blockDone[i];
       if (state.blockDone[i]) awardQuest(10, 'Block complete!');
       else { state.points = Math.max(0, (state.points||0)-10); saveState(); updateStats(); }
@@ -704,7 +710,17 @@ function render() {
         state.panelOpen[i] = !state.panelOpen[i];
         saveState(); render();
       });
-      block.querySelectorAll('.idea-item').forEach(el => {
+      block.querySelectorAll('a.idea-link').forEach(el => {
+        el.addEventListener('click', e => {
+          e.stopPropagation();
+          const bi = parseInt(el.dataset.block), ji = parseInt(el.dataset.idea);
+          if (!state.ideaPicked[bi]) state.ideaPicked[bi] = {};
+          state.ideaPicked[bi][ji] = true;
+          saveState();
+          setTimeout(render, 400);
+        });
+      });
+      block.querySelectorAll('.idea-item:not(.idea-link)').forEach(el => {
         el.addEventListener('click', e => {
           e.stopPropagation();
           const bi = parseInt(el.dataset.block), ji = parseInt(el.dataset.idea);
@@ -712,7 +728,6 @@ function render() {
           state.ideaPicked[bi][ji] = !state.ideaPicked[bi][ji];
           saveState();
           if (el.dataset.game) { openModal(el.dataset.game); return; }
-          if (el.dataset.link) { window.open(el.dataset.link, '_blank'); render(); return; }
           if (el.dataset.quest) { openQuest(el.dataset.quest); render(); return; }
           render();
         });
