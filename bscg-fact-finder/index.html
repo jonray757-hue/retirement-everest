@@ -719,7 +719,7 @@ const CONFIG = {
   advisorEmail: 'johnny@retirementfoundationforamerica.com',
   advisorName: 'Your BSCG Advisor',
   storageKey: 'bscg-fact-finder-v1',
-  webhookUrl: '' // optional GHL/form webhook — set when wired
+  webhookUrl: 'https://services.leadconnectorhq.com/hooks/UeAtlT0oS5n9RHD70I2U/webhook-trigger/be827838-c5a8-4655-8e61-ec7be7874ce9' // optional GHL/form webhook — set when wired
 };
 
 const params = new URLSearchParams(location.search);
@@ -946,11 +946,21 @@ function loadProgress() {
 }
 
 function buildExportPayload() {
+  const fields = getFieldValues();
+  const fullName = (fields['ci-client'] || '').trim();
+  const parts = fullName.split(/\s+/).filter(Boolean);
   return {
+    first_name: parts[0] || '',
+    last_name: parts.slice(1).join(' ') || '',
+    name: fullName,
+    email: (fields['ci-email'] || '').trim(),
+    phone: (fields['ci-phone'] || '').trim(),
+    company_name: (fields['ci-biz'] || '').trim(),
+    source: 'BSCG Fact Finder',
     type: 'bscg-fact-finder',
     submittedAt: new Date().toISOString(),
     advisor: document.getElementById('ci-advisor')?.value || CONFIG.advisorName,
-    client: getFieldValues(),
+    client: fields,
     answers: { ...data },
     categories: inferCategories(),
     nextSteps: inferNextSteps()
@@ -985,11 +995,15 @@ function submitFactFinder() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }).then(r => {
-      if (!r.ok) throw new Error('Webhook failed');
+    }).then(async r => {
+      if (!r.ok) {
+        const detail = await r.text().catch(() => '');
+        throw new Error(detail || `HTTP ${r.status}`);
+      }
       done('Submitted successfully. Your advisor will be in touch soon.', true);
       localStorage.removeItem(CONFIG.storageKey);
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('Fact finder webhook error:', err);
       submitViaEmail(payload, done);
     });
   } else {
