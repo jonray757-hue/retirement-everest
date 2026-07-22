@@ -8,7 +8,7 @@ function initHost() {
     `<option value="${l.slug}">${l.shortName} — ${typeLabels[l.type] || 'Event'}</option>`
   ).join('');
   const p = new URLSearchParams(location.search);
-  const startView = ['overview', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
+  const startView = ['overview', 'venues', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
   currentSlug = p.get('location') || 'edgefield';
   sel.value = currentSlug;
   Object.values(RETIREMENT_EVEREST.locations).forEach(l => {

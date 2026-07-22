@@ -97,6 +97,23 @@ function renderOverview() {
       }).join('')
     : '<p class="empty" style="padding:24px">No event dates set yet. Open <strong>Event Planner</strong> to schedule your first event.</p>';
 
+  const crm = window.VENUE_CRM;
+  const crmCounts = crm?.counts || {};
+  const crmAction = (crm?.venues || []).filter(v => v.needs_action || v.status === 'replied').length;
+  const crmWaiting = crmCounts.awaiting_reply || 0;
+  const crmBanner = crm ? `
+    <div class="card-box" style="margin-bottom:24px">
+      <h3>Venue pipeline (CRM)</h3>
+      <div class="stats" style="margin-bottom:12px;grid-template-columns:repeat(4,1fr)">
+        <div class="stat"><div class="stat-label">Tracked</div><div class="stat-val">${crm.total || 0}</div></div>
+        <div class="stat"><div class="stat-label">Replied</div><div class="stat-val accent">${crmCounts.replied || 0}</div></div>
+        <div class="stat"><div class="stat-label">No reply</div><div class="stat-val">${crmWaiting}</div></div>
+        <div class="stat"><div class="stat-label">Needs action</div><div class="stat-val accent">${crmAction}</div></div>
+      </div>
+      <button type="button" class="btn-sm btn-accent" id="gotoVenuesCrm">Open Venue CRM →</button>
+      <span style="margin-left:12px;font-size:0.72rem;color:var(--muted)">Emails, PDFs, follow-up timelines</span>
+    </div>` : '';
+
   document.getElementById('view-overview').innerHTML = `
     <div class="stats">
       <div class="stat"><div class="stat-label">Locations</div><div class="stat-val">${locs.length}</div></div>
@@ -105,12 +122,15 @@ function renderOverview() {
       <div class="stat"><div class="stat-label">Est. series cost</div><div class="stat-val accent">${fmt(totalEst)}</div></div>
       <div class="stat"><div class="stat-label">Scheduled events</div><div class="stat-val">${scheduled} / ${locs.length}</div></div>
     </div>
+    ${crmBanner}
     <div class="card-box" style="margin-bottom:24px">
       <h3>Upcoming events</h3>
       <div class="timeline">${timeline}</div>
     </div>
     <h3 class="dash-section-title">Locations</h3>
     <div class="dash-loc-grid">${cards}</div>`;
+
+  document.getElementById('gotoVenuesCrm')?.addEventListener('click', () => switchHostView('venues'));
 
   document.querySelectorAll('[data-goto="location"]').forEach(el => {
     el.addEventListener('click', e => {
@@ -259,11 +279,13 @@ function switchHostView(view) {
   document.getElementById('loc-toolbar').style.display = view === 'location' ? 'flex' : 'none';
   document.getElementById('hostTitle').textContent =
     view === 'overview' ? 'Series Overview'
+    : view === 'venues' ? 'Venue CRM'
     : view === 'planner' ? 'Event Planner'
     : view === 'outreach' ? 'Outreach & Integrations'
     : `${getLoc().shortName} · Report`;
 
   if (view === 'overview') renderOverview();
+  if (view === 'venues') renderVenueCrm();
   if (view === 'planner') renderPlanner();
   if (view === 'location') renderReport();
   if (view === 'outreach') renderOutreach();

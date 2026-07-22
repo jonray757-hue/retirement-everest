@@ -13,6 +13,7 @@
       <h1 id="hostTitle" style="font-family:var(--heading-font);font-size:1.2rem;color:var(--accent)">Series Overview</h1>
       <nav class="host-nav">
         <button type="button" class="host-tab active" data-view="overview">Overview</button>
+        <button type="button" class="host-tab" data-view="venues">Venue CRM</button>
         <button type="button" class="host-tab" data-view="location">Location Report</button>
         <button type="button" class="host-tab" data-view="planner">Event Planner</button>
         <button type="button" class="host-tab" data-view="outreach">Outreach</button>
@@ -42,6 +43,7 @@
   </div>
   <div class="main-wrap">
     <div id="view-overview" class="host-view active"></div>
+    <div id="view-venues" class="host-view"></div>
     <div id="view-location" class="host-view">
       <div id="report-body"></div>
     </div>
@@ -72,9 +74,11 @@
 
 <script src="locations.js"></script>
 <script src="checklist-defaults.js"></script>
+<script src="data/venue-crm.js"></script>
 <script src="integrations.js"></script>
 <script src="shared.js"></script>
 <script src="app-dashboard.js"></script>
+<script src="app-venue-crm.js"></script>
 <script src="app-host.js"></script>
 <script src="host-auth.js"></script>
 <script>
