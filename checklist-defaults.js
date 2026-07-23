@@ -17,6 +17,12 @@ window.CHECKLIST_DEFAULTS = {
     { id: 'bar-tab', label: 'Confirm bar package & drink preorder list', offsetDays: -21, phase: 'Operations' },
     { id: 'arrival-bites', label: 'Share arrival bite counts with kitchen', offsetDays: -10, phase: 'Operations' }
   ],
+  buffet: [
+    { id: 'buffet-tally', label: 'Review buffet popularity poll & pick winning package', offsetDays: -21, phase: 'Operations' },
+    { id: 'apps-decision', label: 'Decide yes/no on shared appetizer package from poll', offsetDays: -18, phase: 'Operations' },
+    { id: 'bar-pref', label: 'Confirm water / soda / alcohol counts with bar', offsetDays: -14, phase: 'Operations' },
+    { id: 'lock-ks-menu', label: 'Lock buffet + apps with Kennedy School sales', offsetDays: -14, phase: 'Operations' }
+  ],
   retreat: [
     { id: 'room-block', label: 'Confirm room block & check-in instructions', offsetDays: -28, phase: 'Planning' },
     { id: 'spa-schedule', label: 'Coordinate hot springs / spa access windows', offsetDays: -14, phase: 'Operations' },

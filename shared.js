@@ -65,6 +65,23 @@ function estimateCostForLocation(loc, orders, roomRates) {
       s + (prices[o.starterId] || o.starterPrice || 0) + (prices[o.mainId] || o.mainPrice || 0) + (prices[o.drinkId] || o.drinkPrice || 0), 0);
     return sub * 1.2;
   }
+  if (loc.type === 'buffet') {
+    // Group buffet: estimate as leading package price × guests + drink prefs + optional apps if majority want them
+    const prices = {};
+    (loc.menus.buffets || []).forEach(b => { prices[b.id] = b.price; });
+    (loc.menus.starters || []).forEach(s => { prices[s.id] = s.price; });
+    (loc.menus.drinks || []).forEach(d => { prices[d.id] = d.price; });
+    const n = orders.length || 1;
+    const buffetAvg = orders.reduce((s, o) => s + (prices[o.buffetId] || o.buffetPrice || 64), 0) / n;
+    const drinkAvg = orders.reduce((s, o) => s + (prices[o.drinkId] || o.drinkPrice || 0), 0) / n;
+    const starterVotes = orders.filter(o => o.starterId && o.starterId !== 'a-skip');
+    const starterAvg = starterVotes.length
+      ? starterVotes.reduce((s, o) => s + (prices[o.starterId] || o.starterPrice || 0), 0) / starterVotes.length
+      : 0;
+    // If majority want apps, apply starter package pp to whole group
+    const appsOn = starterVotes.length > orders.length / 2;
+    return n * (buffetAvg + drinkAvg + (appsOn ? starterAvg : 0)) * 1.21;
+  }
   const rate = roomRates[loc.slug] || loc.avgRoomRate || 150;
   const roomCost = orders.length * rate;
   const dinnerCost = orders.reduce((s, o) => {

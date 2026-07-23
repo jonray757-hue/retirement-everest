@@ -342,92 +342,164 @@ window.RETIREMENT_EVEREST = {
     'kennedy-school': {
       id: 'kennedy-school',
       slug: 'kennedy-school',
-      type: 'preorder',
+      type: 'buffet',
       theme: 'gold',
       name: 'McMenamins Kennedy School',
       shortName: 'Kennedy School',
       city: 'Portland, OR',
       venue: 'Martha Jordan Room',
-      storageKey: 'kennedyschool_orders_v1',
-      heroSub: 'A private film screening and complimentary dinner at McMenamins Kennedy School.',
-      cta: 'Select Your Meal',
+      storageKey: 'kennedyschool_buffet_orders_v1',
+      attachments: [
+        { name: 'Kennedy School Catering Menus (June 2026)', path: 'data/venue-attachments/Kennedy-School-Catering-Menus.pdf', kind: 'menu' }
+      ],
+      heroSub: 'A private film screening & buffet dinner at McMenamins Kennedy School.',
+      cta: 'Share Your Preferences',
       meta: [
         { strong: 'Kennedy School', label: 'Portland, OR' },
-        { strong: 'Complimentary', label: 'Dinner Included' },
-        { strong: 'Limited', label: 'Seats Available' }
+        { strong: 'Buffet Dinner', label: 'Your Vote Counts' },
+        { strong: 'Complimentary', label: 'Evening Included' }
       ],
       aboutLabel: 'About the Evening',
       aboutHeadline: "This is not a seminar.<br>It's a private premiere.",
       about: [
         "You've been personally invited to an exclusive screening of <strong>Retirement Everest</strong> — a powerful documentary that explores the financial risks most Americans face in retirement and the strategies that can make the difference between struggle and security.",
-        "The evening takes place in the Martha Jordan Room — a historic classroom turned private event space. Watch the film, then enjoy Courtyard Restaurant fare at your table in the same room. No moving between buildings."
+        "The evening takes place at McMenamins Kennedy School. After the film, dinner is a <strong>group buffet</strong> (not plated per person). Your votes below help us choose the most popular buffet, drink style, and whether to add shared appetizers."
       ],
       expect: [
-        { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime in the Martha Jordan Room. Our team guides you to your seat in this single, private space.' },
-        { title: 'Watch the Film', desc: 'Retirement Everest delivers the kind of clarity most people never get from a financial advisor — told through real stories in a beautifully restored school setting.' },
-        { title: 'Dinner & Conversation', desc: 'After the screening, enjoy a full dinner on us. Your pre-selected meal from the Courtyard Restaurant menu is served at your table — no lines, no waiting.' }
+        { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime. Historic school setting, private room.' },
+        { title: 'Watch the Film', desc: 'Retirement Everest screens for our group — real stories, real clarity.' },
+        { title: 'Buffet Dinner', desc: 'One group buffet is ordered for everyone. Your preference tells us which package wins. Beverages and optional shared starters are polled the same way.' }
       ],
-      formTitle: 'Reserve Your Seat at the Table',
-      formLabel: 'Your Meal Selection',
-      formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your meal below so we can have it ready for you.',
-      formNote: '🍽 Your arrival bite is waiting at the table when you sit down. Dinner is served <strong>after the film</strong> — your main and drink are prepared fresh and brought out following the screening.',
+      formTitle: 'Tell Us What You Prefer',
+      formLabel: 'Dinner Preferences',
+      formIntro: 'Dinner is included. Because we order <strong>one buffet for the whole group</strong>, pick the package you would most enjoy — we use the tallies to lock the menu with the kitchen.',
+      formNote: '📋 Buffet packages do <strong>not</strong> include a plated starter course. If you want something before the buffet, vote for a <strong>shared appetizer package</strong> below — or skip. Menu source: Kennedy School Banquet (June 2026).',
       footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Portland, OR',
       menus: {
+        /* Evening buffet packages — guest picks preferred package (group popularity poll) */
+        buffets: [
+          {
+            id: 'b-luau',
+            name: 'Sunset Luau Buffet',
+            desc: 'Huli Huli chicken, Kalua pork, Hawaiian mac salad, basil-cilantro rice, stir-fry veggies, Hawaiian rolls · desserts included',
+            price: 55.50,
+            cat: 'Evening'
+          },
+          {
+            id: 'b-bbq',
+            name: 'Backyard Barbecue Buffet',
+            desc: 'Red Eye BBQ brisket, peppercorn white BBQ chicken, potato salad, coleslaw, baked beans, biscuits · brownies & berry bars',
+            price: 63.50,
+            cat: 'Evening'
+          },
+          {
+            id: 'b-mthood2',
+            name: 'Mt. Hood Buffet (2 entrées)',
+            desc: 'Pick two: turkey, pepper-crusted beef, honey ham, or wild mushroom ravioli · sides & dessert display',
+            price: 63.50,
+            cat: 'Evening'
+          },
+          {
+            id: 'b-hearth',
+            name: 'Hearthstone Buffet',
+            desc: 'Lemon-herb chicken, Northern Star baked cod, spinach salad, mashed potatoes, wild rice, broccolini · tarts & cheesecake',
+            price: 68,
+            cat: 'Evening'
+          },
+          {
+            id: 'b-mthood3',
+            name: 'Mt. Hood Buffet (3 entrées)',
+            desc: 'Same as Mt. Hood with three entrées instead of two · dessert display',
+            price: 70,
+            cat: 'Evening'
+          },
+          {
+            id: 'b-cascadia',
+            name: 'Cascadia Buffet',
+            desc: 'Poached salmon + tournedos of beef, Brewer’s salad, fingerlings, wild rice, green beans · dessert display',
+            price: 88,
+            cat: 'Evening'
+          }
+        ],
+        /* Shared appetizer packages — buffet has no plated starter; this is the starter solution */
         starters: [
-          { id: 's1', name: 'Hummus', desc: 'Marinated olives, veggies, feta, pita bread', price: 16.50, veg: true, cat: 'Snack' },
-          { id: 's2', name: 'Soft Pretzel Sticks', desc: 'Served with cheese & ale fondue', price: 15.00, veg: true, cat: 'Snack' },
-          { id: 's3', name: 'Cheeseburger Slider Trio', desc: 'Most Awesome French Onion seasoning, American cheese, Mystic 18 sauce, Hawaiian roll', price: 15.00, cat: 'Snack' },
-          { id: 's4', name: 'Cajun Tots', desc: 'Served with peppercorn ranch', price: 12.25, veg: true, cat: 'Snack' },
-          { id: 's5', name: 'McMenamins Fries', desc: 'Served with Mystic 18 sauce', price: 12.25, vegan: true, cat: 'Snack' },
-          { id: 's6', name: 'Sesame Seared Ahi', desc: 'Ginger-wasabi mayo, spicy-sweet slaw, scallions', price: 18.75, cat: 'Snack' },
-          { id: 's7', name: 'Cellarmasters Steak & Mushroom Bites', desc: 'Beef ribeye, button mushrooms, Black Rabbit Red demi-glace, horseradish sour cream, garlic bread', price: 23.00, cat: 'Snack' },
-          { id: 's8', name: 'Pub Green Salad', desc: 'Mixed greens, grape tomatoes, cucumber, marinated red onion, croutons, Parmesan, choice of dressing', price: 14.25, veg: true, cat: 'Salad' },
-          { id: 's9', name: 'Aztec Salad', desc: 'Romaine, corn & black bean salsa, avocado, tortilla strips, cheddar, tomato, jalapeño, cilantro, onion, chipotle dressing', price: 18.25, veg: true, cat: 'Salad' },
-          { id: 's10', name: 'Six Arms Goddess Salad', desc: 'Romaine, cucumber, tomato, bell peppers, marinated onion, pita chips, Goddess dressing', price: 16.25, vegan: true, cat: 'Salad' }
+          {
+            id: 'a-skip',
+            name: 'No appetizers — buffet only',
+            desc: 'Skip shared starters; go straight to the buffet after the film',
+            price: 0,
+            cat: 'Skip'
+          },
+          {
+            id: 'a-althea',
+            name: "Althea's Soiree",
+            desc: 'Deviled eggs, hummus & pita, deli display, dessert display · min 25 · shared package',
+            price: 31,
+            cat: 'App Package'
+          },
+          {
+            id: 'a-alice',
+            name: "Alice's Impromptu Gathering",
+            desc: 'Mini quiches, stuffed mushrooms, antipasti, crudités · min 25 · shared package',
+            price: 33,
+            cat: 'App Package'
+          },
+          {
+            id: 'a-mattie',
+            name: "Mattie's Garden Party",
+            desc: 'Caprese skewers, deviled eggs, hummus cups, crudités, fruit, dessert · coffee/tea · min 25',
+            price: 33,
+            cat: 'App Package'
+          },
+          {
+            id: 'a-lola',
+            name: "Lola's Cocktail Party",
+            desc: 'Caprese, stuffed mushrooms, hummus cups, salmon mousse filo, stuffed peppadews, charcuterie · min 25',
+            price: 36,
+            cat: 'App Package'
+          },
+          {
+            id: 'a-carter',
+            name: 'Carter the Great',
+            desc: 'Deviled eggs, salmon mousse, antipasti, cheese board, crudités, crab cups + carved pepper-crusted beef · min 25',
+            price: 48,
+            cat: 'App Package'
+          },
+          {
+            id: 'a-munchies',
+            name: 'Mix & Match Munchies (2 items)',
+            desc: 'Shared hour of munchies — e.g. tots, spring rolls, corn dogs, BBQ sliders, jackfruit sliders, meatballs',
+            price: 17.50,
+            cat: 'Munchies'
+          }
         ],
-        mains: [
-          { id: 'm1', name: 'Jamaican Rice Bowl', desc: 'Coconut curry, squash, cabbage, red bell pepper, carrot, celery, onion, black beans, avocado, mango chutney, cilantro', price: 19.75, vegan: true },
-          { id: 'm2', name: 'Hogshead Crispy Chicken', desc: 'Fried chicken, Hogshead honey mustard mayo, lettuce & pickle chips on a bun', price: 19.75 },
-          { id: 'm3', name: 'El Diablo Chicken Sandwich', desc: 'Spiced chicken, pepper jack, avocado, Dark Star mayo, lettuce, tomato & red onion', price: 23.25 },
-          { id: 'm4', name: 'Ale-Battered Fish & Chips', desc: 'Wild Alaskan cod, fries, tartar sauce, buttermilk coleslaw', price: 25.00 },
-          { id: 'm5', name: 'Bacon Cheeseburger', desc: '6-oz beef patty, lettuce, tomato, red onion, pickles, secret sauce', price: 21.50 },
-          { id: 'm6', name: "JR's Jumbo Deluxe Burger", desc: 'Bacon, cheddar & fried egg — served with fries or tots', price: 22.50 },
-          { id: 'm7', name: 'MYSTIC 18 Beyond Burger', desc: 'Beyond patty, Mystic 18 sauce, creamy Chao slice — fries or tots', price: 22.00, vegan: true },
-          { id: 'm8', name: 'Hammerhead Garden Burger', desc: 'Housemade garden patty, lettuce, tomato, onion, pickles', price: 19.00, veg: true },
-          { id: 'm9', name: 'The Grand Reuben', desc: 'Corned beef, Swiss, kümmel sauerkraut, Mystic 18 sauce, grilled marbled rye', price: 25.50 },
-          { id: 'm10', name: 'Primavera Pesto Pasta', desc: 'Broccolini, arugula, grape tomatoes, basil pesto, White Rabbit wine, Parmesan, linguini, garlic bread', price: 21.25, veg: true, special: true },
-          { id: 'm11', name: 'Grilled Lemon-Pepper Salmon', desc: 'White Rabbit-herb butter, Yukon Gold mashed potatoes, grilled asparagus', price: 27.00, special: true },
-          { id: 'm12', name: 'Terminator Steak & Frites', desc: 'New York steak, Terminator steak & horseradish sauces, fries', price: 35.50, special: true }
-        ],
+        /* Simple beverage preference */
         drinks: [
-          { id: 'd1', name: 'McMenamins Beer (Pint)', desc: 'House-brewed craft beer on site', price: 6.50 },
-          { id: 'd2', name: 'Edgefield Hard Cider (Pint)', desc: 'McMenamins Edgefield cider', price: 6.50 },
-          { id: 'd3', name: 'Edgefield Wine (Glass)', desc: "Red or white — ask staff for the evening's pour", price: 8.00 },
-          { id: 'd4', name: 'Well Cocktail', desc: 'Bourbon, gin, vodka, tequila, rum, scotch, or brandy', price: 8.00 },
-          { id: 'd5', name: 'Featured Illustrated Cocktail', desc: "Tonight's special hand-crafted cocktail", price: 12.00 },
-          { id: 'd6', name: 'Brewery Flight', desc: 'Six samples of McMenamins house-brewed beers', price: 13.50 },
-          { id: 'd7', name: 'Soft Drink / Non-Alcoholic', desc: 'Soda, sparkling water, or juice', price: 4.25 }
+          { id: 'd-water', name: 'Water', desc: 'Still water · non-alcoholic', price: 0, cat: 'Water' },
+          { id: 'd-soda', name: 'Soda / soft drink', desc: 'Soda, sparkling water, or juice', price: 4.25, cat: 'Soda' },
+          { id: 'd-alcohol', name: 'Alcoholic drink', desc: 'Beer, cider, wine, or cocktail (bartender’s selection for the evening)', price: 8, cat: 'Alcohol' }
         ]
       },
       costSim: {
         quoteDate: '2026-07-14',
-        source: 'Michele Wellnitz (MicheleW@mcmenamins.com) — classroom / Martha Jordan or Mina Parsons',
+        source: 'Michele Wellnitz + Kennedy School Banquet June 2026 PDF',
         budgetOk: true,
         fbMin: 1000,
         servicePct: 0.21,
         roomFee: 0,
         avFee: 0,
-        packagePp: 45,
-        drinkPp: 8,
+        packagePp: 64,
+        drinkPp: 6,
         roomName: 'Classroom (Martha Jordan / Mina Parsons) · max ~40',
-        note: 'REAL QUOTE (Michele): Classroom F&B min ~$900–$1,000 + 21%. Max ~40 seated. Theater only weekdays 7am–4pm — NO evening private theater; use laptop/projector IN classroom for film. Menu from Courtyard-style pricing. UNDER $3k — best McMenamins economics if projector plan is OK.',
+        note: 'Buffet poll uses evening banquet packages (Luau–Cascadia). Classroom F&B min ~$900–$1,000 + 21%. Confirm final package with Michele before locking.',
         scenarios: [
-          { guests: 30, median: 1924, p10: 1770, p90: 2116, perGuest: 64 },
-          { guests: 35, median: 2245, p10: 2065, p90: 2470, perGuest: 64 },
-          { guests: 40, median: 2565, p10: 2360, p90: 2822, perGuest: 64 }
+          { guests: 30, median: 2400, p10: 2100, p90: 3200, perGuest: 80 },
+          { guests: 35, median: 2800, p10: 2450, p90: 3700, perGuest: 80 },
+          { guests: 40, median: 3200, p10: 2800, p90: 4200, perGuest: 80 }
         ]
       }
     },
+
 
     /* —— New prospects from Jul 2026 venue RFP (public menus; private-dining mins TBD with sales) —— */
     'el-gaucho': {

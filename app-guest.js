@@ -39,6 +39,7 @@ let LOC, partySize = 1, selRoom = null;
 let selections = [{ starter: null, drink: null, dinner: null }];
 let selSalad = null, selEntree = null, selDessert = null;
 let selStarter = null, selMain = null, selDrink = null, starterFilter = 'all';
+let selBuffet = null;
 
 function initGuest() {
   const slug = getLocationSlug();
@@ -92,7 +93,7 @@ function renderPage() {
         <input type="text" id="guestName" placeholder="First and last name" autocomplete="name"></div>
       <div id="form-fields"></div>
       <div class="submit-area">
-        <button class="submit-btn" id="submitBtn">${LOC.type === 'preorder' ? 'Confirm My Selection' : 'Confirm My Reservation'}</button>
+        <button class="submit-btn" id="submitBtn">${LOC.type === 'preorder' || LOC.type === 'buffet' ? 'Confirm My Preferences' : 'Confirm My Reservation'}</button>
         <p class="submit-legal">Your selections help us prepare for your ${LOC.type === 'retreat' ? 'stay' : 'evening'}. By submitting, you confirm your intent to attend.</p>
       </div>
     </div>
@@ -109,7 +110,22 @@ function renderPage() {
 
 function renderFormFields() {
   const el = document.getElementById('form-fields');
-  if (LOC.type === 'preorder') {
+  if (LOC.type === 'buffet') {
+    el.innerHTML = `
+      <div class="pick-head"><span class="pick-title">Preferred Buffet</span><span class="pick-req">Select one · group popularity poll</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">We order <strong>one buffet for everyone</strong>. Pick the package you’d be happiest with.</p>
+      <div class="cards" id="buffet-cards">${LOC.menus.buffets.map(b => cardHTML('buffet', 'buffet', null, b, false)).join('')}</div>
+      <div class="err-msg" id="err-buffet">Please choose a preferred buffet.</div>
+      <div class="section-gap"></div>
+      <div class="pick-head"><span class="pick-title">Shared Appetizers (Starters)</span><span class="pick-req">Select one · optional package for the group</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Buffet packages do <strong>not</strong> include a plated starter. Vote for a shared appetizer package if you’d like something before the buffet — or choose “No appetizers.”</p>
+      <div class="cards" id="starter-cards">${LOC.menus.starters.map(s => cardHTML('starter', 'starter', null, s, false)).join('')}</div>
+      <div class="err-msg" id="err-starter">Please choose a starter preference (or “No appetizers”).</div>
+      <div class="section-gap"></div>
+      <div class="pick-head"><span class="pick-title">Beverage Preference</span><span class="pick-req">Select one</span></div>
+      <div class="cards" id="drink-cards">${LOC.menus.drinks.map(d => cardHTML('drink', 'drink', null, d, false)).join('')}</div>
+      <div class="err-msg" id="err-drink">Please choose water, soda, or an alcoholic drink.</div>`;
+  } else if (LOC.type === 'preorder') {
     el.innerHTML = `
       <div class="pick-head"><span class="pick-title">Arrival Bite</span><span class="pick-req">Optional · select one or skip</span></div>
       <div class="starter-filter" id="starter-filter">
@@ -232,6 +248,30 @@ function handleCardClick(e) {
     return;
   }
 
+  if (LOC.type === 'buffet') {
+    if (pick === 'buffet') {
+      if (selBuffet) document.getElementById(`card-buffet-${selBuffet}`)?.classList.remove('selected');
+      selBuffet = id;
+      card.classList.add('selected');
+      document.getElementById('err-buffet')?.classList.remove('show');
+      return;
+    }
+    if (pick === 'starter') {
+      if (selStarter) document.getElementById(`card-starter-${selStarter}`)?.classList.remove('selected');
+      selStarter = id;
+      card.classList.add('selected');
+      document.getElementById('err-starter')?.classList.remove('show');
+      return;
+    }
+    if (pick === 'drink') {
+      if (selDrink) document.getElementById(`card-drink-${selDrink}`)?.classList.remove('selected');
+      selDrink = id;
+      card.classList.add('selected');
+      document.getElementById('err-drink')?.classList.remove('show');
+      return;
+    }
+  }
+
   if (LOC.type === 'preorder') {
     if (pick === 'starter') {
       const prevId = selStarter ? `card-starter-${selStarter}` : 'card-starter-skip';
@@ -296,7 +336,28 @@ function submitOrder() {
 
   let order, successHTML;
 
-  if (LOC.type === 'preorder') {
+  if (LOC.type === 'buffet') {
+    let ok = true;
+    if (!selBuffet) { document.getElementById('err-buffet').classList.add('show'); ok = false; }
+    if (!selStarter) { document.getElementById('err-starter').classList.add('show'); ok = false; }
+    if (!selDrink) { document.getElementById('err-drink').classList.add('show'); ok = false; }
+    if (!ok) return;
+    const buffet = LOC.menus.buffets.find(b => b.id === selBuffet);
+    const starter = LOC.menus.starters.find(s => s.id === selStarter);
+    const drink = LOC.menus.drinks.find(d => d.id === selDrink);
+    order = {
+      id: Date.now(), locationId: LOC.id, name,
+      buffet: buffet.name, buffetId: buffet.id, buffetPrice: buffet.price,
+      starter: starter.name, starterId: starter.id, starterPrice: starter.price || 0,
+      drink: drink.name, drinkId: drink.id, drinkPrice: drink.price || 0,
+      drinkCat: drink.cat || null,
+      ts: new Date().toISOString()
+    };
+    successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Preferred Buffet</div><div class="sc-val">${esc(buffet.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Appetizers</div><div class="sc-val">${esc(starter.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)}</div></div>`;
+  } else if (LOC.type === 'preorder') {
     let ok = true;
     if (!selMain) { document.getElementById('err-main').classList.add('show'); ok = false; }
     if (!selDrink) { document.getElementById('err-drink').classList.add('show'); ok = false; }

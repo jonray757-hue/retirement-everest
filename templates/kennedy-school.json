@@ -1,55 +1,42 @@
 {
   "id": "kennedy-school",
   "slug": "kennedy-school",
-  "type": "preorder",
+  "type": "buffet",
   "theme": "gold",
   "name": "McMenamins Kennedy School",
   "shortName": "Kennedy School",
   "city": "Portland, OR",
   "venue": "Martha Jordan Room",
-  "storageKey": "kennedyschool_orders_v1",
-  "heroSub": "A private film screening and complimentary dinner at McMenamins Kennedy School.",
-  "cta": "Select Your Meal",
-  "meta": [
-    { "strong": "Kennedy School", "label": "Portland, OR" },
-    { "strong": "Complimentary", "label": "Dinner Included" },
-    { "strong": "Limited", "label": "Seats Available" }
-  ],
-  "aboutLabel": "About the Evening",
-  "aboutHeadline": "This is not a seminar.<br>It's a private premiere.",
-  "about": [
-    "You've been personally invited to an exclusive screening of Retirement Everest.",
-    "The evening takes place in the Martha Jordan Room — film and dinner in one historic classroom."
-  ],
-  "expect": [
-    { "title": "Arrive & Be Welcomed", "desc": "Doors open 15 minutes before showtime in the Martha Jordan Room." },
-    { "title": "Watch the Film", "desc": "Retirement Everest screens in a beautifully restored school setting." },
-    { "title": "Dinner & Conversation", "desc": "Courtyard Restaurant fare served at your table after the screening." }
-  ],
-  "formTitle": "Reserve Your Seat at the Table",
-  "formLabel": "Your Meal Selection",
-  "formIntro": "Dinner is included — select your meal below.",
-  "formNote": "Arrival bite at your table; main and drink served after the film.",
+  "storageKey": "kennedyschool_buffet_orders_v1",
+  "heroSub": "A private film screening & buffet dinner at McMenamins Kennedy School.",
+  "cta": "Share Your Preferences",
+  "formTitle": "Tell Us What You Prefer",
+  "formLabel": "Dinner Preferences",
+  "formIntro": "Dinner is included. Because we order one buffet for the whole group, pick the package you would most enjoy.",
+  "formNote": "Buffet packages do not include a plated starter. Vote for a shared appetizer package or skip. Beverage: water, soda, or alcohol.",
   "footer": "Retirement Everest · Private Screening Series · McMenamins Kennedy School · Portland, OR",
   "menus": {
-    "starters": [
-      { "id": "s1", "name": "Hummus", "desc": "Marinated olives, veggies, feta, pita bread", "price": 16.50, "veg": true, "cat": "Snack" },
-      { "id": "s2", "name": "Soft Pretzel Sticks", "desc": "Cheese & ale fondue", "price": 15.00, "veg": true, "cat": "Snack" }
+    "buffets": [
+      { "id": "b-luau", "name": "Sunset Luau Buffet", "desc": "Huli Huli chicken, Kalua pork, Hawaiian sides", "price": 55.50 },
+      { "id": "b-bbq", "name": "Backyard Barbecue Buffet", "desc": "Brisket, white BBQ chicken, picnic sides", "price": 63.50 },
+      { "id": "b-mthood2", "name": "Mt. Hood Buffet (2 entrées)", "desc": "Turkey / beef / ham / ravioli — choose two", "price": 63.50 },
+      { "id": "b-hearth", "name": "Hearthstone Buffet", "desc": "Chicken + baked cod, NW sides", "price": 68 },
+      { "id": "b-mthood3", "name": "Mt. Hood Buffet (3 entrées)", "desc": "Same as Mt. Hood with three entrées", "price": 70 },
+      { "id": "b-cascadia", "name": "Cascadia Buffet", "desc": "Salmon + tournedos of beef", "price": 88 }
     ],
-    "mains": [
-      { "id": "m1", "name": "Jamaican Rice Bowl", "desc": "Coconut curry, black beans, avocado, mango chutney, cilantro", "price": 19.75, "vegan": true },
-      { "id": "m2", "name": "El Diablo Chicken Sandwich", "desc": "Spiced chicken, pepper jack, avocado, Dark Star mayo", "price": 23.25 }
+    "starters": [
+      { "id": "a-skip", "name": "No appetizers — buffet only", "desc": "Skip shared starters", "price": 0 },
+      { "id": "a-althea", "name": "Althea's Soiree", "desc": "Deviled eggs, hummus, deli display", "price": 31 },
+      { "id": "a-alice", "name": "Alice's Impromptu Gathering", "desc": "Mini quiches, mushrooms, antipasti", "price": 33 },
+      { "id": "a-mattie", "name": "Mattie's Garden Party", "desc": "Caprese, fruit, dessert, coffee", "price": 33 },
+      { "id": "a-lola", "name": "Lola's Cocktail Party", "desc": "Charcuterie + hot apps", "price": 36 },
+      { "id": "a-carter", "name": "Carter the Great", "desc": "Apps + carved pepper-crusted beef", "price": 48 },
+      { "id": "a-munchies", "name": "Mix & Match Munchies (2 items)", "desc": "Shared hour of munchies", "price": 17.50 }
     ],
     "drinks": [
-      { "id": "d1", "name": "McMenamins Beer (Pint)", "desc": "House-brewed craft beer", "price": 6.50 },
-      { "id": "d2", "name": "Edgefield Wine (Glass)", "desc": "Red or white", "price": 8.00 }
-    ]
-  },
-  "costSim": {
-    "note": "From Courtyard Restaurant menu (Spring 2026). Confirm F&B minimum with sales.",
-    "scenarios": [
-      { "guests": 30, "median": 1313, "p10": 1234, "p90": 1395, "perGuest": 44 },
-      { "guests": 40, "median": 1752, "p10": 1652, "p90": 1856, "perGuest": 44 }
+      { "id": "d-water", "name": "Water", "desc": "Still water", "price": 0 },
+      { "id": "d-soda", "name": "Soda / soft drink", "desc": "Soda, sparkling water, or juice", "price": 4.25 },
+      { "id": "d-alcohol", "name": "Alcoholic drink", "desc": "Beer, cider, wine, or cocktail", "price": 8 }
     ]
   }
 }

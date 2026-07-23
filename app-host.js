@@ -3,7 +3,7 @@ let roomRates = getRoomRates();
 
 function initHost() {
   const sel = document.getElementById('locSelect');
-  const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder' };
+  const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet poll' };
   sel.innerHTML = Object.values(RETIREMENT_EVEREST.locations).map(l =>
     `<option value="${l.slug}">${l.shortName} — ${typeLabels[l.type] || 'Event'}</option>`
   ).join('');
@@ -37,6 +37,36 @@ function rankBars(counts) {
     <div class="rank-row"><div class="rank-name">${name}</div>
     <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(count/max*100).toFixed(0)}%"></div></div>
     <div class="rank-count">${count}</div></div>`).join('');
+}
+
+function renderBuffetReport(orders, loc) {
+  const buffetCounts = {}, starterCounts = {}, drinkCounts = {};
+  orders.forEach(o => {
+    if (o.buffet) buffetCounts[o.buffet] = (buffetCounts[o.buffet] || 0) + 1;
+    if (o.starter) starterCounts[o.starter] = (starterCounts[o.starter] || 0) + 1;
+    if (o.drink) drinkCounts[o.drink] = (drinkCounts[o.drink] || 0) + 1;
+  });
+  const topBuffet = Object.entries(buffetCounts).sort((a, b) => b[1] - a[1])[0];
+  const topStarter = Object.entries(starterCounts).sort((a, b) => b[1] - a[1])[0];
+  const topDrink = Object.entries(drinkCounts).sort((a, b) => b[1] - a[1])[0];
+  return `
+    <div class="stats-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      <div class="card-box"><div class="stat-label">Votes</div><div class="stat-val">${orders.length}</div></div>
+      <div class="card-box"><div class="stat-label">Leading buffet</div><div class="stat-val" style="font-size:1rem">${topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—'}</div></div>
+      <div class="card-box"><div class="stat-label">Leading beverage</div><div class="stat-val" style="font-size:1rem">${topDrink ? esc(topDrink[0]) + ' (' + topDrink[1] + ')' : '—'}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card-box"><h3>Buffet popularity</h3>${rankBars(buffetCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+      <div class="card-box"><h3>Appetizer package votes</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+      <div class="card-box"><h3>Beverage preference</h3>${rankBars(drinkCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+    </div>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Leading starter package: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Use these tallies to lock one group buffet + whether to add apps with McMenamins sales.</p>
+    <div class="card-box" style="overflow:auto">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage</th><th>Time</th></tr></thead>
+        <tbody>${orders.map((o, i) => `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(o.drink || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
 }
 
 function renderPreorderReport(orders, loc) {
@@ -203,6 +233,7 @@ function renderReport() {
   } else {
     body.innerHTML = share + (loc.type === 'screening' ? renderScreeningReport(orders, loc)
       : loc.type === 'preorder' ? renderPreorderReport(orders, loc)
+      : loc.type === 'buffet' ? renderBuffetReport(orders, loc)
       : renderRetreatReport(orders, loc));
   }
   body.querySelector('[data-copy-link]')?.addEventListener('click', e => {

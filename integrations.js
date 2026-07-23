@@ -108,6 +108,11 @@ function buildExportRows(loc, orders, type) {
       ...orders.map((o, i) => [i + 1, o.name, o.starter || '—', o.starterPrice || 0, o.main, o.mainPrice || 0,
         o.drink, o.drinkPrice || 0, (o.starterPrice || 0) + (o.mainPrice || 0) + (o.drinkPrice || 0), new Date(o.ts).toLocaleString()])];
   }
+  if (loc.type === 'buffet') {
+    return [['#', 'Name', 'Preferred Buffet', 'Buffet $', 'Appetizer Preference', 'App $', 'Beverage', 'Drink $', 'Time'],
+      ...orders.map((o, i) => [i + 1, o.name, o.buffet || '—', o.buffetPrice || 0, o.starter || '—', o.starterPrice || 0,
+        o.drink || '—', o.drinkPrice || 0, new Date(o.ts).toLocaleString()])];
+  }
   const rows = [['#', 'Name', 'Room', 'Party', 'Person', 'Dinner', 'Starter', 'Drink', 'Price', 'Time']];
   orders.forEach((o, i) => {
     const people = o.people || [{ dinner: o.dinner, dinnerPrice: o.dinnerPrice }];
