@@ -537,14 +537,81 @@ window.RETIREMENT_EVEREST = {
         servicePct: 0.21,
         roomFee: 0,
         avFee: 0,
-        packagePp: 64,
+        /* Default package for series compare table = mid Luau (lowest evening buffet) */
+        packagePp: 55.50,
         drinkPp: 6,
+        drinkSoftPp: 4.25,
+        drinkAdultPp: 8,
         roomName: 'Classroom (Martha Jordan / Mina Parsons) · max ~40',
-        note: 'Buffet poll uses evening banquet packages (Luau–Cascadia). Classroom F&B min ~$900–$1,000 + 21%. Confirm final package with Michele before locking.',
+        note: 'Each buffet package is modeled separately. Formula: max(buffet$/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service. Range p10 = all soft drinks ($4.25), median = blend ($6), p90 = all adult ($8). Apps are NOT in the base numbers — add separately if the poll majority wants them (e.g. Althea $31/pp ≈ +$1.1k–$1.5k at 30–40 guests after service).',
+        /* Series compare uses Luau (lowest) @ 35 */
         scenarios: [
-          { guests: 30, median: 2400, p10: 2100, p90: 3200, perGuest: 80 },
-          { guests: 35, median: 2800, p10: 2450, p90: 3700, perGuest: 80 },
-          { guests: 40, median: 3200, p10: 2800, p90: 4200, perGuest: 80 }
+          { guests: 30, median: 2232, p10: 2169, p90: 2305, perGuest: 74 },
+          { guests: 35, median: 2605, p10: 2530, p90: 2689, perGuest: 74 },
+          { guests: 40, median: 2977, p10: 2892, p90: 3073, perGuest: 74 }
+        ],
+        /* Full per-buffet breakdown for cost simulator */
+        buffetPackages: [
+          {
+            id: 'b-luau',
+            name: 'Sunset Luau Buffet',
+            packagePp: 55.50,
+            scenarios: [
+              { guests: 30, median: 2232, p10: 2169, p90: 2305, perGuest: 74 },
+              { guests: 35, median: 2605, p10: 2530, p90: 2689, perGuest: 74 },
+              { guests: 40, median: 2977, p10: 2892, p90: 3073, perGuest: 74 }
+            ]
+          },
+          {
+            id: 'b-bbq',
+            name: 'Backyard Barbecue Buffet',
+            packagePp: 63.50,
+            scenarios: [
+              { guests: 30, median: 2523, p10: 2459, p90: 2595, perGuest: 84 },
+              { guests: 35, median: 2943, p10: 2869, p90: 3028, perGuest: 84 },
+              { guests: 40, median: 3364, p10: 3279, p90: 3461, perGuest: 84 }
+            ]
+          },
+          {
+            id: 'b-mthood2',
+            name: 'Mt. Hood Buffet (2 entrées)',
+            packagePp: 63.50,
+            scenarios: [
+              { guests: 30, median: 2523, p10: 2459, p90: 2595, perGuest: 84 },
+              { guests: 35, median: 2943, p10: 2869, p90: 3028, perGuest: 84 },
+              { guests: 40, median: 3364, p10: 3279, p90: 3461, perGuest: 84 }
+            ]
+          },
+          {
+            id: 'b-hearth',
+            name: 'Hearthstone Buffet',
+            packagePp: 68,
+            scenarios: [
+              { guests: 30, median: 2686, p10: 2623, p90: 2759, perGuest: 90 },
+              { guests: 35, median: 3134, p10: 3060, p90: 3219, perGuest: 90 },
+              { guests: 40, median: 3582, p10: 3497, p90: 3678, perGuest: 90 }
+            ]
+          },
+          {
+            id: 'b-mthood3',
+            name: 'Mt. Hood Buffet (3 entrées)',
+            packagePp: 70,
+            scenarios: [
+              { guests: 30, median: 2759, p10: 2695, p90: 2831, perGuest: 92 },
+              { guests: 35, median: 3219, p10: 3144, p90: 3303, perGuest: 92 },
+              { guests: 40, median: 3678, p10: 3594, p90: 3775, perGuest: 92 }
+            ]
+          },
+          {
+            id: 'b-cascadia',
+            name: 'Cascadia Buffet',
+            packagePp: 88,
+            scenarios: [
+              { guests: 30, median: 3412, p10: 3349, p90: 3485, perGuest: 114 },
+              { guests: 35, median: 3981, p10: 3907, p90: 4066, perGuest: 114 },
+              { guests: 40, median: 4550, p10: 4465, p90: 4646, perGuest: 114 }
+            ]
+          }
         ]
       }
     },

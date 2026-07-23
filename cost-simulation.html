@@ -37,6 +37,9 @@ header.page h1 { font-family: var(--heading-font); font-size: 1.3rem; color: var
 .att-list a { font-size: 0.75rem; color: var(--accent); text-decoration: none; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); padding: 4px 10px; border-radius: 12px; }
 .att-list a:hover { border-color: var(--accent); }
 .section-h { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin: 0 0 12px; }
+.buffet-block { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.buffet-block h3 { font-family: var(--heading-font); font-size: 1.05rem; text-transform: uppercase; margin: 0 0 6px; color: var(--text); }
+.buffet-block .pkg-meta { font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; }
 </style>
 </head>
 <body class="theme-hub">
@@ -90,16 +93,35 @@ function budgetBadge(ok) {
   if (ok === false) return '<span class="badge-bad">Over $3k / parked</span>';
   return '<span class="badge-unk">Min TBD</span>';
 }
-function recomputeFloor(sim, guests) {
+function recomputeFloor(sim, guests, packagePpOverride, drinkPpOverride) {
   if (!sim) return null;
   const sc = sim.servicePct || 0;
   const tax = sim.taxPct || 0;
-  const food = (sim.packagePp || 0) * guests;
-  const bev = (sim.drinkPp || 0) * guests;
+  const pkg = packagePpOverride != null ? packagePpOverride : (sim.packagePp || 0);
+  const drink = drinkPpOverride != null ? drinkPpOverride : (sim.drinkPp || 0);
+  const food = pkg * guests;
+  const bev = drink * guests;
   const fbMin = sim.fbMin || 0;
   const fb = Math.max(food + bev, fbMin);
   // Service on F&B, then sales tax on F&B+service (WA model); room/AV after
   return Math.round(fb * (1 + sc) * (1 + tax) + (sim.roomFee || 0) + (sim.avFee || 0));
+}
+
+function scenarioCardsHTML(scenarios, loc, sim, packagePp) {
+  return (scenarios || []).map(s => {
+    if (loc.type === 'screening' || loc.type === 'preorder' || loc.type === 'buffet') {
+      const floor = recomputeFloor(sim, s.guests, packagePp);
+      return `<div class="scenario-card"><h4>${s.guests} guests</h4>
+        <div class="big">${money(s.median)}</div>
+        <div class="sub">Median total · ~${money(s.perGuest)}/guest</div>
+        <div class="sub">Range: ${money(s.p10)} – ${money(s.p90)}</div>
+        ${floor != null ? `<div class="sub">Recomputed floor: ${money(floor)}</div>` : ''}
+      </div>`;
+    }
+    return `<div class="scenario-card"><h4>${s.reservations || s.guests} reservations</h4>
+      <div class="big">${money(s.median)}</div>
+      <div class="sub">Median · safe ${money(s.safe)}</div></div>`;
+  }).join('');
 }
 
 function initCostPlanning() {
@@ -163,24 +185,26 @@ function initCostPlanning() {
     panel.className = 'panel' + (i === 0 ? ' active' : '');
     panel.id = 'panel-' + loc.slug;
 
-    const cards = (sim.scenarios || []).map(s => {
-      if (loc.type === 'screening' || loc.type === 'preorder' || loc.type === 'buffet') {
-        const floor = recomputeFloor(sim, s.guests);
-        return `<div class="scenario-card"><h4>${s.guests} guests</h4>
-          <div class="big">${money(s.median)}</div>
-          <div class="sub">Median total · ~${money(s.perGuest)}/guest</div>
-          <div class="sub">Range: ${money(s.p10)} – ${money(s.p90)}</div>
-          ${floor != null ? `<div class="sub">Recomputed floor: ${money(floor)}</div>` : ''}
-        </div>`;
-      }
-      return `<div class="scenario-card"><h4>${s.reservations || s.guests} reservations</h4>
-        <div class="big">${money(s.median)}</div>
-        <div class="sub">Median · safe ${money(s.safe)}</div></div>`;
+    const buffetBlocks = (sim.buffetPackages || []).map(bp => {
+      const cards = scenarioCardsHTML(bp.scenarios, loc, sim, bp.packagePp);
+      return `<div class="buffet-block">
+        <h3>${esc(bp.name)}</h3>
+        <div class="pkg-meta">Buffet food only <strong>${money(bp.packagePp)}</strong>/guest · + drinks · × ${Math.round((sim.servicePct || 0) * 100)}% service · floor vs F&amp;B min ${sim.fbMin ? money(sim.fbMin) : '—'}</div>
+        <div class="scenario-grid">${cards || '<p class="empty">No scenarios.</p>'}</div>
+      </div>`;
     }).join('');
+
+    const cards = sim.buffetPackages?.length
+      ? ''
+      : scenarioCardsHTML(sim.scenarios, loc, sim, sim.packagePp);
 
     const atts = (loc.attachments || []).map(a =>
       `<a href="${esc(a.path)}" target="_blank" rel="noopener">${esc(a.name || a.path)}</a>`
     ).join('');
+
+    const defaultLabel = sim.buffetPackages?.length
+      ? 'Series compare default (lowest buffet)'
+      : 'Package / pp';
 
     panel.innerHTML = `
       <div class="quote-grid">
@@ -190,13 +214,15 @@ function initCostPlanning() {
         <div class="quote-cell"><span class="k">Sales tax</span><span class="v">${sim.taxPct != null ? (Math.round(sim.taxPct * 1000) / 10) + '%' : '—'}</span></div>
         <div class="quote-cell"><span class="k">Room fee</span><span class="v">${money(sim.roomFee || 0)}</span></div>
         <div class="quote-cell"><span class="k">AV fee</span><span class="v">${money(sim.avFee || 0)}</span></div>
-        <div class="quote-cell"><span class="k">Package / pp</span><span class="v">${sim.packagePp ? money(sim.packagePp) : '—'}</span></div>
-        <div class="quote-cell"><span class="k">Drink / pp (est.)</span><span class="v">${sim.drinkPp ? money(sim.drinkPp) : '—'}</span></div>
+        <div class="quote-cell"><span class="k">${defaultLabel}</span><span class="v">${sim.packagePp ? money(sim.packagePp) : '—'}</span></div>
+        <div class="quote-cell"><span class="k">Drink / pp (blend)</span><span class="v">${sim.drinkPp ? money(sim.drinkPp) : '—'}</span></div>
         <div class="quote-cell"><span class="k">Room</span><span class="v" style="font-size:0.8rem;font-weight:500">${esc(sim.roomName || loc.venue || '—')}</span></div>
       </div>
       ${sim.proposedDate ? `<p class="sub" style="margin:0 0 12px">Proposed / held date: <strong>${esc(sim.proposedDate)}</strong></p>` : ''}
       <div class="note"><strong>Source:</strong> ${esc(sim.source || 'Planning model')}<br>${esc(sim.note || '')}</div>
-      <div class="scenario-grid">${cards || '<p class="empty">No scenarios.</p>'}</div>
+      ${buffetBlocks
+        ? `<div class="section-h" style="margin-top:8px">Scenarios by buffet package</div>${buffetBlocks}`
+        : `<div class="scenario-grid">${cards || '<p class="empty">No scenarios.</p>'}</div>`}
       ${atts ? `<div style="margin-top:18px"><div class="section-h">Attachments on file</div><div class="att-list">${atts}</div></div>` : ''}
       <p style="margin-top:24px;font-size:0.72rem;color:var(--muted);font-style:italic">
         Live guest preorders: <a href="host.html?location=${esc(loc.slug)}" style="color:var(--accent)">host dashboard</a>
