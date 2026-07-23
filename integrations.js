@@ -61,7 +61,7 @@ function buildInviteMessage(loc, guestLink, event, guestName) {
 
 You're personally invited to a private screening of Retirement Everest at ${loc.name} in ${loc.city} on ${dateLine}.${timeLine}
 
-Dinner is complimentary — reserve your seat and meal selections here:
+Dinner is complimentary — open the link to reserve and share your meal preferences:
 ${guestLink}
 
 We look forward to hosting you.

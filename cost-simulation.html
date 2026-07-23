@@ -164,7 +164,7 @@ function initCostPlanning() {
     panel.id = 'panel-' + loc.slug;
 
     const cards = (sim.scenarios || []).map(s => {
-      if (loc.type === 'screening' || loc.type === 'preorder') {
+      if (loc.type === 'screening' || loc.type === 'preorder' || loc.type === 'buffet') {
         const floor = recomputeFloor(sim, s.guests);
         return `<div class="scenario-card"><h4>${s.guests} guests</h4>
           <div class="big">${money(s.median)}</div>
