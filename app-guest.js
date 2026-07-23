@@ -23,8 +23,62 @@ function cardHTML(id, pick, person, item, selected) {
   return `<div class="card${sel}" id="card-${pick}${pid}-${item.id}" data-pick="${pick}" data-id="${item.id}" ${person != null ? `data-person="${person}"` : ''}>
     <div class="card-radio"><div class="card-dot"></div></div>
     <div class="card-name">${esc(item.name)}${tags(item)}</div>
-    <div class="card-desc">${esc(item.desc)}</div>
+    <div class="card-desc">${esc(item.desc || item.blurb || '')}</div>
   </div>`;
+}
+
+function accordionSectionsHTML(item) {
+  const sections = item.sections || [];
+  if (!sections.length) {
+    return item.desc ? `<p class="acc-desc">${esc(item.desc)}</p>` : '';
+  }
+  return sections.map(sec => `
+    <div class="acc-section">
+      <div class="acc-section-title">${esc(sec.title)}</div>
+      <ul class="acc-list">${(sec.items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+    </div>`).join('');
+}
+
+function accordionItemHTML(kind, item) {
+  return `
+    <div class="acc-item" id="acc-${kind}-${item.id}" data-kind="${kind}" data-id="${item.id}">
+      <button type="button" class="acc-head" data-acc-toggle="${kind}-${item.id}" aria-expanded="false">
+        <span class="acc-head-text">
+          <span class="acc-name">${esc(item.name)}</span>
+          ${item.blurb ? `<span class="acc-blurb">${esc(item.blurb)}</span>` : ''}
+        </span>
+        <span class="acc-chevron" aria-hidden="true">▾</span>
+      </button>
+      <div class="acc-body" hidden>
+        ${accordionSectionsHTML(item)}
+        <button type="button" class="acc-vote-btn" data-vote="${kind}" data-id="${item.id}">
+          Vote for this ${kind === 'buffet' ? 'buffet' : 'option'}
+        </button>
+      </div>
+    </div>`;
+}
+
+function bevCardHTML(item) {
+  const soft = item.cat === 'Soft' || item.id === 'd-soft';
+  return `
+    <button type="button" class="bev-card" id="card-drink-${item.id}" data-pick="drink" data-id="${item.id}">
+      <span class="bev-icon">${soft ? '☕' : '🥂'}</span>
+      <span class="bev-name">${esc(item.name)}</span>
+      <span class="bev-desc">${esc(item.desc || item.blurb || '')}</span>
+    </button>`;
+}
+
+function setVoteStatus(kind, item) {
+  const el = document.getElementById(`${kind}-vote-status`);
+  if (!el || !item) return;
+  el.innerHTML = `Your vote: <strong>${esc(item.name)}</strong>`;
+  el.classList.add('has-vote');
+}
+
+function markAccordionVoted(kind, id) {
+  document.querySelectorAll(`.acc-item[data-kind="${kind}"]`).forEach(node => {
+    node.classList.toggle('voted', node.dataset.id === id);
+  });
 }
 
 function skipCard(person, kind, label, selected) {
@@ -112,19 +166,24 @@ function renderFormFields() {
   const el = document.getElementById('form-fields');
   if (LOC.type === 'buffet') {
     el.innerHTML = `
-      <div class="pick-head"><span class="pick-title">Preferred Buffet</span><span class="pick-req">Select one · group popularity poll</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">We order <strong>one buffet for everyone</strong>. Pick the package you’d be happiest with.</p>
-      <div class="cards" id="buffet-cards">${LOC.menus.buffets.map(b => cardHTML('buffet', 'buffet', null, b, false)).join('')}</div>
-      <div class="err-msg" id="err-buffet">Please choose a preferred buffet.</div>
+      <div class="pick-head"><span class="pick-title">Preferred Buffet</span><span class="pick-req">Expand · see menu · Vote</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">We order <strong>one buffet for the whole group</strong>. Open a package to read the full menu, then tap <strong>Vote for this buffet</strong>.</p>
+      <div class="accordion" id="buffet-accordion">${LOC.menus.buffets.map(b => accordionItemHTML('buffet', b)).join('')}</div>
+      <div class="vote-status" id="buffet-vote-status">No buffet vote yet</div>
+      <div class="err-msg" id="err-buffet">Please vote for a preferred buffet.</div>
       <div class="section-gap"></div>
-      <div class="pick-head"><span class="pick-title">Shared Appetizers (Starters)</span><span class="pick-req">Select one · optional package for the group</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Buffet packages do <strong>not</strong> include a plated starter. Vote for a shared appetizer package if you’d like something before the buffet — or choose “No appetizers.”</p>
-      <div class="cards" id="starter-cards">${LOC.menus.starters.map(s => cardHTML('starter', 'starter', null, s, false)).join('')}</div>
-      <div class="err-msg" id="err-starter">Please choose a starter preference (or “No appetizers”).</div>
+      <div class="pick-head"><span class="pick-title">Shared Appetizers</span><span class="pick-req">Optional · expand &amp; vote</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Buffets don’t include a plated starter. Expand a shared package (or “no appetizers”), then vote.</p>
+      <div class="accordion" id="starter-accordion">${LOC.menus.starters.map(s => accordionItemHTML('starter', s)).join('')}</div>
+      <div class="vote-status" id="starter-vote-status">No appetizer vote yet</div>
+      <div class="err-msg" id="err-starter">Please vote for an appetizer option (or no appetizers).</div>
       <div class="section-gap"></div>
-      <div class="pick-head"><span class="pick-title">Beverage Preference</span><span class="pick-req">Select one</span></div>
-      <div class="cards" id="drink-cards">${LOC.menus.drinks.map(d => cardHTML('drink', 'drink', null, d, false)).join('')}</div>
-      <div class="err-msg" id="err-drink">Please choose water, soda, or an alcoholic drink.</div>`;
+      <div class="pick-head"><span class="pick-title">Beverage</span><span class="pick-req">Adult vs coffee / tea / soda</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Simple tally for the bar — which will you prefer that evening?</p>
+      <div class="bev-row" id="drink-cards">
+        ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
+      </div>
+      <div class="err-msg" id="err-drink">Please choose adult beverage or coffee / tea / soda.</div>`;
   } else if (LOC.type === 'preorder') {
     el.innerHTML = `
       <div class="pick-head"><span class="pick-title">Arrival Bite</span><span class="pick-req">Optional · select one or skip</span></div>
@@ -234,6 +293,60 @@ function handleCardClick(e) {
     renderPeople();
     return;
   }
+
+  // Buffet UI: accordion + vote + beverage (before .card early-return)
+  if (LOC.type === 'buffet') {
+    const toggle = e.target.closest('[data-acc-toggle]');
+    if (toggle) {
+      const key = toggle.dataset.accToggle;
+      const item = document.getElementById(`acc-${key}`);
+      if (!item) return;
+      const body = item.querySelector('.acc-body');
+      const open = body && !body.hidden;
+      const list = item.parentElement;
+      list?.querySelectorAll('.acc-item').forEach(sib => {
+        const b = sib.querySelector('.acc-body');
+        const h = sib.querySelector('.acc-head');
+        if (b) b.hidden = true;
+        if (h) h.setAttribute('aria-expanded', 'false');
+        sib.classList.remove('open');
+      });
+      if (!open && body) {
+        body.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        item.classList.add('open');
+      }
+      return;
+    }
+    const voteBtn = e.target.closest('[data-vote]');
+    if (voteBtn) {
+      const kind = voteBtn.dataset.vote;
+      const vid = voteBtn.dataset.id;
+      if (kind === 'buffet') {
+        const item = LOC.menus.buffets.find(b => b.id === vid);
+        selBuffet = vid;
+        markAccordionVoted('buffet', vid);
+        setVoteStatus('buffet', item);
+        document.getElementById('err-buffet')?.classList.remove('show');
+      } else if (kind === 'starter') {
+        const item = LOC.menus.starters.find(s => s.id === vid);
+        selStarter = vid;
+        markAccordionVoted('starter', vid);
+        setVoteStatus('starter', item);
+        document.getElementById('err-starter')?.classList.remove('show');
+      }
+      return;
+    }
+    const bev = e.target.closest('.bev-card[data-pick="drink"]');
+    if (bev) {
+      if (selDrink) document.getElementById(`card-drink-${selDrink}`)?.classList.remove('selected');
+      selDrink = bev.dataset.id;
+      bev.classList.add('selected');
+      document.getElementById('err-drink')?.classList.remove('show');
+      return;
+    }
+  }
+
   const card = e.target.closest('.card[data-pick]');
   if (!card) return;
   const pick = card.dataset.pick;
@@ -246,30 +359,6 @@ function handleCardClick(e) {
     card.classList.add('selected');
     document.getElementById('err-room')?.classList.remove('show');
     return;
-  }
-
-  if (LOC.type === 'buffet') {
-    if (pick === 'buffet') {
-      if (selBuffet) document.getElementById(`card-buffet-${selBuffet}`)?.classList.remove('selected');
-      selBuffet = id;
-      card.classList.add('selected');
-      document.getElementById('err-buffet')?.classList.remove('show');
-      return;
-    }
-    if (pick === 'starter') {
-      if (selStarter) document.getElementById(`card-starter-${selStarter}`)?.classList.remove('selected');
-      selStarter = id;
-      card.classList.add('selected');
-      document.getElementById('err-starter')?.classList.remove('show');
-      return;
-    }
-    if (pick === 'drink') {
-      if (selDrink) document.getElementById(`card-drink-${selDrink}`)?.classList.remove('selected');
-      selDrink = id;
-      card.classList.add('selected');
-      document.getElementById('err-drink')?.classList.remove('show');
-      return;
-    }
   }
 
   if (LOC.type === 'preorder') {
@@ -345,18 +434,19 @@ function submitOrder() {
     const buffet = LOC.menus.buffets.find(b => b.id === selBuffet);
     const starter = LOC.menus.starters.find(s => s.id === selStarter);
     const drink = LOC.menus.drinks.find(d => d.id === selDrink);
+    const drinkBucket = drink.cat === 'Adult' || drink.id === 'd-adult' ? 'Adult' : 'Soft';
     order = {
       id: Date.now(), locationId: LOC.id, name,
       buffet: buffet.name, buffetId: buffet.id, buffetPrice: buffet.price,
       starter: starter.name, starterId: starter.id, starterPrice: starter.price || 0,
       drink: drink.name, drinkId: drink.id, drinkPrice: drink.price || 0,
-      drinkCat: drink.cat || null,
+      drinkCat: drinkBucket,
       ts: new Date().toISOString()
     };
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Preferred Buffet</div><div class="sc-val">${esc(buffet.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Buffet vote</div><div class="sc-val">${esc(buffet.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Appetizers</div><div class="sc-val">${esc(starter.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)}</div></div>`;
+      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>`;
   } else if (LOC.type === 'preorder') {
     let ok = true;
     if (!selMain) { document.getElementById('err-main').classList.add('show'); ok = false; }

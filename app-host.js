@@ -40,31 +40,50 @@ function rankBars(counts) {
 }
 
 function renderBuffetReport(orders, loc) {
-  const buffetCounts = {}, starterCounts = {}, drinkCounts = {};
+  const buffetCounts = {}, starterCounts = {};
+  let adult = 0, soft = 0;
   orders.forEach(o => {
     if (o.buffet) buffetCounts[o.buffet] = (buffetCounts[o.buffet] || 0) + 1;
     if (o.starter) starterCounts[o.starter] = (starterCounts[o.starter] || 0) + 1;
-    if (o.drink) drinkCounts[o.drink] = (drinkCounts[o.drink] || 0) + 1;
+    const cat = o.drinkCat || (o.drinkId === 'd-adult' || /adult|alcohol|beer|wine|cocktail/i.test(o.drink || '') ? 'Adult' : 'Soft');
+    if (cat === 'Adult') adult += 1;
+    else soft += 1;
   });
   const topBuffet = Object.entries(buffetCounts).sort((a, b) => b[1] - a[1])[0];
   const topStarter = Object.entries(starterCounts).sort((a, b) => b[1] - a[1])[0];
-  const topDrink = Object.entries(drinkCounts).sort((a, b) => b[1] - a[1])[0];
+  const bevTotal = adult + soft || 1;
+  const adultPct = Math.round((adult / bevTotal) * 100);
+  const softPct = Math.round((soft / bevTotal) * 100);
   return `
-    <div class="stats-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+    <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
       <div class="card-box"><div class="stat-label">Votes</div><div class="stat-val">${orders.length}</div></div>
-      <div class="card-box"><div class="stat-label">Leading buffet</div><div class="stat-val" style="font-size:1rem">${topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—'}</div></div>
-      <div class="card-box"><div class="stat-label">Leading beverage</div><div class="stat-val" style="font-size:1rem">${topDrink ? esc(topDrink[0]) + ' (' + topDrink[1] + ')' : '—'}</div></div>
+      <div class="card-box"><div class="stat-label">Leading buffet</div><div class="stat-val" style="font-size:0.95rem">${topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—'}</div></div>
+      <div class="card-box"><div class="stat-label">Adult beverages</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
+      <div class="card-box"><div class="stat-label">Coffee / tea / soda</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+    <div class="card-box" style="margin-bottom:16px">
+      <h3>Beverage split</h3>
+      <div style="display:flex;height:14px;border-radius:8px;overflow:hidden;background:var(--border);margin:8px 0 10px">
+        <div style="width:${adultPct}%;background:var(--accent)" title="Adult"></div>
+        <div style="width:${softPct}%;background:color-mix(in srgb, var(--muted) 50%, var(--panel))" title="Soft"></div>
+      </div>
+      <p style="font-size:0.85rem;color:var(--muted);margin:0">
+        <strong style="color:var(--text)">${adult}</strong> adult ·
+        <strong style="color:var(--text)">${soft}</strong> coffee / tea / soda
+      </p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div class="card-box"><h3>Buffet popularity</h3>${rankBars(buffetCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
       <div class="card-box"><h3>Appetizer package votes</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
-      <div class="card-box"><h3>Beverage preference</h3>${rankBars(drinkCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
     </div>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Leading starter package: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Use these tallies to lock one group buffet + whether to add apps with McMenamins sales.</p>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage</th><th>Time</th></tr></thead>
-        <tbody>${orders.map((o, i) => `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(o.drink || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage bucket</th><th>Time</th></tr></thead>
+        <tbody>${orders.map((o, i) => {
+          const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+        }).join('')}</tbody>
       </table>
     </div>`;
 }

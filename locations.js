@@ -372,112 +372,161 @@ window.RETIREMENT_EVEREST = {
       ],
       formTitle: 'Tell Us What You Prefer',
       formLabel: 'Dinner Preferences',
-      formIntro: 'Dinner is included. Because we order <strong>one buffet for the whole group</strong>, pick the package you would most enjoy — we use the tallies to lock the menu with the kitchen.',
-      formNote: '📋 Buffet packages do <strong>not</strong> include a plated starter course. If you want something before the buffet, vote for a <strong>shared appetizer package</strong> below — or skip. Menu source: Kennedy School Banquet (June 2026).',
+      formIntro: 'Dinner is included. Expand any buffet to see what’s on the menu, then tap <strong>Vote</strong> on your favorite. We order <strong>one buffet for the whole group</strong> based on the tallies.',
+      formNote: '📋 Buffets don’t include a plated starter. Expand an appetizer package (or skip), vote, then choose adult beverage vs coffee / tea / soda.',
       footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Portland, OR',
       menus: {
-        /* Evening buffet packages — guest picks preferred package (group popularity poll) */
         buffets: [
           {
             id: 'b-luau',
             name: 'Sunset Luau Buffet',
-            desc: 'Huli Huli chicken, Kalua pork, Hawaiian mac salad, basil-cilantro rice, stir-fry veggies, Hawaiian rolls · desserts included',
+            blurb: 'Hawaiian-style · chicken & pork',
             price: 55.50,
-            cat: 'Evening'
+            sections: [
+              { title: 'Sides & salads', items: ['Hawaiian rolls & butter', 'Hawaiian macaroni salad', 'Basil-cilantro rice', 'Stir-fry vegetables'] },
+              { title: 'Entrées', items: ['Huli Huli chicken thighs', 'Kalua pork'] },
+              { title: 'Desserts', items: ['Lilikoi-coconut tart', "Ruby's raspberry cheesecake"] }
+            ]
           },
           {
             id: 'b-bbq',
             name: 'Backyard Barbecue Buffet',
-            desc: 'Red Eye BBQ brisket, peppercorn white BBQ chicken, potato salad, coleslaw, baked beans, biscuits · brownies & berry bars',
+            blurb: 'Brisket & white BBQ chicken',
             price: 63.50,
-            cat: 'Evening'
+            sections: [
+              { title: 'Sides & salads', items: ['Biscuits & honey butter', 'Picnic potato salad', 'Buttermilk coleslaw', "Dad's Moonshine baked beans"] },
+              { title: 'Entrées', items: ['Red Eye BBQ beef brisket', 'Peppercorn white BBQ chicken breasts'] },
+              { title: 'Desserts', items: ['Black & Tan brownies', 'Northwest berry bars'] }
+            ]
           },
           {
             id: 'b-mthood2',
             name: 'Mt. Hood Buffet (2 entrées)',
-            desc: 'Pick two: turkey, pepper-crusted beef, honey ham, or wild mushroom ravioli · sides & dessert display',
+            blurb: 'Classic roast dinner · choose 2 meats',
             price: 63.50,
-            cat: 'Evening'
+            sections: [
+              { title: 'Always included', items: ['Rolls & butter', 'Pub green salad', 'Garlic green beans'] },
+              { title: 'Sides (venue chooses two)', items: ['Herb-roasted fingerlings', 'Traditional dressing', 'Wild rice pilaf', 'Yukon Gold mashed potatoes', 'Traditional mac & cheese'] },
+              { title: 'Entrées (group gets two of)', items: ['Herb-roasted turkey breast', 'Pepper-crusted round of beef', 'Honey-glazed baked ham', 'Wild mushroom ravioli (veg)'] },
+              { title: 'Dessert', items: ['Assorted dessert display'] }
+            ]
           },
           {
             id: 'b-hearth',
             name: 'Hearthstone Buffet',
-            desc: 'Lemon-herb chicken, Northern Star baked cod, spinach salad, mashed potatoes, wild rice, broccolini · tarts & cheesecake',
+            blurb: 'Chicken & baked cod · Northwest sides',
             price: 68,
-            cat: 'Evening'
+            sections: [
+              { title: 'Sides & salads', items: ['Dinner rolls & butter', 'Northwest spinach salad', 'Yukon Gold mashed potatoes', 'Wild rice pilaf', 'Garlic-roasted broccolini'] },
+              { title: 'Entrées', items: ['Lemon & herb-roasted chicken breasts', 'Northern Star baked cod'] },
+              { title: 'Desserts', items: ["Phil's salted caramel tart", "Ruby's raspberry cheesecake"] }
+            ]
           },
           {
             id: 'b-mthood3',
             name: 'Mt. Hood Buffet (3 entrées)',
-            desc: 'Same as Mt. Hood with three entrées instead of two · dessert display',
+            blurb: 'Same as Mt. Hood with three entrées',
             price: 70,
-            cat: 'Evening'
+            sections: [
+              { title: 'Always included', items: ['Rolls & butter', 'Pub green salad', 'Garlic green beans'] },
+              { title: 'Sides (venue chooses two)', items: ['Herb-roasted fingerlings', 'Traditional dressing', 'Wild rice pilaf', 'Yukon Gold mashed potatoes', 'Traditional mac & cheese'] },
+              { title: 'Entrées (group gets three of)', items: ['Herb-roasted turkey breast', 'Pepper-crusted round of beef', 'Honey-glazed baked ham', 'Wild mushroom ravioli (veg)'] },
+              { title: 'Dessert', items: ['Assorted dessert display'] }
+            ]
           },
           {
             id: 'b-cascadia',
             name: 'Cascadia Buffet',
-            desc: 'Poached salmon + tournedos of beef, Brewer’s salad, fingerlings, wild rice, green beans · dessert display',
+            blurb: 'Salmon & tournedos of beef',
             price: 88,
-            cat: 'Evening'
+            sections: [
+              { title: 'Sides & salads', items: ['Dinner rolls & butter', "Brewer's salad", 'Herb-roasted fingerlings', 'Wild rice pilaf', 'Garlic green beans'] },
+              { title: 'Entrées', items: ['Poached salmon', 'Tournedos of beef'] },
+              { title: 'Dessert', items: ['Assorted dessert display'] }
+            ]
           }
         ],
-        /* Shared appetizer packages — buffet has no plated starter; this is the starter solution */
         starters: [
           {
             id: 'a-skip',
             name: 'No appetizers — buffet only',
-            desc: 'Skip shared starters; go straight to the buffet after the film',
+            blurb: 'Skip shared starters',
             price: 0,
-            cat: 'Skip'
+            sections: [{ title: 'What this means', items: ['No shared appetizer package before the buffet', 'Straight to dinner after the film'] }]
           },
           {
             id: 'a-althea',
             name: "Althea's Soiree",
-            desc: 'Deviled eggs, hummus & pita, deli display, dessert display · min 25 · shared package',
+            blurb: 'Deviled eggs, hummus, deli · shared',
             price: 31,
-            cat: 'App Package'
+            sections: [
+              { title: "What's included", items: ['Classic deviled eggs', 'Hummus & pita with veggie sticks', 'Deli display (turkey, pastrami, cheeses, rolls)', 'Dessert display'] }
+            ]
           },
           {
             id: 'a-alice',
             name: "Alice's Impromptu Gathering",
-            desc: 'Mini quiches, stuffed mushrooms, antipasti, crudités · min 25 · shared package',
+            blurb: 'Quiches, mushrooms, antipasti',
             price: 33,
-            cat: 'App Package'
+            sections: [
+              { title: "What's included", items: ['Mini quiches (veggie, Florentine, Lorraine)', 'Stuffed mushrooms', 'Antipasti with crackers & bread', 'Crudités with roasted red pepper aioli'] }
+            ]
           },
           {
             id: 'a-mattie',
             name: "Mattie's Garden Party",
-            desc: 'Caprese skewers, deviled eggs, hummus cups, crudités, fruit, dessert · coffee/tea · min 25',
+            blurb: 'Lighter apps + fruit + dessert',
             price: 33,
-            cat: 'App Package'
+            sections: [
+              { title: "What's included", items: ['Caprese skewers', 'Classic deviled eggs', 'Hummus in cucumber cups', 'Crudités', 'Fresh fruit', 'Dessert display', 'Coffee & tea'] }
+            ]
           },
           {
             id: 'a-lola',
             name: "Lola's Cocktail Party",
-            desc: 'Caprese, stuffed mushrooms, hummus cups, salmon mousse filo, stuffed peppadews, charcuterie · min 25',
+            blurb: 'Charcuterie + hot apps',
             price: 36,
-            cat: 'App Package'
+            sections: [
+              { title: "What's included", items: ['Caprese skewers', 'Stuffed mushrooms', 'Hummus cucumber cups', 'Smoked salmon mousse in filo', 'Stuffed peppadews', 'Charcuterie board'] }
+            ]
           },
           {
             id: 'a-carter',
             name: 'Carter the Great',
-            desc: 'Deviled eggs, salmon mousse, antipasti, cheese board, crudités, crab cups + carved pepper-crusted beef · min 25',
+            blurb: 'Apps + carved pepper-crusted beef',
             price: 48,
-            cat: 'App Package'
+            sections: [
+              { title: "What's included", items: ['Classic deviled eggs', 'Smoked salmon mousse in filo', 'Antipasti', 'Artisan cheese board', 'Crudités', 'Curried crab cucumber cups', 'Pepper-crusted round of beef (carver 1 hr)'] }
+            ]
           },
           {
             id: 'a-munchies',
             name: 'Mix & Match Munchies (2 items)',
-            desc: 'Shared hour of munchies — e.g. tots, spring rolls, corn dogs, BBQ sliders, jackfruit sliders, meatballs',
+            blurb: 'Shared hour · lighter option',
             price: 17.50,
-            cat: 'Munchies'
+            sections: [
+              { title: 'Choose-two style (examples)', items: ['Cajun tots', 'Spring rolls', 'Scooby snacks (mini corn dogs)', 'Hammerhead BBQ pork sliders', 'Jerk jackfruit sliders', 'Terminator meatballs'] }
+            ]
           }
         ],
-        /* Simple beverage preference */
+        /* Two buckets only — host tallies adult vs soft */
         drinks: [
-          { id: 'd-water', name: 'Water', desc: 'Still water · non-alcoholic', price: 0, cat: 'Water' },
-          { id: 'd-soda', name: 'Soda / soft drink', desc: 'Soda, sparkling water, or juice', price: 4.25, cat: 'Soda' },
-          { id: 'd-alcohol', name: 'Alcoholic drink', desc: 'Beer, cider, wine, or cocktail (bartender’s selection for the evening)', price: 8, cat: 'Alcohol' }
+          {
+            id: 'd-soft',
+            name: 'Coffee, tea & sodas',
+            blurb: 'Non-alcoholic',
+            desc: 'Coffee, tea, soda, sparkling water, or juice',
+            price: 4.25,
+            cat: 'Soft'
+          },
+          {
+            id: 'd-adult',
+            name: 'Adult beverage',
+            blurb: 'Beer, cider, wine, or cocktail',
+            desc: 'Beer, hard cider, wine, or cocktail for the evening',
+            price: 8,
+            cat: 'Adult'
+          }
         ]
       },
       costSim: {
