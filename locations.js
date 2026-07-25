@@ -2,6 +2,10 @@
 window.RETIREMENT_EVEREST = {
   series: 'Retirement Everest',
   hostPassword: '1234',
+  /* HAG inbound webhook — fires when a guest submits preferences on the guest page */
+  ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d',
+  ghlLocationId: '24UgqDfh5TcJs5IPnA25',
+  ghlBrand: 'HAG',
   hero: {
     image: 'assets/hero-poster.jpg',
     imageMobile: 'assets/hero-poster-mobile.jpg',

@@ -147,6 +147,13 @@ function renderPage() {
       ${LOC.formNote ? `<div class="order-note">${LOC.formNote}</div>` : ''}
       <div class="field-wrap"><label class="field-label" for="guestName">Your Full Name</label>
         <input type="text" id="guestName" placeholder="First and last name" autocomplete="name"></div>
+      <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px">
+        <div class="field-wrap" style="margin-bottom:0"><label class="field-label" for="guestEmail">Email</label>
+          <input type="email" id="guestEmail" placeholder="you@email.com" autocomplete="email"></div>
+        <div class="field-wrap" style="margin-bottom:0"><label class="field-label" for="guestPhone">Mobile phone</label>
+          <input type="tel" id="guestPhone" placeholder="(503) 555-0100" autocomplete="tel"></div>
+      </div>
+      <p class="order-intro" style="margin-top:0;margin-bottom:20px;font-size:0.78rem">Email or mobile required so we can confirm your preferences.</p>
       <div id="form-fields"></div>
       <div class="submit-area">
         <button class="submit-btn" id="submitBtn">${LOC.type === 'preorder' || LOC.type === 'buffet' ? 'Confirm My Preferences' : 'Confirm My Reservation'}</button>
@@ -537,10 +544,92 @@ function handleCardClick(e) {
 
 }
 
-function submitOrder() {
+/** Split "Jane Marie Smith" → first / last for GHL contact create */
+function splitName(full) {
+  const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+}
+
+/**
+ * Push preference submit to HAG GHL inbound webhook.
+ * Guest page cannot use host localStorage integrations — URL lives on RETIREMENT_EVEREST.
+ */
+async function pushGuestOrderToGHL(order) {
+  const url = RETIREMENT_EVEREST.ghlWebhookUrl || LOC.ghlWebhookUrl;
+  if (!url) {
+    console.warn('[RE] No ghlWebhookUrl configured — skip GHL push');
+    return { ok: false, reason: 'no-url' };
+  }
+  const { firstName, lastName } = splitName(order.name);
+  const payload = {
+    // Contact (map these in GHL inbound webhook)
+    firstName,
+    lastName,
+    name: order.name,
+    email: order.email || '',
+    phone: order.phone || '',
+    // Event
+    event: 'preference_submitted',
+    source: 'retirement-everest-guest',
+    brand: RETIREMENT_EVEREST.ghlBrand || 'HAG',
+    ghlLocationId: RETIREMENT_EVEREST.ghlLocationId || '',
+    location: order.locationId || LOC.id,
+    locationName: LOC.name,
+    locationShort: LOC.shortName,
+    // BBQ / food prefs
+    buffet: order.buffet || '',
+    sides: Array.isArray(order.sides) ? order.sides.join(' · ') : (order.sides || order.starter || ''),
+    side1: Array.isArray(order.sides) ? (order.sides[0] || '') : '',
+    side2: Array.isArray(order.sides) ? (order.sides[1] || '') : '',
+    entree: order.entree || order.main || '',
+    dessert: order.dessert || '',
+    drink: order.drink || '',
+    drinkCat: order.drinkCat || '',
+    notes: order.notes || '',
+    // Full blob for custom field / notes
+    preferencesSummary: [
+      order.buffet ? `Dinner: ${order.buffet}` : '',
+      order.sides?.length ? `Sides: ${order.sides.join(' · ')}` : (order.starter ? `Starter: ${order.starter}` : ''),
+      order.entree ? `Entrée: ${order.entree}` : '',
+      order.dessert ? `Dessert: ${order.dessert}` : '',
+      order.drink ? `Drink: ${order.drink}${order.drinkCat ? ` (${order.drinkCat})` : ''}` : '',
+      order.notes ? `Notes: ${order.notes}` : ''
+    ].filter(Boolean).join('\n'),
+    submittedAt: order.ts || new Date().toISOString()
+  };
+  try {
+    // no-cors: browser cannot read body, but GHL still receives the POST
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    console.log('[RE] GHL webhook fired', payload.email || payload.phone || payload.name);
+    return { ok: true };
+  } catch (err) {
+    console.error('[RE] GHL webhook failed', err);
+    return { ok: false, reason: String(err) };
+  }
+}
+
+async function submitOrder() {
   const name = document.getElementById('guestName').value.trim();
+  const email = (document.getElementById('guestEmail')?.value || '').trim();
+  const phone = (document.getElementById('guestPhone')?.value || '').trim();
   document.getElementById('guestName').classList.toggle('err', !name);
+  const emailEl = document.getElementById('guestEmail');
+  const phoneEl = document.getElementById('guestPhone');
+  const contactOk = !!(email || phone);
+  if (emailEl) emailEl.classList.toggle('err', !contactOk && !email);
+  if (phoneEl) phoneEl.classList.toggle('err', !contactOk && !phone);
   if (!name) return;
+  if (!contactOk) {
+    alert('Please add an email or mobile number so we can confirm your preferences.');
+    return;
+  }
 
   let order, successHTML;
 
@@ -559,7 +648,7 @@ function submitOrder() {
     const notes = (document.getElementById('guestNotes')?.value || '').trim();
     const buffetName = LOC.menus.buffetName || 'Backyard Barbecue Buffet';
     order = {
-      id: Date.now(), locationId: LOC.id, name,
+      id: Date.now(), locationId: LOC.id, name, email, phone,
       form: 'bbq-menu-pick',
       buffet: buffetName, buffetId: LOC.lockedBuffetId || 'b-bbq', buffetPrice: LOC.menus.buffetPrice || 63.50,
       buffetLocked: true,
@@ -573,6 +662,7 @@ function submitOrder() {
       ts: new Date().toISOString()
     };
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Contact</div><div class="sc-val">${esc([email, phone].filter(Boolean).join(' · '))}</div></div>
       <div class="sc-row"><div class="sc-label">Dinner</div><div class="sc-val">${esc(buffetName)}</div></div>
       <div class="sc-row"><div class="sc-label">Sides &amp; salads (2)</div><div class="sc-val">${esc(sideItems.map(s => s.name).join(' · '))}</div></div>
       <div class="sc-row"><div class="sc-label">Entrée</div><div class="sc-val">${esc(entree.name)}</div></div>
@@ -590,7 +680,7 @@ function submitOrder() {
     const drink = LOC.menus.drinks.find(d => d.id === selDrink);
     const drinkBucket = drink.cat === 'Adult' || drink.id === 'd-adult' ? 'Adult' : 'Soft';
     order = {
-      id: Date.now(), locationId: LOC.id, name,
+      id: Date.now(), locationId: LOC.id, name, email, phone,
       buffet: buffet.name, buffetId: buffet.id, buffetPrice: buffet.price,
       starter: starter.name, starterId: starter.id, starterPrice: starter.price || 0,
       drink: drink.name, drinkId: drink.id, drinkPrice: drink.price || 0,
@@ -610,7 +700,7 @@ function submitOrder() {
     const main = LOC.menus.mains.find(m => m.id === selMain);
     const drink = LOC.menus.drinks.find(d => d.id === selDrink);
     order = {
-      id: Date.now(), locationId: LOC.id, name,
+      id: Date.now(), locationId: LOC.id, name, email, phone,
       starter: starter?.name || null, starterId: starter?.id || null, starterPrice: starter?.price || 0,
       main: main.name, mainId: main.id, mainPrice: main.price,
       drink: drink.name, drinkId: drink.id, drinkPrice: drink.price,
@@ -631,7 +721,7 @@ function submitOrder() {
     const dessert = LOC.menus.desserts.find(s => s.id === selDessert);
     const drink = selDrink ? LOC.menus.drinks.find(d => d.id === selDrink) : null;
     order = {
-      id: Date.now(), locationId: LOC.id, name,
+      id: Date.now(), locationId: LOC.id, name, email, phone,
       salad: salad.name, saladId: salad.id,
       entree: entree.name, entreeId: entree.id, entreePrice: entree.price,
       dessert: dessert.name, dessertId: dessert.id,
@@ -657,7 +747,7 @@ function submitOrder() {
       const dinner = LOC.menus.dinners.find(d => d.id === sel.dinner);
       return { starter: starter?.name || null, drink: drink?.name || null, dinner: dinner.name, dinnerId: dinner.id, dinnerPrice: dinner.price };
     });
-    order = { id: Date.now(), locationId: LOC.id, name, room: room.name, roomId: room.id, partySize, people: peopleData, ts: new Date().toISOString() };
+    order = { id: Date.now(), locationId: LOC.id, name, email, phone, room: room.name, roomId: room.id, partySize, people: peopleData, ts: new Date().toISOString() };
     const peopleHTML = peopleData.map((p, i) => `
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
         ${partySize > 1 ? `<div class="sc-label">Person ${i+1}</div>` : ''}
@@ -677,9 +767,15 @@ function submitOrder() {
   const all = JSON.parse(localStorage.getItem(LOC.storageKey) || '[]');
   all.push(order);
   localStorage.setItem(LOC.storageKey, JSON.stringify(all));
+
+  // Fire HAG GHL webhook so workflows can email/SMS confirmation
+  await pushGuestOrderToGHL(order);
+
   document.querySelector('.order-section').style.display = 'none';
   document.getElementById('success').classList.add('show');
   document.getElementById('success-card').innerHTML = successHTML;
+  document.getElementById('success').querySelector('p').textContent =
+    `We look forward to hosting you at ${LOC.shortName}. A confirmation will follow shortly if you shared email or mobile.`;
 }
 
 document.addEventListener('DOMContentLoaded', initGuest);
