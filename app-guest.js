@@ -792,8 +792,41 @@ async function submitOrder() {
   all.push(order);
   localStorage.setItem(LOC.storageKey, JSON.stringify(all));
 
-  // Fire HAG GHL webhook so workflows can email/SMS confirmation
-  await pushGuestOrderToGHL(order);
+  // 1) HAG GHL  2) shared multi-device log (command center)  3) email Johnny a report
+  const ghlResult = await pushGuestOrderToGHL(order);
+  let sharedOk = false;
+  let emailOk = false;
+  if (window.RESharedOrders) {
+    try {
+      await RESharedOrders.appendSharedOrder({
+        ...order,
+        location: order.locationId,
+        source: 'retirement-everest-guest'
+      });
+      sharedOk = true;
+    } catch (e) {
+      console.warn('[RE] shared log write failed', e);
+    }
+    try {
+      const er = await RESharedOrders.emailHostReport(order, {
+        preferencesSummary: [
+          `Name: ${order.name}`,
+          `Email: ${order.email || ''}`,
+          `Phone: ${order.phone || ''}`,
+          order.buffet ? `Dinner: ${order.buffet}` : '',
+          order.sides?.length ? `Sides: ${order.sides.join(' · ')}` : '',
+          order.entree ? `Entrée: ${order.entree}` : '',
+          order.dessert ? `Dessert: ${order.dessert}` : '',
+          order.drink ? `Drink: ${order.drink}${order.drinkCat ? ` (${order.drinkCat})` : ''}` : '',
+          order.notes ? `Notes: ${order.notes}` : ''
+        ].filter(Boolean).join('\n')
+      });
+      emailOk = !!er.ok;
+    } catch (e) {
+      console.warn('[RE] host email report failed', e);
+    }
+  }
+  console.log('[RE] submit pipeline', { ghl: ghlResult, sharedOk, emailOk });
 
   document.querySelector('.order-section').style.display = 'none';
   document.getElementById('success').classList.add('show');

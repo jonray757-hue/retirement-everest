@@ -46,6 +46,19 @@ function getOrders() {
   return JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
 }
 
+/** Merge remote shared log into this browser so command center shows all guest submits */
+async function refreshOrdersFromShared() {
+  const loc = getReportLoc();
+  if (!window.RESharedOrders?.loadOrdersForLocation) return getOrders();
+  try {
+    const merged = await RESharedOrders.loadOrdersForLocation(loc);
+    return merged;
+  } catch (e) {
+    console.warn('[RE] refresh shared orders failed', e);
+    return getOrders();
+  }
+}
+
 function rankBars(counts) {
   const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
   const max = entries[0]?.[1] || 1;
@@ -305,20 +318,30 @@ function renderShareBar(loc) {
   </div>`;
 }
 
-function renderReport() {
+async function renderReport() {
   const loc = getLoc();
   const reportLoc = getReportLoc();
   document.body.className = 'theme-hub';
   if (document.getElementById('hostTitle')) {
     document.getElementById('hostTitle').textContent = `${loc.shortName} · Report`;
   }
-  const orders = getOrders();
   const body = document.getElementById('report-body');
+  body.innerHTML = `${renderShareBar(loc)}<div class="empty">Loading preferences (this browser + shared log)…</div>`;
+
+  // Pull multi-device submissions so command center shows real guest fills, not only localStorage
+  const orders = await refreshOrdersFromShared();
   const share = renderShareBar(loc);
+  const syncNote = `<div class="card-box" style="margin-bottom:16px;font-size:0.85rem;color:var(--muted)">
+    <strong style="color:var(--text)">Preference log</strong> ·
+    Showing <strong style="color:var(--text)">${orders.length}</strong> submission(s) from this browser + shared multi-device log.
+    Guest submits also go to HAG GHL and email <strong style="color:var(--text)">${esc(RETIREMENT_EVEREST.reportEmail || 'johnny@blacksandcapitalgroup.com')}</strong>.
+    <button type="button" class="btn-sm" style="margin-left:8px" id="btnRefreshShared">Refresh shared log</button>
+  </div>`;
+
   if (!orders.length) {
-    body.innerHTML = `${share}<div class="empty">No reservations yet for ${loc.shortName}. Use <strong>Send guest link</strong> to invite prospects.</div>`;
+    body.innerHTML = `${share}${syncNote}<div class="empty">No preferences yet for ${esc(loc.shortName)}. Use <strong>Email / text guest link</strong>, then hit <strong>Refresh shared log</strong> after guests submit.</div>`;
   } else {
-    body.innerHTML = share + (reportLoc.type === 'screening' ? renderScreeningReport(orders, reportLoc)
+    body.innerHTML = share + syncNote + (reportLoc.type === 'screening' ? renderScreeningReport(orders, reportLoc)
       : reportLoc.type === 'preorder' ? renderPreorderReport(orders, reportLoc)
       : reportLoc.type === 'buffet' ? renderBuffetReport(orders, reportLoc)
       : renderRetreatReport(orders, reportLoc));
@@ -326,6 +349,7 @@ function renderReport() {
   body.querySelector('[data-copy-link]')?.addEventListener('click', e => {
     copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
   });
+  body.querySelector('#btnRefreshShared')?.addEventListener('click', () => renderReport());
 }
 
 function adjustRate() {

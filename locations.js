@@ -6,6 +6,10 @@ window.RETIREMENT_EVEREST = {
   ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d',
   ghlLocationId: '24UgqDfh5TcJs5IPnA25',
   ghlBrand: 'HAG',
+  /* Shared multi-device order log (command center + guest). jsonblob.com CORS store */
+  sharedOrdersBlobId: '019f9b86-4651-7f0e-b7ce-120127b03201',
+  /* Email Johnny a preference report on every guest submit */
+  reportEmail: 'johnny@blacksandcapitalgroup.com',
   hero: {
     image: 'assets/hero-poster.jpg',
     imageMobile: 'assets/hero-poster-mobile.jpg',

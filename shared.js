@@ -25,6 +25,20 @@ function getOrdersForLocation(loc) {
   return JSON.parse(localStorage.getItem(key) || '[]');
 }
 
+/** Async: merge remote shared preference log into this browser (for overview counts) */
+async function syncOrdersForLocation(loc) {
+  const reportLoc =
+    loc.guestSlug && RETIREMENT_EVEREST?.locations?.[loc.guestSlug]
+      ? RETIREMENT_EVEREST.locations[loc.guestSlug]
+      : loc;
+  if (window.RESharedOrders?.loadOrdersForLocation) {
+    try {
+      return await RESharedOrders.loadOrdersForLocation(reportLoc);
+    } catch (_) {}
+  }
+  return getOrdersForLocation(loc);
+}
+
 function getRoomRates() {
   return JSON.parse(localStorage.getItem(RE_ROOM_RATES_KEY) || '{}');
 }
