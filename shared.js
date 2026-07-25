@@ -74,7 +74,7 @@ function estimateCostForLocation(loc, orders, roomRates) {
     const n = orders.length || 1;
     const buffetAvg = orders.reduce((s, o) => s + (prices[o.buffetId] || o.buffetPrice || 64), 0) / n;
     const drinkAvg = orders.reduce((s, o) => s + (prices[o.drinkId] || o.drinkPrice || 0), 0) / n;
-    const starterVotes = orders.filter(o => o.starterId && o.starterId !== 'a-skip');
+    const starterVotes = orders.filter(o => o.starterId && o.starterId !== 'a-skip' && o.starterId !== 'st-skip');
     const starterAvg = starterVotes.length
       ? starterVotes.reduce((s, o) => s + (prices[o.starterId] || o.starterPrice || 0), 0) / starterVotes.length
       : 0;

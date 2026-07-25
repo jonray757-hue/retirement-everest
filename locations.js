@@ -631,7 +631,7 @@ window.RETIREMENT_EVEREST = {
       shortName: 'Kennedy BBQ',
       city: 'Portland, OR',
       venue: 'Martha Jordan Room',
-      storageKey: 'kennedyschool_bbq_prefs_v1',
+      storageKey: 'kennedyschool_bbq_prefs_v2',
       attachments: [
         { name: 'Kennedy School Catering Menus (June 2026)', path: 'data/venue-attachments/Kennedy-School-Catering-Menus.pdf', kind: 'menu' }
       ],
@@ -646,17 +646,19 @@ window.RETIREMENT_EVEREST = {
       aboutHeadline: "This is not a seminar.<br>It's a private premiere.",
       about: [
         "You've been personally invited to an exclusive screening of <strong>Retirement Everest</strong> — a powerful documentary that explores the financial risks most Americans face in retirement and the strategies that can make the difference between struggle and security.",
-        "Dinner is set: the <strong>Backyard Barbecue Buffet</strong> for the whole group. Your preferences below help us plan shared appetizers and beverages — not which buffet (that's already decided)."
+        "Dinner is set: the <strong>Backyard Barbecue Buffet</strong> for the whole group. Your preferences below help us plan <strong>starters</strong> and beverages — not which buffet (that's already decided)."
       ],
       expect: [
         { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime. Historic school setting, private room.' },
         { title: 'Watch the Film', desc: 'Retirement Everest screens for our group — real stories, real clarity.' },
-        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert — one group buffet for everyone. Tell us your starter and drink preference so we can stock the evening well.' }
+        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert — one group buffet for everyone. Tell us your preferred starter and drink so we can stock the evening well.' }
       ],
       formTitle: 'Tell Us What You Prefer',
       formLabel: 'Dinner Preferences',
-      formIntro: 'The <strong>Backyard Barbecue Buffet</strong> is set for our group. Review what’s on the menu, then vote for a <strong>shared appetizer package</strong> (or skip) and whether you’d like an <strong>adult beverage</strong> or coffee / tea / soda.',
-      formNote: '📋 This is a preference poll so we can plan quantities — not a plated order. Expand appetizer options to see what’s included.',
+      formIntro: 'The <strong>Backyard Barbecue Buffet</strong> is set for our group. Review what’s on the menu, pick your <strong>preferred starter</strong>, and tell us whether you’d like an <strong>adult beverage</strong> or coffee / tea / soda.',
+      formNote: '📋 Preference poll so we can plan quantities — not a plated guarantee. Choose the starter you’d most enjoy.',
+      /* Individual hors d'oeuvres as preferred starter (not shared appetizer packages) */
+      starterPickMode: true,
       footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Backyard BBQ · Portland, OR',
       menus: {
         buffets: [
@@ -673,67 +675,21 @@ window.RETIREMENT_EVEREST = {
           }
         ],
         starters: [
-          {
-            id: 'a-skip',
-            name: 'No appetizers — buffet only',
-            blurb: 'Skip shared starters',
-            price: 0,
-            sections: [{ title: 'What this means', items: ['No shared appetizer package before the buffet', 'Straight to the BBQ after the film'] }]
-          },
-          {
-            id: 'a-althea',
-            name: "Althea's Soiree",
-            blurb: 'Deviled eggs, hummus, deli · shared',
-            price: 31,
-            sections: [
-              { title: "What's included", items: ['Classic deviled eggs', 'Hummus & pita with veggie sticks', 'Deli display (turkey, pastrami, cheeses, rolls)', 'Dessert display'] }
-            ]
-          },
-          {
-            id: 'a-alice',
-            name: "Alice's Impromptu Gathering",
-            blurb: 'Quiches, mushrooms, antipasti',
-            price: 33,
-            sections: [
-              { title: "What's included", items: ['Mini quiches (veggie, Florentine, Lorraine)', 'Stuffed mushrooms', 'Antipasti with crackers & bread', 'Crudités with roasted red pepper aioli'] }
-            ]
-          },
-          {
-            id: 'a-mattie',
-            name: "Mattie's Garden Party",
-            blurb: 'Lighter apps + fruit + dessert',
-            price: 33,
-            sections: [
-              { title: "What's included", items: ['Caprese skewers', 'Classic deviled eggs', 'Hummus in cucumber cups', 'Crudités', 'Fresh fruit', 'Dessert display', 'Coffee & tea'] }
-            ]
-          },
-          {
-            id: 'a-lola',
-            name: "Lola's Cocktail Party",
-            blurb: 'Charcuterie + hot apps',
-            price: 36,
-            sections: [
-              { title: "What's included", items: ['Caprese skewers', 'Stuffed mushrooms', 'Hummus cucumber cups', 'Smoked salmon mousse in filo', 'Stuffed peppadews', 'Charcuterie board'] }
-            ]
-          },
-          {
-            id: 'a-carter',
-            name: 'Carter the Great',
-            blurb: 'Apps + carved pepper-crusted beef',
-            price: 48,
-            sections: [
-              { title: "What's included", items: ['Classic deviled eggs', 'Smoked salmon mousse in filo', 'Antipasti', 'Artisan cheese board', 'Crudités', 'Curried crab cucumber cups', 'Pepper-crusted round of beef (carver 1 hr)'] }
-            ]
-          },
-          {
-            id: 'a-munchies',
-            name: 'Mix & Match Munchies (2 items)',
-            blurb: 'Shared hour · lighter option',
-            price: 17.50,
-            sections: [
-              { title: 'Choose-two style (examples)', items: ['Cajun tots', 'Spring rolls', 'Scooby snacks (mini corn dogs)', 'Hammerhead BBQ pork sliders', 'Jerk jackfruit sliders', 'Terminator meatballs'] }
-            ]
-          }
+          { id: 'st-skip', name: 'No starter — buffet only', desc: 'I’ll wait for the BBQ', price: 0 },
+          { id: 'st-dates', name: 'Bacon-Wrapped Dates', desc: 'Hogshead hot honey', price: null },
+          { id: 'st-caprese', name: 'Caprese Skewers', desc: 'Fresh mozzarella, basil, tomato, balsamic drizzle', price: null, veg: true },
+          { id: 'st-eggs', name: 'Classic Deviled Eggs', desc: 'Edgefield Dijon', price: null, veg: true },
+          { id: 'st-crab', name: 'Curried Crab Cucumber Cups', desc: 'Red curry-crab salad in cucumber cup', price: null },
+          { id: 'st-hummus', name: 'Hummus in Cucumber Cups', desc: 'Olives & roasted red peppers', price: null, vegan: true },
+          { id: 'st-quiche', name: 'Mini Quiches', desc: 'Garden veggie, spinach Florentine, Monterey Jack & Lorraine', price: null },
+          { id: 'st-salmon', name: 'Smoked Salmon Mousse in Filo', desc: 'Hogshead smoked salmon, cream cheese, savory filo', price: null },
+          { id: 'st-spanakopita', name: 'Spanakopita Triangles', desc: 'Feta & spinach in filo pastry', price: null, veg: true },
+          { id: 'st-mushrooms', name: 'Stuffed Mushrooms', desc: 'Parmesan, herbed cream cheese, garlic, breadcrumbs', price: null, veg: true },
+          { id: 'st-peppadews', name: 'Stuffed Peppadews', desc: 'Sweet peppers, goat cheese & Marcona almonds', price: null, veg: true },
+          { id: 'st-meatballs', name: 'Terminator Meatballs', desc: 'Rich Terminator gravy', price: null },
+          { id: 'st-tots', name: 'Cajun Tots', desc: 'Peppercorn ranch', price: null, veg: true },
+          { id: 'st-sliders', name: 'Hammerhead BBQ Pork Sliders', desc: 'Buttermilk coleslaw, Hawaiian rolls', price: null },
+          { id: 'st-jackfruit', name: 'Jerk Jackfruit Sliders', desc: 'Mango pico de gallo, ciabatta', price: null, vegan: true }
         ],
         drinks: [
           {

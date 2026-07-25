@@ -185,7 +185,7 @@ function renderFormFields() {
     const buffetBlock = lockedBuffet
       ? `
       <div class="pick-head"><span class="pick-title">Tonight’s Buffet</span><span class="pick-req">Already chosen for the group</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Everyone gets the same buffet. No need to vote on the main package — just tell us about appetizers and drinks below.</p>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Everyone gets the same buffet. No need to vote on the main package — just pick your preferred starter and drink below.</p>
       ${lockedBuffetMenuHTML(lockedBuffet)}
       <div class="section-gap"></div>`
       : `
@@ -196,13 +196,26 @@ function renderFormFields() {
       <div class="err-msg" id="err-buffet">Please vote for a preferred buffet.</div>
       <div class="section-gap"></div>`;
 
-    el.innerHTML = `
-      ${buffetBlock}
+    // Locked BBQ page: individual starter cards (preferred pick). Poll page: shared apps accordion.
+    const starterPick = !!(LOC.starterPickMode || lockedBuffet);
+    const starterBlock = starterPick
+      ? `
+      <div class="pick-head"><span class="pick-title">Preferred Starter</span><span class="pick-req">Select one</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Tap the starter you’d most prefer. We’ll use the tallies to plan what to put out for the group.</p>
+      <div class="cards" id="starter-cards">
+        ${LOC.menus.starters.map(s => cardHTML('starter', 'starter', null, s, false)).join('')}
+      </div>
+      <div class="err-msg" id="err-starter">Please choose a preferred starter (or “no starter”).</div>`
+      : `
       <div class="pick-head"><span class="pick-title">Shared Appetizers</span><span class="pick-req">Expand · vote your favorite</span></div>
       <p class="order-intro" style="margin-top:0;font-size:0.9rem">Buffets don’t include a plated starter. Expand a shared package (or “no appetizers”), then vote so we know what the group prefers.</p>
       <div class="accordion" id="starter-accordion">${LOC.menus.starters.map(s => accordionItemHTML('starter', s)).join('')}</div>
       <div class="vote-status" id="starter-vote-status">No appetizer vote yet</div>
-      <div class="err-msg" id="err-starter">Please vote for an appetizer option (or no appetizers).</div>
+      <div class="err-msg" id="err-starter">Please vote for an appetizer option (or no appetizers).</div>`;
+
+    el.innerHTML = `
+      ${buffetBlock}
+      ${starterBlock}
       <div class="section-gap"></div>
       <div class="pick-head"><span class="pick-title">Beverage</span><span class="pick-req">Adult vs coffee / tea / soda</span></div>
       <p class="order-intro" style="margin-top:0;font-size:0.9rem">Simple tally for the bar — which will you prefer that evening?</p>
@@ -376,6 +389,17 @@ function handleCardClick(e) {
       document.getElementById('err-drink')?.classList.remove('show');
       return;
     }
+    // Locked BBQ / starterPickMode: preferred starter via cards
+    if (LOC.starterPickMode || LOC.lockedBuffetId) {
+      const starterCard = e.target.closest('.card[data-pick="starter"]');
+      if (starterCard) {
+        if (selStarter) document.getElementById(`card-starter-${selStarter}`)?.classList.remove('selected');
+        selStarter = starterCard.dataset.id || null;
+        starterCard.classList.add('selected');
+        document.getElementById('err-starter')?.classList.remove('show');
+        return;
+      }
+    }
   }
 
   const card = e.target.closest('.card[data-pick]');
@@ -482,9 +506,10 @@ function submitOrder() {
       ts: new Date().toISOString()
     };
     const buffetLabel = LOC.lockedBuffetId ? 'Dinner (set for group)' : 'Buffet vote';
+    const starterLabel = (LOC.starterPickMode || LOC.lockedBuffetId) ? 'Preferred starter' : 'Appetizers';
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
       <div class="sc-row"><div class="sc-label">${buffetLabel}</div><div class="sc-val">${esc(buffet.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Appetizers</div><div class="sc-val">${esc(starter.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">${starterLabel}</div><div class="sc-val">${esc(starter.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>
       ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}`;
   } else if (LOC.type === 'preorder') {

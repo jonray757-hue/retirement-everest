@@ -79,14 +79,14 @@ function renderBuffetReport(orders, loc) {
     </div>
     <div style="display:grid;grid-template-columns:${locked ? '1fr' : '1fr 1fr'};gap:12px;margin-bottom:16px">
       ${locked ? '' : `<div class="card-box"><h3>Buffet popularity</h3>${rankBars(buffetCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>`}
-      <div class="card-box"><h3>Appetizer package votes</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+      <div class="card-box"><h3>${locked || loc.starterPickMode ? 'Preferred starter votes' : 'Appetizer package votes'}</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
     </div>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">${locked
-      ? `Leading appetizer preference: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Use adult/soft split + apps poll when finalizing with McMenamins sales.`
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">${locked || loc.starterPickMode
+      ? `Leading preferred starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Use adult/soft split + starter tallies when finalizing with McMenamins sales.`
       : `Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.`}</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>${locked ? 'Dinner' : 'Buffet'}</th><th>Appetizers</th><th>Beverage bucket</th><th>Notes</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>${locked ? 'Dinner' : 'Buffet'}</th><th>${locked || loc.starterPickMode ? 'Preferred starter' : 'Appetizers'}</th><th>Beverage bucket</th><th>Notes</th><th>Time</th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
           return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
