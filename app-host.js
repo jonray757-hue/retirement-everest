@@ -3,16 +3,22 @@ let roomRates = getRoomRates();
 
 function initHost() {
   const sel = document.getElementById('locSelect');
-  const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet poll' };
-  sel.innerHTML = Object.values(RETIREMENT_EVEREST.locations).map(l => {
-    const typeTag = l.lockedBuffetId ? 'BBQ prefs' : (typeLabels[l.type] || 'Event');
+  const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet' };
+  const plannerLocs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : Object.values(RETIREMENT_EVEREST.locations);
+  sel.innerHTML = plannerLocs.map(l => {
+    const typeTag = l.guestSlug ? 'BBQ prefs' : (typeLabels[l.type] || 'Event');
     return `<option value="${l.slug}">${l.shortName} — ${typeTag}</option>`;
   }).join('');
   const p = new URLSearchParams(location.search);
   const startView = ['overview', 'venues', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
   currentSlug = p.get('location') || 'edgefield';
+  // If someone deep-linked to guest-only BBQ page, show parent Kennedy School
+  if (RETIREMENT_EVEREST.locations[currentSlug]?.guestOnly) {
+    currentSlug = 'kennedy-school';
+  }
+  if (![...sel.options].some(o => o.value === currentSlug)) currentSlug = plannerLocs[0]?.slug || 'edgefield';
   sel.value = currentSlug;
-  Object.values(RETIREMENT_EVEREST.locations).forEach(l => {
+  plannerLocs.forEach(l => {
     if (roomRates[l.slug] == null && l.avgRoomRate) roomRates[l.slug] = l.avgRoomRate;
   });
   sel.addEventListener('change', () => { currentSlug = sel.value; renderReport(); });
@@ -381,15 +387,26 @@ function exportCSV() { exportData('orders-csv'); }
 
 function openInviteModal(slug) {
   inviteModalSlug = slug || currentSlug;
+  if (RETIREMENT_EVEREST.locations[inviteModalSlug]?.guestOnly) {
+    inviteModalSlug = 'kennedy-school';
+  }
   const loc = RETIREMENT_EVEREST.locations[inviteModalSlug];
   const ev = getLocationEvent(inviteModalSlug);
   const link = absoluteGuestLink(inviteModalSlug);
-  document.getElementById('inviteModalSub').textContent = `${loc.shortName} · ${loc.city}`;
+  document.getElementById('inviteModalSub').textContent =
+    `${loc.shortName} · ${loc.city}${ev?.eventDate ? ' · ' + formatEventDate(ev.eventDate) : ''}`;
+  const linkEl = document.getElementById('invGuestLink');
+  if (linkEl) {
+    linkEl.textContent = link;
+    linkEl.href = link;
+  }
   document.getElementById('invFirst').value = '';
   document.getElementById('invLast').value = '';
   document.getElementById('invEmail').value = '';
   document.getElementById('invPhone').value = '';
   document.getElementById('invMessage').value = buildInviteMessage(loc, link, ev, '');
+  const smsEl = document.getElementById('invSmsPreview');
+  if (smsEl) smsEl.value = buildInviteSms(loc, link, ev, '');
   document.getElementById('inviteModal').classList.add('open');
   ['invFirst', 'invLast'].forEach(id => {
     document.getElementById(id).oninput = updateInvitePreview;
@@ -405,7 +422,11 @@ function updateInvitePreview() {
   const first = document.getElementById('invFirst').value.trim();
   const last = document.getElementById('invLast').value.trim();
   const name = [first, last].filter(Boolean).join(' ');
-  document.getElementById('invMessage').value = buildInviteMessage(loc, absoluteGuestLink(inviteModalSlug), getLocationEvent(inviteModalSlug), name);
+  const link = absoluteGuestLink(inviteModalSlug);
+  const ev = getLocationEvent(inviteModalSlug);
+  document.getElementById('invMessage').value = buildInviteMessage(loc, link, ev, name);
+  const smsEl = document.getElementById('invSmsPreview');
+  if (smsEl) smsEl.value = buildInviteSms(loc, link, ev, name);
 }
 
 function buildInviteRecord() {
@@ -415,6 +436,7 @@ function buildInviteRecord() {
   const email = document.getElementById('invEmail').value.trim();
   const phone = document.getElementById('invPhone').value.trim();
   const message = document.getElementById('invMessage').value;
+  const sms = document.getElementById('invSmsPreview')?.value || message;
   const link = absoluteGuestLink(inviteModalSlug);
   return {
     id: Date.now(),
@@ -426,6 +448,7 @@ function buildInviteRecord() {
     locationName: loc.shortName,
     guestLink: link,
     message,
+    sms,
     ts: new Date().toISOString(),
     status: 'queued'
   };
@@ -433,7 +456,7 @@ function buildInviteRecord() {
 
 function sendInviteEmail() {
   const inv = buildInviteRecord();
-  if (!inv.email) return alert('Enter an email address.');
+  if (!inv.email) return alert('Enter their email address, then click Email them.');
   const subject = encodeURIComponent(`You're invited — Retirement Everest at ${inv.locationName}`);
   const body = encodeURIComponent(inv.message);
   window.location.href = `mailto:${inv.email}?subject=${subject}&body=${body}`;
@@ -442,16 +465,21 @@ function sendInviteEmail() {
 
 function sendInviteSMS() {
   const inv = buildInviteRecord();
-  if (!inv.phone) return alert('Enter a phone number.');
+  if (!inv.phone) return alert('Enter their phone number, then click Text them.');
   const digits = inv.phone.replace(/\D/g, '');
-  const smsBody = encodeURIComponent(inv.message);
+  const smsBody = encodeURIComponent(inv.sms || inv.message);
   window.location.href = `sms:${digits}?&body=${smsBody}`;
   saveInvite({ ...inv, status: 'sms-opened' });
 }
 
+function copyGuestLinkOnly() {
+  const link = absoluteGuestLink(inviteModalSlug);
+  copyText(link).then(() => alert('Guest link copied.\n\n' + link));
+}
+
 function copyInvite() {
   const inv = buildInviteRecord();
-  copyText(inv.message).then(() => alert('Invite message copied.'));
+  copyText(inv.message).then(() => alert('Full invite message copied — paste into email or text.'));
   saveInvite({ ...inv, status: 'copied' });
 }
 
@@ -461,9 +489,9 @@ async function queueInvite() {
   saveInvite(inv);
   try {
     await pushToGHL(inv);
-    alert('Saved to invite queue and sent to GHL webhook.');
+    alert('Saved to queue and sent to HAG GHL webhook.\n\nFor a simple send, use Email them or Text them — opens Mail / Messages with the BBQ link ready.');
   } catch {
-    alert('Saved to invite queue. Configure GHL webhook in Outreach → Integrations to auto-sync.');
+    alert('Saved to invite queue. GHL webhook failed or not mapped yet — use Email them or Text them to send now.');
   }
   if (document.getElementById('view-outreach').classList.contains('active')) renderOutreach();
   closeInviteModal();
@@ -472,21 +500,21 @@ async function queueInvite() {
 function renderOutreach() {
   const cfg = getIntegrations();
   const queue = getInviteQueue();
-  const locs = getAllLocations();
+  const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
 
   const locCards = locs.map(loc => {
     const link = absoluteGuestLink(loc.slug);
     const ev = getLocationEvent(loc.slug);
     return `<div class="card-box">
-      <h3>${esc(loc.shortName)}</h3>
+      <h3>${esc(loc.shortName)}${loc.guestSlug ? ' · BBQ' : ''}</h3>
       <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">${esc(loc.name)} · ${esc(loc.city)}</p>
       <div class="status-row"><span>Event date</span><strong>${ev?.eventDate ? formatEventDate(ev.eventDate) : 'Not set'}</strong></div>
-      <div class="status-row"><span>Orders</span><strong>${getOrdersForLocation(loc).length}</strong></div>
+      <div class="status-row"><span>Preferences</span><strong>${getOrdersForLocation(loc).length}</strong></div>
       <code style="display:block;font-size:0.7rem;margin:12px 0;word-break:break-all">${esc(link)}</code>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-        <button type="button" class="btn-sm btn-accent" onclick="openInviteModal('${loc.slug}')">Send guest link</button>
+        <button type="button" class="btn-sm btn-accent" onclick="openInviteModal('${loc.slug}')">Email / text link</button>
         <a class="btn-sm" href="marketing-kit.html?location=${loc.slug}" style="text-decoration:none">Marketing creatives</a>
-        <a class="btn-sm" href="${link}" target="_blank" style="text-decoration:none">Open RSVP ↗</a>
+        <a class="btn-sm" href="${link}" target="_blank" style="text-decoration:none">Open guest page ↗</a>
       </div>
     </div>`;
   }).join('');
@@ -502,9 +530,9 @@ function renderOutreach() {
     <div class="two-col" style="margin-bottom:24px">
       <div class="card-box">
         <h3>Integrations</h3>
-        <p class="integration-note">Connect GoHighLevel and Google Sheets when ready. Until then, use email/SMS buttons and copy-paste export.</p>
+        <p class="integration-note">Primary send is <strong>Email them / Text them</strong> (opens your Mail &amp; Messages apps). HAG GHL webhook is optional for automation — location <code>24UgqDfh5TcJs5IPnA25</code>.</p>
         <div class="planner-form" style="margin-top:16px">
-          <label class="planner-field full"><span>GHL webhook URL</span>
+          <label class="planner-field full"><span>HAG GHL inbound webhook URL</span>
             <input type="url" id="intGhl" value="${esc(cfg.ghlWebhookUrl)}" placeholder="https://services.leadconnectorhq.com/hooks/..."></label>
           <label class="planner-field full"><span>Google Sheets webhook URL</span>
             <input type="url" id="intSheets" value="${esc(cfg.googleSheetsWebhookUrl)}" placeholder="https://script.google.com/macros/s/.../exec"></label>

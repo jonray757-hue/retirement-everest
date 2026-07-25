@@ -343,13 +343,14 @@ window.RETIREMENT_EVEREST = {
       id: 'kennedy-school',
       slug: 'kennedy-school',
       type: 'buffet',
-      /* Event planner / invites / guest links → locked BBQ preference page */
+      /* Single planner venue · Aug event lives here · guest page = locked BBQ prefs */
       guestSlug: 'kennedy-school-bbq',
       theme: 'gold',
       name: 'McMenamins Kennedy School',
       shortName: 'Kennedy School',
       city: 'Portland, OR',
       venue: 'Martha Jordan Room',
+      /* Preferences save on BBQ page storage (via guestSlug) */
       storageKey: 'kennedyschool_buffet_orders_v1',
       attachments: [
         { name: 'Kennedy School Catering Menus (June 2026)', path: 'data/venue-attachments/Kennedy-School-Catering-Menus.pdf', kind: 'menu' }
@@ -630,6 +631,9 @@ window.RETIREMENT_EVEREST = {
       type: 'buffet',
       lockedBuffetId: 'b-bbq',
       bbqMenuPick: true,
+      /* Guest page only — do not show as a second blank event in planner/hub */
+      guestOnly: true,
+      hideFromPlanner: true,
       theme: 'gold',
       name: 'McMenamins Kennedy School — Backyard BBQ',
       shortName: 'Kennedy BBQ',

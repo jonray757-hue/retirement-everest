@@ -34,7 +34,7 @@ function buildChecklist(loc, eventDate) {
 }
 
 function renderOverview() {
-  const locs = getAllLocations();
+  const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
   const roomRates = getRoomRates();
   const eventMeta = getEventMeta();
   let totalOrders = 0;
@@ -153,9 +153,11 @@ function renderOverview() {
 
 async function renderPlanner() {
   await loadChecklistDefaults();
-  const locs = getAllLocations();
-  if (!plannerSlug || !RETIREMENT_EVEREST.locations[plannerSlug]) {
-    plannerSlug = locs[0]?.slug;
+  const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
+  if (!plannerSlug || !locs.find(l => l.slug === plannerSlug)) {
+    // Prefer Kennedy School if it has an event date saved
+    const withDate = locs.find(l => getLocationEvent(l.slug)?.eventDate);
+    plannerSlug = withDate?.slug || locs[0]?.slug;
   }
   const loc = RETIREMENT_EVEREST.locations[plannerSlug];
   let ev = getLocationEvent(plannerSlug) || {};
@@ -179,17 +181,19 @@ async function renderPlanner() {
     </label>`;
   }).join('') || '<p class="empty" style="padding:20px">Set an event date below to generate your checklist.</p>';
 
+  const guestHref = guestLink(plannerSlug);
   document.getElementById('view-planner').innerHTML = `
     <div class="planner-toolbar">
       <select class="loc-select" id="plannerSelect">
         ${locs.map(l => `<option value="${l.slug}"${l.slug === plannerSlug ? ' selected' : ''}>${esc(l.shortName)}</option>`).join('')}
       </select>
-          <button type="button" class="btn-sm btn-accent" onclick="openInviteModal('${plannerSlug}')">Send guest link</button>
-          <a class="btn-sm" href="${guestLink(plannerSlug)}" target="_blank">Open guest page ↗</a>
+          <button type="button" class="btn-sm btn-accent" onclick="openInviteModal('${plannerSlug}')">Email / text guest link</button>
+          <a class="btn-sm" href="${guestHref}" target="_blank">Open guest page ↗</a>
+          <button type="button" class="btn-sm" data-copy-planner-link="${esc(guestHref)}">Copy guest link</button>
     </div>
     <div class="two-col" style="margin-bottom:24px">
       <div class="card-box">
-        <h3>Event details · ${esc(loc.shortName)}</h3>
+        <h3>Event details · ${esc(loc.shortName)}${loc.guestSlug ? ' · Backyard BBQ' : ''}</h3>
         <div class="planner-form">
           <label class="planner-field"><span>Event date</span>
             <input type="date" id="eventDate" value="${ev.eventDate || ''}"></label>
@@ -225,6 +229,11 @@ async function renderPlanner() {
   document.getElementById('plannerSelect').addEventListener('change', e => {
     plannerSlug = e.target.value;
     renderPlanner();
+  });
+
+  document.querySelector('[data-copy-planner-link]')?.addEventListener('click', e => {
+    const link = e.currentTarget.getAttribute('data-copy-planner-link');
+    copyText(link).then(() => alert('Guest link copied:\n\n' + link));
   });
 
   document.getElementById('saveEventBtn')?.addEventListener('click', async () => {

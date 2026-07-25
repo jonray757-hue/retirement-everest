@@ -11,6 +11,11 @@ function getAllLocations() {
   return Object.values(RETIREMENT_EVEREST.locations);
 }
 
+/** Locations shown in host planner / overview / dropdowns (hide guest-only package pages) */
+function getPlannerLocations() {
+  return getAllLocations().filter(l => !l.guestOnly && !l.hideFromPlanner);
+}
+
 function getOrdersForLocation(loc) {
   // Prefer locked package page storage when venue has guestSlug (e.g. Kennedy → BBQ)
   let key = loc.storageKey;

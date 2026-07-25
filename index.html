@@ -32,11 +32,13 @@
     }
     const grid = document.getElementById('locGrid');
     Object.values(RETIREMENT_EVEREST.locations).forEach(loc => {
-      const typeLabels = { retreat: 'Overnight Retreat', screening: 'Screening + Dinner', preorder: 'Screening + Dinner' };
+      if (loc.guestOnly || loc.hideFromPlanner) return; // BBQ package page is not a separate hub card
+      const typeLabels = { retreat: 'Overnight Retreat', screening: 'Screening + Dinner', preorder: 'Screening + Dinner', buffet: 'Screening + Buffet' };
       const typeLabel = typeLabels[loc.type] || 'Event';
+      const guestSlug = loc.guestSlug || loc.slug;
       const a = document.createElement('a');
       a.className = 'loc-card';
-      a.href = `guest.html?location=${loc.slug}`;
+      a.href = `guest.html?location=${guestSlug}`;
       a.innerHTML = `
         <div class="loc-type">${typeLabel}</div>
         <h2>${loc.shortName}</h2>

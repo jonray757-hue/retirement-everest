@@ -3,13 +3,16 @@ const RE_INVITES_KEY = 're_invites_v1';
 const RE_MARKETING_SEL_KEY = 're_marketing_selections_v1';
 
 const DEFAULT_INTEGRATIONS = {
+  /* HAG (Harris Assurance Group) location 24UgqDfh5TcJs5IPnA25 */
   ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d',
+  ghlLocationId: '24UgqDfh5TcJs5IPnA25',
+  ghlBrand: 'HAG',
   googleSheetsWebhookUrl: '',
   googleSheetId: '',
   defaultSheetTab: 'Orders',
-  organizerName: 'Retirement Everest Team',
-  organizerEmail: '',
-  organizerPhone: ''
+  organizerName: 'Johnny Harris',
+  organizerEmail: 'johnny@blacksandcapitalgroup.com',
+  organizerPhone: '9715702438'
 };
 
 function getIntegrations() {
@@ -55,19 +58,35 @@ function absoluteGuestLink(slug) {
 }
 
 function buildInviteMessage(loc, guestLink, event, guestName) {
+  const cfg = getIntegrations();
   const name = guestName ? guestName.split(' ')[0] : 'there';
   const dateLine = event?.eventDate ? formatEventDate(event.eventDate) : 'an upcoming private evening';
-  const timeLine = event?.showTime ? ` Doors at ${event.doorsTime || 'TBD'}, film at ${event.showTime}.` : '';
+  const timeLine = event?.showTime
+    ? ` Doors ${event.doorsTime || 'TBD'}${event.showTime ? `, film ${event.showTime}` : ''}.`
+    : '';
+  const dinnerNote = loc.guestSlug || loc.bbqMenuPick
+    ? 'Dinner is the Backyard BBQ buffet (complimentary). Use the link to share your food & drink preferences so we can plan the evening:'
+    : 'Dinner is complimentary — open the link to share your meal preferences:';
+  const sign = cfg.organizerName || 'Johnny Harris';
+  const phone = cfg.organizerPhone ? `\n${cfg.organizerPhone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')}` : '';
   return `Hi ${name},
 
-You're personally invited to a private screening of Retirement Everest at ${loc.name} in ${loc.city} on ${dateLine}.${timeLine}
+You're invited to a private screening of Retirement Everest at ${loc.name} (${loc.city}) on ${dateLine}.${timeLine}
 
-Dinner is complimentary — open the link to reserve and share your meal preferences:
+${dinnerNote}
 ${guestLink}
 
-We look forward to hosting you.
+Questions? Just reply or text.${phone}
 
-— ${getIntegrations().organizerName || 'Retirement Everest'}`;
+— ${sign}`;
+}
+
+function buildInviteSms(loc, guestLink, event, guestName) {
+  const cfg = getIntegrations();
+  const name = guestName ? guestName.split(' ')[0] : 'there';
+  const dateLine = event?.eventDate ? formatEventDate(event.eventDate) : 'soon';
+  const sign = cfg.organizerName || 'Johnny';
+  return `Hi ${name} — you're invited to Retirement Everest at ${loc.shortName} on ${dateLine}. Dinner included (Backyard BBQ). Share preferences here: ${guestLink} — ${sign}`;
 }
 
 function buildExportRows(loc, orders, type) {
@@ -168,7 +187,7 @@ async function pushToGoogleSheets(rows, meta) {
 
 async function pushToGHL(invite) {
   const cfg = getIntegrations();
-  if (!cfg.ghlWebhookUrl) throw new Error('GoHighLevel webhook URL not configured.');
+  if (!cfg.ghlWebhookUrl) throw new Error('HAG GHL webhook URL not configured.');
   await fetch(cfg.ghlWebhookUrl, {
     method: 'POST',
     mode: 'no-cors',
@@ -179,8 +198,12 @@ async function pushToGHL(invite) {
       email: invite.email,
       phone: invite.phone,
       location: invite.locationSlug,
+      locationName: invite.locationName,
       guestLink: invite.guestLink,
       message: invite.message,
+      sms: invite.sms || invite.message,
+      brand: cfg.ghlBrand || 'HAG',
+      ghlLocationId: cfg.ghlLocationId || '24UgqDfh5TcJs5IPnA25',
       source: 'retirement-everest-host'
     })
   });

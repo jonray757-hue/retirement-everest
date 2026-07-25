@@ -56,18 +56,28 @@
   <div class="modal-box">
     <h2>Send guest link</h2>
     <p class="modal-sub" id="inviteModalSub">Share the RSVP page with a prospect.</p>
-    <div class="modal-field"><span>First name</span><input type="text" id="invFirst" autocomplete="given-name"></div>
-    <div class="modal-field"><span>Last name</span><input type="text" id="invLast" autocomplete="family-name"></div>
-    <div class="modal-field"><span>Email</span><input type="email" id="invEmail" autocomplete="email" placeholder="name@email.com"></div>
-    <div class="modal-field"><span>Phone</span><input type="tel" id="invPhone" autocomplete="tel" placeholder="(503) 555-0100"></div>
-    <div class="modal-field"><span>Message preview</span><textarea id="invMessage" rows="6" readonly></textarea></div>
-    <div class="modal-actions">
-      <button type="button" class="lock-btn btn-accent" onclick="sendInviteEmail()">Open email</button>
-      <button type="button" class="lock-btn" onclick="sendInviteSMS()">Open SMS</button>
-      <button type="button" class="lock-btn" onclick="copyInvite()">Copy message</button>
-      <button type="button" class="lock-btn" onclick="queueInvite()">Save to queue</button>
+    <div class="modal-field" style="margin-bottom:14px">
+      <span>Guest preference page (what they open)</span>
+      <a id="invGuestLink" href="#" target="_blank" rel="noopener"
+         style="display:block;font-size:0.8rem;word-break:break-all;color:var(--accent);margin-top:6px"></a>
+      <button type="button" class="btn-sm" style="margin-top:8px" onclick="copyGuestLinkOnly()">Copy link only</button>
     </div>
-    <p class="integration-note" style="margin-top:16px">GHL webhook fires when you save to queue (if configured in Outreach → Integrations).</p>
+    <div class="modal-field"><span>First name</span><input type="text" id="invFirst" autocomplete="given-name" placeholder="Optional — personalizes message"></div>
+    <div class="modal-field"><span>Last name</span><input type="text" id="invLast" autocomplete="family-name"></div>
+    <div class="modal-field"><span>Email</span><input type="email" id="invEmail" autocomplete="email" placeholder="For Email button"></div>
+    <div class="modal-field"><span>Phone</span><input type="tel" id="invPhone" autocomplete="tel" placeholder="For Text button · (503) 555-0100"></div>
+    <div class="modal-field"><span>Email message (editable)</span><textarea id="invMessage" rows="7"></textarea></div>
+    <div class="modal-field"><span>SMS message (editable · shorter)</span><textarea id="invSmsPreview" rows="3"></textarea></div>
+    <div class="modal-actions" style="flex-wrap:wrap">
+      <button type="button" class="lock-btn btn-accent" onclick="sendInviteEmail()">Email them</button>
+      <button type="button" class="lock-btn btn-accent" onclick="sendInviteSMS()">Text them</button>
+      <button type="button" class="lock-btn" onclick="copyInvite()">Copy email text</button>
+      <button type="button" class="lock-btn" onclick="queueInvite()">Also push to HAG GHL</button>
+    </div>
+    <p class="integration-note" style="margin-top:16px">
+      <strong>Easy path:</strong> enter email or phone → <em>Email them</em> or <em>Text them</em> (opens Mail / Messages with the BBQ preference link ready).<br>
+      <strong>HAG GHL:</strong> only needed if you want the contact in GoHighLevel automation — map the inbound webhook first, then use “Also push to HAG GHL”.
+    </p>
     <button type="button" class="btn-sm" style="margin-top:12px" onclick="closeInviteModal()">Close</button>
   </div>
 </div>
