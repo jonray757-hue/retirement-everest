@@ -82,4 +82,5 @@ If you see 404, Pages simply isn't enabled yet — the code is fine.
 | `bonneville` | Bonneville Hot Springs | retreat |
 | `chapel` | Chapel Pub | preorder |
 | `grand-lodge` | McMenamins Grand Lodge | screening |
-| `kennedy-school` | McMenamins Kennedy School | preorder |
+| `kennedy-school` | McMenamins Kennedy School | buffet poll (all packages) |
+| `kennedy-school-bbq` | Kennedy School · Backyard BBQ | locked BBQ prefs (starter + drink) |

@@ -616,6 +616,166 @@ window.RETIREMENT_EVEREST = {
       }
     },
 
+    /**
+     * Locked package: Backyard BBQ decided.
+     * Guest page = menu showcase + starter poll + adult/soft beverage.
+     * Original multi-buffet poll remains at location=kennedy-school.
+     */
+    'kennedy-school-bbq': {
+      id: 'kennedy-school-bbq',
+      slug: 'kennedy-school-bbq',
+      type: 'buffet',
+      lockedBuffetId: 'b-bbq',
+      theme: 'gold',
+      name: 'McMenamins Kennedy School — Backyard BBQ',
+      shortName: 'Kennedy BBQ',
+      city: 'Portland, OR',
+      venue: 'Martha Jordan Room',
+      storageKey: 'kennedyschool_bbq_prefs_v1',
+      attachments: [
+        { name: 'Kennedy School Catering Menus (June 2026)', path: 'data/venue-attachments/Kennedy-School-Catering-Menus.pdf', kind: 'menu' }
+      ],
+      heroSub: 'A private film screening & Backyard Barbecue buffet at McMenamins Kennedy School.',
+      cta: 'Share Your Preferences',
+      meta: [
+        { strong: 'Kennedy School', label: 'Portland, OR' },
+        { strong: 'Backyard BBQ', label: 'Buffet Locked In' },
+        { strong: 'Complimentary', label: 'Evening Included' }
+      ],
+      aboutLabel: 'About the Evening',
+      aboutHeadline: "This is not a seminar.<br>It's a private premiere.",
+      about: [
+        "You've been personally invited to an exclusive screening of <strong>Retirement Everest</strong> — a powerful documentary that explores the financial risks most Americans face in retirement and the strategies that can make the difference between struggle and security.",
+        "Dinner is set: the <strong>Backyard Barbecue Buffet</strong> for the whole group. Your preferences below help us plan shared appetizers and beverages — not which buffet (that's already decided)."
+      ],
+      expect: [
+        { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime. Historic school setting, private room.' },
+        { title: 'Watch the Film', desc: 'Retirement Everest screens for our group — real stories, real clarity.' },
+        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert — one group buffet for everyone. Tell us your starter and drink preference so we can stock the evening well.' }
+      ],
+      formTitle: 'Tell Us What You Prefer',
+      formLabel: 'Dinner Preferences',
+      formIntro: 'The <strong>Backyard Barbecue Buffet</strong> is set for our group. Review what’s on the menu, then vote for a <strong>shared appetizer package</strong> (or skip) and whether you’d like an <strong>adult beverage</strong> or coffee / tea / soda.',
+      formNote: '📋 This is a preference poll so we can plan quantities — not a plated order. Expand appetizer options to see what’s included.',
+      footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Backyard BBQ · Portland, OR',
+      menus: {
+        buffets: [
+          {
+            id: 'b-bbq',
+            name: 'Backyard Barbecue Buffet',
+            blurb: 'Brisket & white BBQ chicken',
+            price: 63.50,
+            sections: [
+              { title: 'Sides & salads', items: ['Biscuits & honey butter', 'Picnic potato salad', 'Buttermilk coleslaw', "Dad's Moonshine baked beans"] },
+              { title: 'Entrées', items: ['Red Eye BBQ beef brisket', 'Peppercorn white BBQ chicken breasts'] },
+              { title: 'Desserts', items: ['Black & Tan brownies', 'Northwest berry bars'] }
+            ]
+          }
+        ],
+        starters: [
+          {
+            id: 'a-skip',
+            name: 'No appetizers — buffet only',
+            blurb: 'Skip shared starters',
+            price: 0,
+            sections: [{ title: 'What this means', items: ['No shared appetizer package before the buffet', 'Straight to the BBQ after the film'] }]
+          },
+          {
+            id: 'a-althea',
+            name: "Althea's Soiree",
+            blurb: 'Deviled eggs, hummus, deli · shared',
+            price: 31,
+            sections: [
+              { title: "What's included", items: ['Classic deviled eggs', 'Hummus & pita with veggie sticks', 'Deli display (turkey, pastrami, cheeses, rolls)', 'Dessert display'] }
+            ]
+          },
+          {
+            id: 'a-alice',
+            name: "Alice's Impromptu Gathering",
+            blurb: 'Quiches, mushrooms, antipasti',
+            price: 33,
+            sections: [
+              { title: "What's included", items: ['Mini quiches (veggie, Florentine, Lorraine)', 'Stuffed mushrooms', 'Antipasti with crackers & bread', 'Crudités with roasted red pepper aioli'] }
+            ]
+          },
+          {
+            id: 'a-mattie',
+            name: "Mattie's Garden Party",
+            blurb: 'Lighter apps + fruit + dessert',
+            price: 33,
+            sections: [
+              { title: "What's included", items: ['Caprese skewers', 'Classic deviled eggs', 'Hummus in cucumber cups', 'Crudités', 'Fresh fruit', 'Dessert display', 'Coffee & tea'] }
+            ]
+          },
+          {
+            id: 'a-lola',
+            name: "Lola's Cocktail Party",
+            blurb: 'Charcuterie + hot apps',
+            price: 36,
+            sections: [
+              { title: "What's included", items: ['Caprese skewers', 'Stuffed mushrooms', 'Hummus cucumber cups', 'Smoked salmon mousse in filo', 'Stuffed peppadews', 'Charcuterie board'] }
+            ]
+          },
+          {
+            id: 'a-carter',
+            name: 'Carter the Great',
+            blurb: 'Apps + carved pepper-crusted beef',
+            price: 48,
+            sections: [
+              { title: "What's included", items: ['Classic deviled eggs', 'Smoked salmon mousse in filo', 'Antipasti', 'Artisan cheese board', 'Crudités', 'Curried crab cucumber cups', 'Pepper-crusted round of beef (carver 1 hr)'] }
+            ]
+          },
+          {
+            id: 'a-munchies',
+            name: 'Mix & Match Munchies (2 items)',
+            blurb: 'Shared hour · lighter option',
+            price: 17.50,
+            sections: [
+              { title: 'Choose-two style (examples)', items: ['Cajun tots', 'Spring rolls', 'Scooby snacks (mini corn dogs)', 'Hammerhead BBQ pork sliders', 'Jerk jackfruit sliders', 'Terminator meatballs'] }
+            ]
+          }
+        ],
+        drinks: [
+          {
+            id: 'd-soft',
+            name: 'Coffee, tea & sodas',
+            blurb: 'Non-alcoholic',
+            desc: 'Coffee, tea, soda, sparkling water, or juice',
+            price: 4.25,
+            cat: 'Soft'
+          },
+          {
+            id: 'd-adult',
+            name: 'Adult beverage',
+            blurb: 'Beer, cider, wine, or cocktail',
+            desc: 'Beer, hard cider, wine, or cocktail for the evening',
+            price: 8,
+            cat: 'Adult'
+          }
+        ]
+      },
+      costSim: {
+        quoteDate: '2026-07-14',
+        source: 'Michele Wellnitz + Kennedy School Banquet June 2026 PDF · BBQ package locked',
+        budgetOk: true,
+        fbMin: 1000,
+        servicePct: 0.21,
+        roomFee: 0,
+        avFee: 0,
+        packagePp: 63.50,
+        drinkPp: 6,
+        drinkSoftPp: 4.25,
+        drinkAdultPp: 8,
+        roomName: 'Classroom (Martha Jordan / Mina Parsons) · max ~40',
+        note: 'Backyard BBQ locked. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service. Apps NOT in base — add if poll majority wants them.',
+        scenarios: [
+          { guests: 30, median: 2523, p10: 2459, p90: 2595, perGuest: 84 },
+          { guests: 35, median: 2943, p10: 2869, p90: 3028, perGuest: 84 },
+          { guests: 40, median: 3364, p10: 3279, p90: 3461, perGuest: 84 }
+        ]
+      }
+    },
+
 
     /* —— New prospects from Jul 2026 venue RFP (public menus; private-dining mins TBD with sales) —— */
     'el-gaucho': {

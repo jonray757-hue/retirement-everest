@@ -4,9 +4,10 @@ let roomRates = getRoomRates();
 function initHost() {
   const sel = document.getElementById('locSelect');
   const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet poll' };
-  sel.innerHTML = Object.values(RETIREMENT_EVEREST.locations).map(l =>
-    `<option value="${l.slug}">${l.shortName} — ${typeLabels[l.type] || 'Event'}</option>`
-  ).join('');
+  sel.innerHTML = Object.values(RETIREMENT_EVEREST.locations).map(l => {
+    const typeTag = l.lockedBuffetId ? 'BBQ prefs' : (typeLabels[l.type] || 'Event');
+    return `<option value="${l.slug}">${l.shortName} — ${typeTag}</option>`;
+  }).join('');
   const p = new URLSearchParams(location.search);
   const startView = ['overview', 'venues', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
   currentSlug = p.get('location') || 'edgefield';
@@ -54,10 +55,14 @@ function renderBuffetReport(orders, loc) {
   const bevTotal = adult + soft || 1;
   const adultPct = Math.round((adult / bevTotal) * 100);
   const softPct = Math.round((soft / bevTotal) * 100);
+  const locked = !!loc.lockedBuffetId;
+  const lockedName = locked
+    ? ((loc.menus.buffets || []).find(b => b.id === loc.lockedBuffetId)?.name || topBuffet?.[0] || 'Backyard BBQ')
+    : null;
   return `
     <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-      <div class="card-box"><div class="stat-label">Votes</div><div class="stat-val">${orders.length}</div></div>
-      <div class="card-box"><div class="stat-label">Leading buffet</div><div class="stat-val" style="font-size:0.95rem">${topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—'}</div></div>
+      <div class="card-box"><div class="stat-label">${locked ? 'Preferences' : 'Votes'}</div><div class="stat-val">${orders.length}</div></div>
+      <div class="card-box"><div class="stat-label">${locked ? 'Dinner package' : 'Leading buffet'}</div><div class="stat-val" style="font-size:0.95rem">${locked ? esc(lockedName) : (topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—')}</div></div>
       <div class="card-box"><div class="stat-label">Adult beverages</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
       <div class="card-box"><div class="stat-label">Coffee / tea / soda</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
     </div>
@@ -72,17 +77,19 @@ function renderBuffetReport(orders, loc) {
         <strong style="color:var(--text)">${soft}</strong> coffee / tea / soda
       </p>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="card-box"><h3>Buffet popularity</h3>${rankBars(buffetCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+    <div style="display:grid;grid-template-columns:${locked ? '1fr' : '1fr 1fr'};gap:12px;margin-bottom:16px">
+      ${locked ? '' : `<div class="card-box"><h3>Buffet popularity</h3>${rankBars(buffetCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>`}
       <div class="card-box"><h3>Appetizer package votes</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
     </div>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.</p>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">${locked
+      ? `Leading appetizer preference: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Use adult/soft split + apps poll when finalizing with McMenamins sales.`
+      : `Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.`}</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage bucket</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>${locked ? 'Dinner' : 'Buffet'}</th><th>Appetizers</th><th>Beverage bucket</th><th>Notes</th><th>Time</th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
-          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;

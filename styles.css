@@ -341,6 +341,36 @@ input.err { border-color: var(--red); }
 .vote-status.has-vote { color: var(--text); }
 .vote-status.has-vote strong { color: var(--accent); }
 
+/* Locked buffet showcase (Kennedy BBQ prefs page) */
+.locked-buffet {
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 4px;
+  padding: 18px 18px 16px;
+  margin-bottom: 8px;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.locked-buffet-badge {
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.locked-buffet-name {
+  font-family: var(--heading-font);
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.locked-buffet-blurb {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.locked-buffet-body { margin-top: 4px; }
+.locked-buffet-body .acc-section:first-child { margin-top: 10px; }
+
 /* Beverage: adult vs soft only */
 .bev-row {
   display: grid;
