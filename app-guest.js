@@ -196,16 +196,17 @@ function renderFormFields() {
       <div class="err-msg" id="err-buffet">Please vote for a preferred buffet.</div>
       <div class="section-gap"></div>`;
 
-    // Locked BBQ page: individual starter cards (preferred pick). Poll page: shared apps accordion.
+    // Locked BBQ page: preferred pick from BBQ sides (card UI). Poll page: shared apps accordion.
     const starterPick = !!(LOC.starterPickMode || lockedBuffet);
+    const starterTitle = LOC.starterPickLabel || 'Preferred Starter';
     const starterBlock = starterPick
       ? `
-      <div class="pick-head"><span class="pick-title">Preferred Starter</span><span class="pick-req">Select one</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Tap the starter you’d most prefer. We’ll use the tallies to plan what to put out for the group.</p>
+      <div class="pick-head"><span class="pick-title">${esc(starterTitle)}</span><span class="pick-req">Select one</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">These are the <strong>sides &amp; salads on the Backyard BBQ buffet</strong>. Tap your favorite — everything is still served; this helps us know group preferences.</p>
       <div class="cards" id="starter-cards">
         ${LOC.menus.starters.map(s => cardHTML('starter', 'starter', null, s, false)).join('')}
       </div>
-      <div class="err-msg" id="err-starter">Please choose a preferred starter (or “no starter”).</div>`
+      <div class="err-msg" id="err-starter">Please choose your preferred side / salad.</div>`
       : `
       <div class="pick-head"><span class="pick-title">Shared Appetizers</span><span class="pick-req">Expand · vote your favorite</span></div>
       <p class="order-intro" style="margin-top:0;font-size:0.9rem">Buffets don’t include a plated starter. Expand a shared package (or “no appetizers”), then vote so we know what the group prefers.</p>
@@ -506,7 +507,8 @@ function submitOrder() {
       ts: new Date().toISOString()
     };
     const buffetLabel = LOC.lockedBuffetId ? 'Dinner (set for group)' : 'Buffet vote';
-    const starterLabel = (LOC.starterPickMode || LOC.lockedBuffetId) ? 'Preferred starter' : 'Appetizers';
+    const starterLabel = LOC.starterPickLabel
+      || ((LOC.starterPickMode || LOC.lockedBuffetId) ? 'Preferred side / salad' : 'Appetizers');
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
       <div class="sc-row"><div class="sc-label">${buffetLabel}</div><div class="sc-val">${esc(buffet.name)}</div></div>
       <div class="sc-row"><div class="sc-label">${starterLabel}</div><div class="sc-val">${esc(starter.name)}</div></div>
