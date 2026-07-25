@@ -188,23 +188,31 @@ async function pushToGoogleSheets(rows, meta) {
 async function pushToGHL(invite) {
   const cfg = getIntegrations();
   if (!cfg.ghlWebhookUrl) throw new Error('HAG GHL webhook URL not configured.');
-  await fetch(cfg.ghlWebhookUrl, {
+  const payload = {
+    firstName: invite.firstName,
+    lastName: invite.lastName,
+    email: invite.email,
+    phone: invite.phone,
+    location: invite.locationSlug,
+    locationName: invite.locationName,
+    guestLink: invite.guestLink,
+    message: invite.message,
+    sms: invite.sms || invite.message,
+    brand: cfg.ghlBrand || 'HAG',
+    ghlLocationId: cfg.ghlLocationId || '24UgqDfh5TcJs5IPnA25',
+    event: 'invite_queued',
+    source: 'retirement-everest-host'
+  };
+  // Must use cors + JSON — no-cors strips JSON content-type and GHL rejects body
+  const res = await fetch(cfg.ghlWebhookUrl, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      firstName: invite.firstName,
-      lastName: invite.lastName,
-      email: invite.email,
-      phone: invite.phone,
-      location: invite.locationSlug,
-      locationName: invite.locationName,
-      guestLink: invite.guestLink,
-      message: invite.message,
-      sms: invite.sms || invite.message,
-      brand: cfg.ghlBrand || 'HAG',
-      ghlLocationId: cfg.ghlLocationId || '24UgqDfh5TcJs5IPnA25',
-      source: 'retirement-everest-host'
-    })
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload)
   });
+  const text = await res.text().catch(() => '');
+  if (!res.ok || (/invalid data|error/i.test(text) && !/success/i.test(text))) {
+    throw new Error(text || `GHL webhook HTTP ${res.status}`);
+  }
+  return text;
 }

@@ -600,18 +600,42 @@ async function pushGuestOrderToGHL(order) {
     submittedAt: order.ts || new Date().toISOString()
   };
   try {
-    // no-cors: browser cannot read body, but GHL still receives the POST
-    await fetch(url, {
+    // GHL allows CORS (*). Must use mode:cors + application/json.
+    // no-cors strips JSON content-type → GHL returns "invalid data" and does nothing.
+    const res = await fetch(url, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload)
     });
-    console.log('[RE] GHL webhook fired', payload.email || payload.phone || payload.name);
-    return { ok: true };
+    const text = await res.text().catch(() => '');
+    console.log('[RE] GHL webhook', res.status, text, payload.email || payload.phone || payload.name);
+    if (!res.ok) return { ok: false, reason: `http-${res.status}`, body: text };
+    // GHL returns JSON status even on some errors with HTTP 200
+    if (/invalid data|error/i.test(text) && !/success/i.test(text)) {
+      return { ok: false, reason: 'ghl-rejected', body: text };
+    }
+    return { ok: true, body: text };
   } catch (err) {
     console.error('[RE] GHL webhook failed', err);
-    return { ok: false, reason: String(err) };
+    // Fallback: form-urlencoded (also accepted by GHL)
+    try {
+      const form = new URLSearchParams();
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v != null && v !== '') form.append(k, String(v));
+      });
+      const res2 = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString()
+      });
+      const text2 = await res2.text().catch(() => '');
+      console.log('[RE] GHL webhook form fallback', res2.status, text2);
+      return { ok: res2.ok, body: text2, via: 'form' };
+    } catch (err2) {
+      return { ok: false, reason: String(err2) };
+    }
   }
 }
 
