@@ -213,7 +213,7 @@ async function renderPlanner() {
           <div class="status-row"><span>Orders</span><strong>${getOrdersForLocation(loc).length}</strong></div>
           <div class="status-row"><span>Guests</span><strong>${countGuestsForLocation(loc, getOrdersForLocation(loc))}</strong></div>
           <div class="status-row"><span>Checklist</span><strong>${checklistProgress(ev.checklist)}%</strong></div>
-          <div class="status-row"><span>Guest link</span><code style="font-size:0.72rem;word-break:break-all">guest.html?location=${loc.slug}</code></div>
+          <div class="status-row"><span>Guest link</span><code style="font-size:0.72rem;word-break:break-all">guest.html?location=${(typeof resolveGuestSlug === 'function' ? resolveGuestSlug(loc.slug) : loc.slug)}</code></div>
         </div>
       </div>
     </div>

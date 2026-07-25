@@ -50,7 +50,8 @@ function toggleMarketingSelection(slug, assetId, on) {
 
 function absoluteGuestLink(slug) {
   const base = location.href.replace(/[^/]*$/, '');
-  return `${base}guest.html?location=${slug}`;
+  const guestSlug = (typeof resolveGuestSlug === 'function') ? resolveGuestSlug(slug) : slug;
+  return `${base}guest.html?location=${guestSlug}`;
 }
 
 function buildInviteMessage(loc, guestLink, event, guestName) {

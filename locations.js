@@ -343,6 +343,8 @@ window.RETIREMENT_EVEREST = {
       id: 'kennedy-school',
       slug: 'kennedy-school',
       type: 'buffet',
+      /* Event planner / invites / guest links → locked BBQ preference page */
+      guestSlug: 'kennedy-school-bbq',
       theme: 'gold',
       name: 'McMenamins Kennedy School',
       shortName: 'Kennedy School',
@@ -618,20 +620,22 @@ window.RETIREMENT_EVEREST = {
 
     /**
      * Locked package: Backyard BBQ decided.
-     * Guest page = menu showcase + starter poll + adult/soft beverage.
-     * Original multi-buffet poll remains at location=kennedy-school.
+     * Guest picks: 2 sides & salads · 1 entrée · 1 dessert · beverage.
+     * Menu items ONLY from the Backyard BBQ buffet (no other packages).
+     * Original multi-buffet poll remains at location=kennedy-school (not used for invites).
      */
     'kennedy-school-bbq': {
       id: 'kennedy-school-bbq',
       slug: 'kennedy-school-bbq',
       type: 'buffet',
       lockedBuffetId: 'b-bbq',
+      bbqMenuPick: true,
       theme: 'gold',
       name: 'McMenamins Kennedy School — Backyard BBQ',
       shortName: 'Kennedy BBQ',
       city: 'Portland, OR',
       venue: 'Martha Jordan Room',
-      storageKey: 'kennedyschool_bbq_prefs_v3',
+      storageKey: 'kennedyschool_bbq_prefs_v4',
       attachments: [
         { name: 'Kennedy School Catering Menus (June 2026)', path: 'data/venue-attachments/Kennedy-School-Catering-Menus.pdf', kind: 'menu' }
       ],
@@ -646,41 +650,35 @@ window.RETIREMENT_EVEREST = {
       aboutHeadline: "This is not a seminar.<br>It's a private premiere.",
       about: [
         "You've been personally invited to an exclusive screening of <strong>Retirement Everest</strong> — a powerful documentary that explores the financial risks most Americans face in retirement and the strategies that can make the difference between struggle and security.",
-        "Dinner is set: the <strong>Backyard Barbecue Buffet</strong> for the whole group. Your preferences below help us see which <strong>sides &amp; salads</strong> people love most and plan beverages — the buffet package itself is already decided."
+        "Dinner is set: the <strong>Backyard Barbecue Buffet</strong> for the whole group. Tell us your food preferences from <em>that</em> menu so we can tally favorites and plan quantities."
       ],
       expect: [
         { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime. Historic school setting, private room.' },
         { title: 'Watch the Film', desc: 'Retirement Everest screens for our group — real stories, real clarity.' },
-        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert — one group buffet for everyone. Tell us your favorite side from the BBQ and your drink preference.' }
+        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert. Pick two sides you prefer, one entrée, one dessert, and your beverage.' }
       ],
       formTitle: 'Tell Us What You Prefer',
-      formLabel: 'Dinner Preferences',
-      formIntro: 'The <strong>Backyard Barbecue Buffet</strong> is set for our group. Review the full menu, pick your <strong>favorite side / salad</strong> from the BBQ package, and tell us whether you’d like an <strong>adult beverage</strong> or coffee / tea / soda.',
-      formNote: '📋 Preference only — the full BBQ buffet is still served for everyone. Your side pick helps us see what the group loves most.',
-      /* Preferred pick from Backyard BBQ sides & salads only (not other menus / packages) */
-      starterPickMode: true,
-      starterPickLabel: 'Preferred Side & Salad',
+      formLabel: 'Backyard BBQ Preferences',
+      formIntro: 'The <strong>Backyard Barbecue Buffet</strong> is set. Choose <strong>two sides &amp; salads</strong> you prefer most, <strong>one entrée</strong>, and <strong>one dessert</strong> — then your beverage. Everything is still a group buffet; this is how we tally favorites.',
+      formNote: '📋 Pick only from the Backyard BBQ menu below. Not a plated order — preference tallies for planning.',
       footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Backyard BBQ · Portland, OR',
       menus: {
-        buffets: [
-          {
-            id: 'b-bbq',
-            name: 'Backyard Barbecue Buffet',
-            blurb: 'Brisket & white BBQ chicken',
-            price: 63.50,
-            sections: [
-              { title: 'Sides & salads', items: ['Biscuits & honey butter', 'Picnic potato salad', 'Buttermilk coleslaw', "Dad's Moonshine baked beans"] },
-              { title: 'Entrées', items: ['Red Eye BBQ beef brisket', 'Peppercorn white BBQ chicken breasts'] },
-              { title: 'Desserts', items: ['Black & Tan brownies', 'Northwest berry bars'] }
-            ]
-          }
+        buffetName: 'Backyard Barbecue Buffet',
+        buffetPrice: 63.50,
+        /* Exactly the Backyard BBQ menu — sides pick 2, entrée 1, dessert 1 */
+        sides: [
+          { id: 'side-biscuits', name: 'Biscuits & honey butter' },
+          { id: 'side-potato', name: 'Picnic potato salad' },
+          { id: 'side-coleslaw', name: 'Buttermilk coleslaw' },
+          { id: 'side-beans', name: "Dad's Moonshine baked beans" }
         ],
-        /* Only items from Backyard BBQ · SIDES & SALADS */
-        starters: [
-          { id: 'bbq-biscuits', name: 'Biscuits & honey butter', desc: 'From the Backyard BBQ buffet · sides & salads', price: 0, veg: true },
-          { id: 'bbq-potato', name: 'Picnic potato salad', desc: 'Red potatoes, sweet relish, egg, onion, celery', price: 0, veg: true },
-          { id: 'bbq-coleslaw', name: 'Buttermilk coleslaw', desc: 'From the Backyard BBQ buffet · sides & salads', price: 0, veg: true },
-          { id: 'bbq-beans', name: "Dad's Moonshine baked beans", desc: 'From the Backyard BBQ buffet · sides & salads', price: 0, veg: true }
+        entrees: [
+          { id: 'ent-brisket', name: 'Red Eye BBQ beef brisket' },
+          { id: 'ent-chicken', name: 'Peppercorn white BBQ chicken breasts' }
+        ],
+        desserts: [
+          { id: 'des-brownies', name: 'Black & Tan brownies' },
+          { id: 'des-berry', name: 'Northwest berry bars' }
         ],
         drinks: [
           {
@@ -714,7 +712,7 @@ window.RETIREMENT_EVEREST = {
         drinkSoftPp: 4.25,
         drinkAdultPp: 8,
         roomName: 'Classroom (Martha Jordan / Mina Parsons) · max ~40',
-        note: 'Backyard BBQ locked. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service. Apps NOT in base — add if poll majority wants them.',
+        note: 'Backyard BBQ locked. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service.',
         scenarios: [
           { guests: 30, median: 2523, p10: 2459, p90: 2595, perGuest: 84 },
           { guests: 35, median: 2943, p10: 2869, p90: 3028, perGuest: 84 },

@@ -12,7 +12,12 @@ function getAllLocations() {
 }
 
 function getOrdersForLocation(loc) {
-  return JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
+  // Prefer locked package page storage when venue has guestSlug (e.g. Kennedy → BBQ)
+  let key = loc.storageKey;
+  if (loc.guestSlug && RETIREMENT_EVEREST?.locations?.[loc.guestSlug]) {
+    key = RETIREMENT_EVEREST.locations[loc.guestSlug].storageKey || key;
+  }
+  return JSON.parse(localStorage.getItem(key) || '[]');
 }
 
 function getRoomRates() {
@@ -66,11 +71,21 @@ function estimateCostForLocation(loc, orders, roomRates) {
     return sub * 1.2;
   }
   if (loc.type === 'buffet') {
-    // Group buffet: estimate as leading package price × guests + drink prefs + optional apps if majority want them
+    const reportLoc = (loc.guestSlug && RETIREMENT_EVEREST?.locations?.[loc.guestSlug])
+      ? RETIREMENT_EVEREST.locations[loc.guestSlug]
+      : loc;
+    // Locked BBQ menu pick: package price × guests + drink
+    if (reportLoc.bbqMenuPick) {
+      const n = orders.length || 1;
+      const pkg = reportLoc.menus.buffetPrice || 63.50;
+      const drinkAvg = orders.reduce((s, o) => s + (o.drinkPrice || 0), 0) / n;
+      return n * (pkg + drinkAvg) * 1.21;
+    }
+    // Group buffet poll: leading package price × guests + drink prefs + optional apps if majority want them
     const prices = {};
-    (loc.menus.buffets || []).forEach(b => { prices[b.id] = b.price; });
-    (loc.menus.starters || []).forEach(s => { prices[s.id] = s.price; });
-    (loc.menus.drinks || []).forEach(d => { prices[d.id] = d.price; });
+    (reportLoc.menus.buffets || []).forEach(b => { prices[b.id] = b.price; });
+    (reportLoc.menus.starters || []).forEach(s => { prices[s.id] = s.price; });
+    (reportLoc.menus.drinks || []).forEach(d => { prices[d.id] = d.price; });
     const n = orders.length || 1;
     const buffetAvg = orders.reduce((s, o) => s + (prices[o.buffetId] || o.buffetPrice || 64), 0) / n;
     const drinkAvg = orders.reduce((s, o) => s + (prices[o.drinkId] || o.drinkPrice || 0), 0) / n;
@@ -78,7 +93,6 @@ function estimateCostForLocation(loc, orders, roomRates) {
     const starterAvg = starterVotes.length
       ? starterVotes.reduce((s, o) => s + (prices[o.starterId] || o.starterPrice || 0), 0) / starterVotes.length
       : 0;
-    // If majority want apps, apply starter package pp to whole group
     const appsOn = starterVotes.length > orders.length / 2;
     return n * (buffetAvg + drinkAvg + (appsOn ? starterAvg : 0)) * 1.21;
   }
@@ -111,7 +125,12 @@ function daysUntil(dateStr) {
   return Math.ceil((target - today) / 86400000);
 }
 
+function resolveGuestSlug(slug) {
+  const loc = RETIREMENT_EVEREST?.locations?.[slug];
+  return (loc && loc.guestSlug) ? loc.guestSlug : slug;
+}
+
 function guestLink(slug) {
   const base = location.href.replace(/[^/]*$/, '');
-  return `${base}guest.html?location=${slug}`;
+  return `${base}guest.html?location=${resolveGuestSlug(slug)}`;
 }

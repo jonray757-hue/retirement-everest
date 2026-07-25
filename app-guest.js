@@ -94,6 +94,8 @@ let selections = [{ starter: null, drink: null, dinner: null }];
 let selSalad = null, selEntree = null, selDessert = null;
 let selStarter = null, selMain = null, selDrink = null, starterFilter = 'all';
 let selBuffet = null;
+/** BBQ menu tally: up to 2 side ids */
+let selSides = [];
 
 function initGuest() {
   const slug = getLocationSlug();
@@ -162,73 +164,89 @@ function renderPage() {
   renderFormFields();
 }
 
-function lockedBuffetMenuHTML(buffet) {
-  if (!buffet) return '';
+function simpleCardHTML(pick, item, selected) {
+  const sel = selected ? ' selected' : '';
+  return `<div class="card${sel}" id="card-${pick}-${item.id}" data-pick="${pick}" data-id="${item.id}">
+    <div class="card-radio"><div class="card-dot"></div></div>
+    <div class="card-name">${esc(item.name)}</div>
+    ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+  </div>`;
+}
+
+function renderBbqMenuPickForm() {
+  const sides = LOC.menus.sides || [];
+  const entrees = LOC.menus.entrees || [];
+  const desserts = LOC.menus.desserts || [];
+  const buffetLabel = LOC.menus.buffetName || 'Backyard Barbecue Buffet';
   return `
     <div class="locked-buffet" id="locked-buffet-panel">
       <div class="locked-buffet-badge">Tonight’s dinner · locked in</div>
-      <div class="locked-buffet-name">${esc(buffet.name)}</div>
-      ${buffet.blurb ? `<div class="locked-buffet-blurb">${esc(buffet.blurb)}</div>` : ''}
-      <div class="locked-buffet-body">${accordionSectionsHTML(buffet)}</div>
+      <div class="locked-buffet-name">${esc(buffetLabel)}</div>
+      <div class="locked-buffet-blurb">Pick your favorites from this menu only — we use the tallies to plan the evening.</div>
+    </div>
+    <div class="section-gap"></div>
+    <div class="pick-head"><span class="pick-title">Sides &amp; Salads</span><span class="pick-req">Select two</span></div>
+    <p class="order-intro" style="margin-top:0;font-size:0.9rem">Choose <strong>two</strong> sides you prefer most.</p>
+    <div class="cards" id="side-cards">
+      ${sides.map(s => simpleCardHTML('side', s, selSides.includes(s.id))).join('')}
+    </div>
+    <div class="vote-status" id="side-pick-status">${selSides.length ? `Selected ${selSides.length} of 2` : 'Select 2 sides'}</div>
+    <div class="err-msg" id="err-side">Please select exactly two sides &amp; salads.</div>
+    <div class="section-gap"></div>
+    <div class="pick-head"><span class="pick-title">Entrées</span><span class="pick-req">Select one</span></div>
+    <div class="cards" id="entree-cards">
+      ${entrees.map(s => simpleCardHTML('entree', s, selEntree === s.id)).join('')}
+    </div>
+    <div class="err-msg" id="err-entree">Please choose one entrée.</div>
+    <div class="section-gap"></div>
+    <div class="pick-head"><span class="pick-title">Desserts</span><span class="pick-req">Select one</span></div>
+    <div class="cards" id="dessert-cards">
+      ${desserts.map(s => simpleCardHTML('dessert', s, selDessert === s.id)).join('')}
+    </div>
+    <div class="err-msg" id="err-dessert">Please choose one dessert.</div>
+    <div class="section-gap"></div>
+    <div class="pick-head"><span class="pick-title">Beverage</span><span class="pick-req">Adult vs coffee / tea / soda</span></div>
+    <p class="order-intro" style="margin-top:0;font-size:0.9rem">Which will you prefer that evening?</p>
+    <div class="bev-row" id="drink-cards">
+      ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
+    </div>
+    <div class="err-msg" id="err-drink">Please choose adult beverage or coffee / tea / soda.</div>
+    <div class="section-gap"></div>
+    <div class="field-wrap" style="margin-bottom:0">
+      <label class="field-label" for="guestNotes">Dietary notes or allergies (optional)</label>
+      <input type="text" id="guestNotes" placeholder="e.g. vegetarian guest, nut allergy, no pork…" autocomplete="off">
     </div>`;
 }
 
 function renderFormFields() {
   const el = document.getElementById('form-fields');
-  if (LOC.type === 'buffet') {
-    const lockedId = LOC.lockedBuffetId || null;
-    const lockedBuffet = lockedId
-      ? (LOC.menus.buffets || []).find(b => b.id === lockedId) || LOC.menus.buffets?.[0]
-      : null;
-    if (lockedBuffet) selBuffet = lockedBuffet.id;
-
-    const buffetBlock = lockedBuffet
-      ? `
-      <div class="pick-head"><span class="pick-title">Tonight’s Buffet</span><span class="pick-req">Already chosen for the group</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Everyone gets the same buffet. No need to vote on the main package — just pick your preferred starter and drink below.</p>
-      ${lockedBuffetMenuHTML(lockedBuffet)}
-      <div class="section-gap"></div>`
-      : `
+  if (LOC.type === 'buffet' && LOC.bbqMenuPick) {
+    selBuffet = LOC.lockedBuffetId || 'b-bbq';
+    selSides = [];
+    selEntree = null;
+    selDessert = null;
+    selDrink = null;
+    el.innerHTML = renderBbqMenuPickForm();
+  } else if (LOC.type === 'buffet') {
+    el.innerHTML = `
       <div class="pick-head"><span class="pick-title">Preferred Buffet</span><span class="pick-req">Expand · see menu · Vote</span></div>
       <p class="order-intro" style="margin-top:0;font-size:0.9rem">We order <strong>one buffet for the whole group</strong>. Open a package to read the full menu, then tap <strong>Vote for this buffet</strong>.</p>
       <div class="accordion" id="buffet-accordion">${LOC.menus.buffets.map(b => accordionItemHTML('buffet', b)).join('')}</div>
       <div class="vote-status" id="buffet-vote-status">No buffet vote yet</div>
       <div class="err-msg" id="err-buffet">Please vote for a preferred buffet.</div>
-      <div class="section-gap"></div>`;
-
-    // Locked BBQ page: preferred pick from BBQ sides (card UI). Poll page: shared apps accordion.
-    const starterPick = !!(LOC.starterPickMode || lockedBuffet);
-    const starterTitle = LOC.starterPickLabel || 'Preferred Starter';
-    const starterBlock = starterPick
-      ? `
-      <div class="pick-head"><span class="pick-title">${esc(starterTitle)}</span><span class="pick-req">Select one</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">These are the <strong>sides &amp; salads on the Backyard BBQ buffet</strong>. Tap your favorite — everything is still served; this helps us know group preferences.</p>
-      <div class="cards" id="starter-cards">
-        ${LOC.menus.starters.map(s => cardHTML('starter', 'starter', null, s, false)).join('')}
-      </div>
-      <div class="err-msg" id="err-starter">Please choose your preferred side / salad.</div>`
-      : `
+      <div class="section-gap"></div>
       <div class="pick-head"><span class="pick-title">Shared Appetizers</span><span class="pick-req">Expand · vote your favorite</span></div>
       <p class="order-intro" style="margin-top:0;font-size:0.9rem">Buffets don’t include a plated starter. Expand a shared package (or “no appetizers”), then vote so we know what the group prefers.</p>
       <div class="accordion" id="starter-accordion">${LOC.menus.starters.map(s => accordionItemHTML('starter', s)).join('')}</div>
       <div class="vote-status" id="starter-vote-status">No appetizer vote yet</div>
-      <div class="err-msg" id="err-starter">Please vote for an appetizer option (or no appetizers).</div>`;
-
-    el.innerHTML = `
-      ${buffetBlock}
-      ${starterBlock}
+      <div class="err-msg" id="err-starter">Please vote for an appetizer option (or no appetizers).</div>
       <div class="section-gap"></div>
       <div class="pick-head"><span class="pick-title">Beverage</span><span class="pick-req">Adult vs coffee / tea / soda</span></div>
       <p class="order-intro" style="margin-top:0;font-size:0.9rem">Simple tally for the bar — which will you prefer that evening?</p>
       <div class="bev-row" id="drink-cards">
         ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
       </div>
-      <div class="err-msg" id="err-drink">Please choose adult beverage or coffee / tea / soda.</div>
-      <div class="section-gap"></div>
-      <div class="field-wrap" style="margin-bottom:0">
-        <label class="field-label" for="guestNotes">Dietary notes or allergies (optional)</label>
-        <input type="text" id="guestNotes" placeholder="e.g. vegetarian guest, nut allergy, no pork…" autocomplete="off">
-      </div>`;
+      <div class="err-msg" id="err-drink">Please choose adult beverage or coffee / tea / soda.</div>`;
   } else if (LOC.type === 'preorder') {
     el.innerHTML = `
       <div class="pick-head"><span class="pick-title">Arrival Bite</span><span class="pick-req">Optional · select one or skip</span></div>
@@ -339,7 +357,63 @@ function handleCardClick(e) {
     return;
   }
 
-  // Buffet UI: accordion + vote + beverage (before .card early-return)
+  // BBQ locked menu tally: 2 sides + 1 entree + 1 dessert + beverage
+  if (LOC.type === 'buffet' && LOC.bbqMenuPick) {
+    const bev = e.target.closest('.bev-card[data-pick="drink"]');
+    if (bev) {
+      if (selDrink) document.getElementById(`card-drink-${selDrink}`)?.classList.remove('selected');
+      selDrink = bev.dataset.id;
+      bev.classList.add('selected');
+      document.getElementById('err-drink')?.classList.remove('show');
+      return;
+    }
+    const sideCard = e.target.closest('.card[data-pick="side"]');
+    if (sideCard) {
+      const id = sideCard.dataset.id;
+      const idx = selSides.indexOf(id);
+      if (idx >= 0) {
+        selSides.splice(idx, 1);
+        sideCard.classList.remove('selected');
+      } else if (selSides.length < 2) {
+        selSides.push(id);
+        sideCard.classList.add('selected');
+      } else {
+        // already 2 — swap out the first pick for the new one
+        const drop = selSides.shift();
+        document.getElementById(`card-side-${drop}`)?.classList.remove('selected');
+        selSides.push(id);
+        sideCard.classList.add('selected');
+      }
+      const st = document.getElementById('side-pick-status');
+      if (st) {
+        st.textContent = selSides.length === 2
+          ? '2 of 2 selected'
+          : `Selected ${selSides.length} of 2`;
+        st.classList.toggle('has-vote', selSides.length === 2);
+      }
+      if (selSides.length === 2) document.getElementById('err-side')?.classList.remove('show');
+      return;
+    }
+    const entCard = e.target.closest('.card[data-pick="entree"]');
+    if (entCard) {
+      if (selEntree) document.getElementById(`card-entree-${selEntree}`)?.classList.remove('selected');
+      selEntree = entCard.dataset.id;
+      entCard.classList.add('selected');
+      document.getElementById('err-entree')?.classList.remove('show');
+      return;
+    }
+    const desCard = e.target.closest('.card[data-pick="dessert"]');
+    if (desCard) {
+      if (selDessert) document.getElementById(`card-dessert-${selDessert}`)?.classList.remove('selected');
+      selDessert = desCard.dataset.id;
+      desCard.classList.add('selected');
+      document.getElementById('err-dessert')?.classList.remove('show');
+      return;
+    }
+    return;
+  }
+
+  // Buffet poll UI: accordion + vote + beverage (before .card early-return)
   if (LOC.type === 'buffet') {
     const toggle = e.target.closest('[data-acc-toggle]');
     if (toggle) {
@@ -389,17 +463,6 @@ function handleCardClick(e) {
       bev.classList.add('selected');
       document.getElementById('err-drink')?.classList.remove('show');
       return;
-    }
-    // Locked BBQ / starterPickMode: preferred starter via cards
-    if (LOC.starterPickMode || LOC.lockedBuffetId) {
-      const starterCard = e.target.closest('.card[data-pick="starter"]');
-      if (starterCard) {
-        if (selStarter) document.getElementById(`card-starter-${selStarter}`)?.classList.remove('selected');
-        selStarter = starterCard.dataset.id || null;
-        starterCard.classList.add('selected');
-        document.getElementById('err-starter')?.classList.remove('show');
-        return;
-      }
     }
   }
 
@@ -481,12 +544,43 @@ function submitOrder() {
 
   let order, successHTML;
 
-  if (LOC.type === 'buffet') {
+  if (LOC.type === 'buffet' && LOC.bbqMenuPick) {
     let ok = true;
-    // Locked package: buffet is fixed; only starter + drink are required votes
-    if (LOC.lockedBuffetId) {
-      selBuffet = LOC.lockedBuffetId;
-    }
+    if (selSides.length !== 2) { document.getElementById('err-side')?.classList.add('show'); ok = false; }
+    if (!selEntree) { document.getElementById('err-entree')?.classList.add('show'); ok = false; }
+    if (!selDessert) { document.getElementById('err-dessert')?.classList.add('show'); ok = false; }
+    if (!selDrink) { document.getElementById('err-drink')?.classList.add('show'); ok = false; }
+    if (!ok) return;
+    const sideItems = selSides.map(id => (LOC.menus.sides || []).find(s => s.id === id)).filter(Boolean);
+    const entree = (LOC.menus.entrees || []).find(s => s.id === selEntree);
+    const dessert = (LOC.menus.desserts || []).find(s => s.id === selDessert);
+    const drink = LOC.menus.drinks.find(d => d.id === selDrink);
+    const drinkBucket = drink.cat === 'Adult' || drink.id === 'd-adult' ? 'Adult' : 'Soft';
+    const notes = (document.getElementById('guestNotes')?.value || '').trim();
+    const buffetName = LOC.menus.buffetName || 'Backyard Barbecue Buffet';
+    order = {
+      id: Date.now(), locationId: LOC.id, name,
+      form: 'bbq-menu-pick',
+      buffet: buffetName, buffetId: LOC.lockedBuffetId || 'b-bbq', buffetPrice: LOC.menus.buffetPrice || 63.50,
+      buffetLocked: true,
+      sides: sideItems.map(s => s.name),
+      sideIds: sideItems.map(s => s.id),
+      entree: entree.name, entreeId: entree.id,
+      dessert: dessert.name, dessertId: dessert.id,
+      drink: drink.name, drinkId: drink.id, drinkPrice: drink.price || 0,
+      drinkCat: drinkBucket,
+      notes: notes || null,
+      ts: new Date().toISOString()
+    };
+    successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Dinner</div><div class="sc-val">${esc(buffetName)}</div></div>
+      <div class="sc-row"><div class="sc-label">Sides &amp; salads (2)</div><div class="sc-val">${esc(sideItems.map(s => s.name).join(' · '))}</div></div>
+      <div class="sc-row"><div class="sc-label">Entrée</div><div class="sc-val">${esc(entree.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Dessert</div><div class="sc-val">${esc(dessert.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>
+      ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}`;
+  } else if (LOC.type === 'buffet') {
+    let ok = true;
     if (!selBuffet) { document.getElementById('err-buffet')?.classList.add('show'); ok = false; }
     if (!selStarter) { document.getElementById('err-starter').classList.add('show'); ok = false; }
     if (!selDrink) { document.getElementById('err-drink').classList.add('show'); ok = false; }
@@ -495,25 +589,18 @@ function submitOrder() {
     const starter = LOC.menus.starters.find(s => s.id === selStarter);
     const drink = LOC.menus.drinks.find(d => d.id === selDrink);
     const drinkBucket = drink.cat === 'Adult' || drink.id === 'd-adult' ? 'Adult' : 'Soft';
-    const notes = (document.getElementById('guestNotes')?.value || '').trim();
     order = {
       id: Date.now(), locationId: LOC.id, name,
       buffet: buffet.name, buffetId: buffet.id, buffetPrice: buffet.price,
-      buffetLocked: !!LOC.lockedBuffetId,
       starter: starter.name, starterId: starter.id, starterPrice: starter.price || 0,
       drink: drink.name, drinkId: drink.id, drinkPrice: drink.price || 0,
       drinkCat: drinkBucket,
-      notes: notes || null,
       ts: new Date().toISOString()
     };
-    const buffetLabel = LOC.lockedBuffetId ? 'Dinner (set for group)' : 'Buffet vote';
-    const starterLabel = LOC.starterPickLabel
-      || ((LOC.starterPickMode || LOC.lockedBuffetId) ? 'Preferred side / salad' : 'Appetizers');
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
-      <div class="sc-row"><div class="sc-label">${buffetLabel}</div><div class="sc-val">${esc(buffet.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">${starterLabel}</div><div class="sc-val">${esc(starter.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>
-      ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}`;
+      <div class="sc-row"><div class="sc-label">Buffet vote</div><div class="sc-val">${esc(buffet.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Appetizers</div><div class="sc-val">${esc(starter.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>`;
   } else if (LOC.type === 'preorder') {
     let ok = true;
     if (!selMain) { document.getElementById('err-main').classList.add('show'); ok = false; }

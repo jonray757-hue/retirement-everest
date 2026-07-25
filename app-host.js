@@ -26,8 +26,17 @@ function initHost() {
 
 function getLoc() { return RETIREMENT_EVEREST.locations[currentSlug]; }
 
-function getOrders() {
+/** When a venue points invites at a locked package page (guestSlug), use that for orders/reports */
+function getReportLoc() {
   const loc = getLoc();
+  if (loc?.guestSlug && RETIREMENT_EVEREST.locations[loc.guestSlug]) {
+    return RETIREMENT_EVEREST.locations[loc.guestSlug];
+  }
+  return loc;
+}
+
+function getOrders() {
+  const loc = getReportLoc();
   return JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
 }
 
@@ -40,29 +49,25 @@ function rankBars(counts) {
     <div class="rank-count">${count}</div></div>`).join('');
 }
 
-function renderBuffetReport(orders, loc) {
-  const buffetCounts = {}, starterCounts = {};
+function renderBbqMenuPickReport(orders, loc) {
+  const sideCounts = {}, entreeCounts = {}, dessertCounts = {};
   let adult = 0, soft = 0;
   orders.forEach(o => {
-    if (o.buffet) buffetCounts[o.buffet] = (buffetCounts[o.buffet] || 0) + 1;
-    if (o.starter) starterCounts[o.starter] = (starterCounts[o.starter] || 0) + 1;
-    const cat = o.drinkCat || (o.drinkId === 'd-adult' || /adult|alcohol|beer|wine|cocktail/i.test(o.drink || '') ? 'Adult' : 'Soft');
+    (o.sides || []).forEach(s => { sideCounts[s] = (sideCounts[s] || 0) + 1; });
+    if (o.entree) entreeCounts[o.entree] = (entreeCounts[o.entree] || 0) + 1;
+    if (o.dessert) dessertCounts[o.dessert] = (dessertCounts[o.dessert] || 0) + 1;
+    const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
     if (cat === 'Adult') adult += 1;
     else soft += 1;
   });
-  const topBuffet = Object.entries(buffetCounts).sort((a, b) => b[1] - a[1])[0];
-  const topStarter = Object.entries(starterCounts).sort((a, b) => b[1] - a[1])[0];
   const bevTotal = adult + soft || 1;
   const adultPct = Math.round((adult / bevTotal) * 100);
   const softPct = Math.round((soft / bevTotal) * 100);
-  const locked = !!loc.lockedBuffetId;
-  const lockedName = locked
-    ? ((loc.menus.buffets || []).find(b => b.id === loc.lockedBuffetId)?.name || topBuffet?.[0] || 'Backyard BBQ')
-    : null;
+  const buffetName = loc.menus?.buffetName || 'Backyard Barbecue Buffet';
   return `
     <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-      <div class="card-box"><div class="stat-label">${locked ? 'Preferences' : 'Votes'}</div><div class="stat-val">${orders.length}</div></div>
-      <div class="card-box"><div class="stat-label">${locked ? 'Dinner package' : 'Leading buffet'}</div><div class="stat-val" style="font-size:0.95rem">${locked ? esc(lockedName) : (topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—')}</div></div>
+      <div class="card-box"><div class="stat-label">Preferences</div><div class="stat-val">${orders.length}</div></div>
+      <div class="card-box"><div class="stat-label">Dinner package</div><div class="stat-val" style="font-size:0.95rem">${esc(buffetName)}</div></div>
       <div class="card-box"><div class="stat-label">Adult beverages</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
       <div class="card-box"><div class="stat-label">Coffee / tea / soda</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
     </div>
@@ -77,19 +82,68 @@ function renderBuffetReport(orders, loc) {
         <strong style="color:var(--text)">${soft}</strong> coffee / tea / soda
       </p>
     </div>
-    <div style="display:grid;grid-template-columns:${locked ? '1fr' : '1fr 1fr'};gap:12px;margin-bottom:16px">
-      ${locked ? '' : `<div class="card-box"><h3>Buffet popularity</h3>${rankBars(buffetCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>`}
-      <div class="card-box"><h3>${locked || loc.starterPickMode ? (loc.starterPickLabel || 'Preferred side / salad') + ' votes' : 'Appetizer package votes'}</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card-box"><h3>Sides &amp; salads (2 picks each)</h3>${rankBars(sideCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+      <div class="card-box"><h3>Entrées</h3>${rankBars(entreeCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+      <div class="card-box"><h3>Desserts</h3>${rankBars(dessertCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
     </div>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">${locked || loc.starterPickMode
-      ? `Leading side preference: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Use adult/soft split + side tallies when planning the BBQ evening.`
-      : `Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.`}</p>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Tallies are preference votes for planning quantities — full BBQ package still served for the group.</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>${locked ? 'Dinner' : 'Buffet'}</th><th>${locked || loc.starterPickMode ? (loc.starterPickLabel || 'Preferred side') : 'Appetizers'}</th><th>Beverage bucket</th><th>Notes</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Beverage</th><th>Notes</th><th>Time</th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
-          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc((o.sides || []).join(' · ') || '—')}</td><td>${esc(o.entree || '—')}</td><td>${esc(o.dessert || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderBuffetReport(orders, loc) {
+  if (loc.bbqMenuPick) return renderBbqMenuPickReport(orders, loc);
+  const buffetCounts = {}, starterCounts = {};
+  let adult = 0, soft = 0;
+  orders.forEach(o => {
+    if (o.buffet) buffetCounts[o.buffet] = (buffetCounts[o.buffet] || 0) + 1;
+    if (o.starter) starterCounts[o.starter] = (starterCounts[o.starter] || 0) + 1;
+    const cat = o.drinkCat || (o.drinkId === 'd-adult' || /adult|alcohol|beer|wine|cocktail/i.test(o.drink || '') ? 'Adult' : 'Soft');
+    if (cat === 'Adult') adult += 1;
+    else soft += 1;
+  });
+  const topBuffet = Object.entries(buffetCounts).sort((a, b) => b[1] - a[1])[0];
+  const topStarter = Object.entries(starterCounts).sort((a, b) => b[1] - a[1])[0];
+  const bevTotal = adult + soft || 1;
+  const adultPct = Math.round((adult / bevTotal) * 100);
+  const softPct = Math.round((soft / bevTotal) * 100);
+  return `
+    <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+      <div class="card-box"><div class="stat-label">Votes</div><div class="stat-val">${orders.length}</div></div>
+      <div class="card-box"><div class="stat-label">Leading buffet</div><div class="stat-val" style="font-size:0.95rem">${topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—'}</div></div>
+      <div class="card-box"><div class="stat-label">Adult beverages</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
+      <div class="card-box"><div class="stat-label">Coffee / tea / soda</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
+    </div>
+    <div class="card-box" style="margin-bottom:16px">
+      <h3>Beverage split</h3>
+      <div style="display:flex;height:14px;border-radius:8px;overflow:hidden;background:var(--border);margin:8px 0 10px">
+        <div style="width:${adultPct}%;background:var(--accent)" title="Adult"></div>
+        <div style="width:${softPct}%;background:color-mix(in srgb, var(--muted) 50%, var(--panel))" title="Soft"></div>
+      </div>
+      <p style="font-size:0.85rem;color:var(--muted);margin:0">
+        <strong style="color:var(--text)">${adult}</strong> adult ·
+        <strong style="color:var(--text)">${soft}</strong> coffee / tea / soda
+      </p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card-box"><h3>Buffet popularity</h3>${rankBars(buffetCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+      <div class="card-box"><h3>Appetizer package votes</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+    </div>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.</p>
+    <div class="card-box" style="overflow:auto">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage bucket</th><th>Time</th></tr></thead>
+        <tbody>${orders.map((o, i) => {
+          const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
@@ -247,6 +301,7 @@ function renderShareBar(loc) {
 
 function renderReport() {
   const loc = getLoc();
+  const reportLoc = getReportLoc();
   document.body.className = 'theme-hub';
   if (document.getElementById('hostTitle')) {
     document.getElementById('hostTitle').textContent = `${loc.shortName} · Report`;
@@ -257,10 +312,10 @@ function renderReport() {
   if (!orders.length) {
     body.innerHTML = `${share}<div class="empty">No reservations yet for ${loc.shortName}. Use <strong>Send guest link</strong> to invite prospects.</div>`;
   } else {
-    body.innerHTML = share + (loc.type === 'screening' ? renderScreeningReport(orders, loc)
-      : loc.type === 'preorder' ? renderPreorderReport(orders, loc)
-      : loc.type === 'buffet' ? renderBuffetReport(orders, loc)
-      : renderRetreatReport(orders, loc));
+    body.innerHTML = share + (reportLoc.type === 'screening' ? renderScreeningReport(orders, reportLoc)
+      : reportLoc.type === 'preorder' ? renderPreorderReport(orders, reportLoc)
+      : reportLoc.type === 'buffet' ? renderBuffetReport(orders, reportLoc)
+      : renderRetreatReport(orders, reportLoc));
   }
   body.querySelector('[data-copy-link]')?.addEventListener('click', e => {
     copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
@@ -279,8 +334,10 @@ function adjustRate() {
 
 function clearAll() {
   const loc = getLoc();
+  const reportLoc = getReportLoc();
   if (!confirm(`Delete all ${loc.shortName} reservations?`)) return;
-  localStorage.removeItem(loc.storageKey);
+  localStorage.removeItem(reportLoc.storageKey);
+  if (reportLoc.storageKey !== loc.storageKey) localStorage.removeItem(loc.storageKey);
   renderReport();
 }
 
