@@ -3,7 +3,7 @@ const RE_INVITES_KEY = 're_invites_v1';
 const RE_MARKETING_SEL_KEY = 're_marketing_selections_v1';
 
 const DEFAULT_INTEGRATIONS = {
-  ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/UeAtlT0oS5n9RHD70I2U/webhook-trigger/be827838-c5a8-4655-8e61-ec7be7874ce9',
+  ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d',
   googleSheetsWebhookUrl: '',
   googleSheetId: '',
   defaultSheetTab: 'Orders',
