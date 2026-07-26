@@ -25,10 +25,10 @@
   const BUFFET = { x: M + Math.round(4.5 * PXFT), y: M + Math.round(28.5 * PXFT), w: 14 * PXFT, h: 2 * PXFT };
   /* Arch: A & B forward near the screen at the sides, C & D set back toward the buffet */
   const TABLE_POS = {
-    A: { x: M + 6 * PXFT, y: M + 9 * PXFT },
-    B: { x: M + 17 * PXFT, y: M + 9 * PXFT },
-    C: { x: M + Math.round(6.8 * PXFT), y: M + Math.round(18.5 * PXFT) },
-    D: { x: M + Math.round(16.2 * PXFT), y: M + Math.round(18.5 * PXFT) }
+    A: { x: M + 6 * PXFT, y: M + 10 * PXFT },
+    B: { x: M + 17 * PXFT, y: M + 10 * PXFT },
+    C: { x: M + Math.round(6.8 * PXFT), y: M + Math.round(20.5 * PXFT) },
+    D: { x: M + Math.round(16.2 * PXFT), y: M + Math.round(20.5 * PXFT) }
   };
   const TABLE_R = Math.round(3 * PXFT);      // 6 ft round top
   const SEAT_RING = Math.round(3.75 * PXFT); // chairs pushed in
@@ -286,24 +286,28 @@
 
     const tables = TABLES.map((t) => {
       const c = TABLE_POS[t];
-      /* Ghosts of the two removed screen-side chairs — makes the opening obvious */
+      /* The 2 removed screen-side chairs: drawn full-size but shaded out, so
+         each table clearly reads as a 10-top with two chairs blacked out. */
       const ghosts = removedXY(t).map((p) => `
-        <g opacity="0.38">
-          <title>Chair removed — no one sits with their back to the screen</title>
-          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${SEAT_R - 2}" fill="none" stroke="#63636d" stroke-width="1.5" stroke-dasharray="3 4"></circle>
-          <line x1="${(p.x - 6).toFixed(1)}" y1="${(p.y - 6).toFixed(1)}" x2="${(p.x + 6).toFixed(1)}" y2="${(p.y + 6).toFixed(1)}" stroke="#63636d" stroke-width="1.5"></line>
-          <line x1="${(p.x - 6).toFixed(1)}" y1="${(p.y + 6).toFixed(1)}" x2="${(p.x + 6).toFixed(1)}" y2="${(p.y - 6).toFixed(1)}" stroke="#63636d" stroke-width="1.5"></line>
+        <g>
+          <title>Removed chair — kept empty so no one's back is to the screen</title>
+          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${SEAT_R}" fill="#0c0c0e" stroke="#45454e" stroke-width="2"></circle>
+          <line x1="${(p.x - 8).toFixed(1)}" y1="${(p.y - 8).toFixed(1)}" x2="${(p.x + 8).toFixed(1)}" y2="${(p.y + 8).toFixed(1)}" stroke="#55555f" stroke-width="2.5"></line>
+          <line x1="${(p.x - 8).toFixed(1)}" y1="${(p.y + 8).toFixed(1)}" x2="${(p.x + 8).toFixed(1)}" y2="${(p.y - 8).toFixed(1)}" stroke="#55555f" stroke-width="2.5"></line>
         </g>`).join('');
       return `<g>
-        <circle cx="${c.x}" cy="${c.y}" r="${TABLE_R}" fill="rgba(201,164,74,0.07)" stroke="var(--accent, #c9a44a)" stroke-width="1.5" stroke-opacity="0.5"></circle>
-        <text x="${c.x}" y="${c.y + 2}" text-anchor="middle" font-size="40" font-weight="800" fill="var(--accent, #c9a44a)" fill-opacity="0.9">${t}</text>
-        <text x="${c.x}" y="${c.y + 26}" text-anchor="middle" font-size="12" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.55">SEATS 8</text>
+        <circle cx="${c.x}" cy="${c.y}" r="${TABLE_R}" fill="rgba(201,164,74,0.10)" stroke="var(--accent, #c9a44a)" stroke-width="2" stroke-opacity="0.65"></circle>
+        <text x="${c.x}" y="${c.y + 2}" text-anchor="middle" font-size="42" font-weight="800" fill="var(--accent, #c9a44a)" fill-opacity="0.9">${t}</text>
+        <text x="${c.x}" y="${c.y + 28}" text-anchor="middle" font-size="12" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.6">10-TOP · SEATS 8</text>
         ${ghosts}
       </g>`;
     }).join('');
 
     return `<svg viewBox="0 0 ${VIEW.w} ${VIEW.h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">
-      <rect x="${ROOM.x}" y="${ROOM.y}" width="${ROOM.w}" height="${ROOM.h}" rx="4" fill="rgba(255,255,255,0.015)" stroke="#3c3c44" stroke-width="2"></rect>
+      <rect x="${ROOM.x - 5}" y="${ROOM.y - 5}" width="${ROOM.w + 10}" height="${ROOM.h + 10}" rx="6" fill="none" stroke="#55555f" stroke-width="4"></rect>
+      <rect x="${ROOM.x}" y="${ROOM.y}" width="${ROOM.w}" height="${ROOM.h}" rx="3" fill="rgba(255,255,255,0.025)" stroke="#45454e" stroke-width="1.5"></rect>
+      <text x="${ROOM.x + ROOM.w / 2}" y="${ROOM.y + ROOM.h - 12}" text-anchor="middle" font-size="13" letter-spacing="3" fill="#6a6a74">← 23 FT →</text>
+      <text transform="rotate(-90 ${ROOM.x + 18} ${ROOM.y + ROOM.h / 2})" x="${ROOM.x + 18}" y="${ROOM.y + ROOM.h / 2}" text-anchor="middle" font-size="13" letter-spacing="3" fill="#6a6a74">← 31 FT →</text>
       <rect x="${SCREEN.x}" y="${SCREEN.y}" width="${SCREEN.w}" height="${SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
       <text x="${SCREEN.cx}" y="${SCREEN.cy + 5}" text-anchor="middle" font-size="15" letter-spacing="6" fill="#9a9aa4">SCREEN</text>
       <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">Martha Jordan Room · 23 × 31 ft — ✕ chairs removed so every seat faces the screen</text>
@@ -322,6 +326,7 @@
       ${chip('border:2px solid var(--accent,#c9a44a)', 'Open')}
       ${chip('background:var(--accent,#c9a44a)', 'Your pick')}
       ${chip('background:#1b1b1f;border:2px solid #3a3a40', 'Reserved')}
+      ${chip('background:#0c0c0e;border:2px solid #45454e', '✕ Chair removed (faces screen)')}
       ${mode === 'guest' ? chip('border:2px dashed #7a5f2a', 'Held for couples') : ''}
     </div>`;
   }
@@ -337,6 +342,12 @@
   async function pushSeatEventToGHL(payload) {
     const url = global.RETIREMENT_EVEREST?.ghlWebhookUrl;
     if (!url) return { ok: false, reason: 'no-url' };
+    /* Always include firstName/lastName so GHL Create Contact mapping works */
+    if (payload.name && !payload.firstName) {
+      const parts = String(payload.name).trim().split(/\s+/);
+      payload.firstName = parts[0] || '';
+      payload.lastName = parts.slice(1).join(' ') || '';
+    }
     try {
       const res = await fetch(url, {
         method: 'POST',
