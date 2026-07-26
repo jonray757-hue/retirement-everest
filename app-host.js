@@ -17,9 +17,8 @@ function initHost() {
     const typeTag = l.guestSlug ? 'BBQ prefs' : (typeLabels[l.type] || 'Event');
     return `<option value="${l.slug}">${l.shortName} — ${typeTag}</option>`;
   }).join('');
-  /* Show location selector in topbar and old toolbar position */
+  /* Show location selector in prominent topbar position */
   document.getElementById('loc-topbar').style.display = 'flex';
-  document.getElementById('loc-toolbar').style.display = 'flex';
   const p = new URLSearchParams(location.search);
   const startView = ['overview', 'venues', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
   currentSlug = p.get('location') || 'kennedy-school';
