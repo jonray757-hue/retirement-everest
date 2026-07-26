@@ -14,18 +14,25 @@
   /* ---------------- Layout ---------------- */
   const TABLES = ['A', 'B', 'C', 'D'];
   const SEATS_PER_TABLE = 8;
-  const VIEW = { w: 1080, h: 720 };
-  const SCREEN = { x: 340, y: 14, w: 400, h: 32, cx: 540, cy: 30 };
-  /* Arch: outer tables higher, inner tables lower, opening toward the screen */
+  /* Martha Jordan Room, drawn to scale: 23 ft wide × 31 ft deep (713 sq ft), 34 px/ft.
+     The screen is mounted on the short wall; the BBQ buffet sits on the
+     OPPOSITE short wall. Tables are true 6 ft round 10-tops (≈9 ft footprint
+     with chairs), arched so the opening faces the screen. */
+  const PXFT = 34, M = 13;
+  const VIEW = { w: 23 * PXFT + 2 * M, h: 31 * PXFT + 2 * M }; // 808 × 1080
+  const ROOM = { x: M, y: M, w: 23 * PXFT, h: 31 * PXFT };
+  const SCREEN = { x: 254, y: 20, w: 300, h: 30, cx: 404, cy: 35 };
+  const BUFFET = { x: M + Math.round(4.5 * PXFT), y: M + Math.round(28.5 * PXFT), w: 14 * PXFT, h: 2 * PXFT };
+  /* Arch: A & B forward near the screen at the sides, C & D set back toward the buffet */
   const TABLE_POS = {
-    A: { x: 168, y: 330 },
-    B: { x: 425, y: 490 },
-    C: { x: 655, y: 490 },
-    D: { x: 912, y: 330 }
+    A: { x: M + 6 * PXFT, y: M + 9 * PXFT },
+    B: { x: M + 17 * PXFT, y: M + 9 * PXFT },
+    C: { x: M + Math.round(6.8 * PXFT), y: M + Math.round(18.5 * PXFT) },
+    D: { x: M + Math.round(16.2 * PXFT), y: M + Math.round(18.5 * PXFT) }
   };
-  const TABLE_R = 80;
-  const SEAT_RING = 118;
-  const SEAT_R = 19;
+  const TABLE_R = Math.round(3 * PXFT);      // 6 ft round top
+  const SEAT_RING = Math.round(3.75 * PXFT); // chairs pushed in
+  const SEAT_R = 26;
   /* Physical 10-top: chairs every 36°. The 2 chairs nearest the screen are
      removed, leaving a wide 108° opening that faces the screen. */
   const SEAT_STEP = 36;
@@ -296,9 +303,12 @@
     }).join('');
 
     return `<svg viewBox="0 0 ${VIEW.w} ${VIEW.h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">
+      <rect x="${ROOM.x}" y="${ROOM.y}" width="${ROOM.w}" height="${ROOM.h}" rx="4" fill="rgba(255,255,255,0.015)" stroke="#3c3c44" stroke-width="2"></rect>
       <rect x="${SCREEN.x}" y="${SCREEN.y}" width="${SCREEN.w}" height="${SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
       <text x="${SCREEN.cx}" y="${SCREEN.cy + 5}" text-anchor="middle" font-size="15" letter-spacing="6" fill="#9a9aa4">SCREEN</text>
-      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 22}" text-anchor="middle" font-size="13" fill="#8a8a94">Round 10-top tables · the ✕ chairs are removed, so every seat faces the screen</text>
+      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">Martha Jordan Room · 23 × 31 ft — ✕ chairs removed so every seat faces the screen</text>
+      <rect x="${BUFFET.x}" y="${BUFFET.y}" width="${BUFFET.w}" height="${BUFFET.h}" rx="5" fill="rgba(201,164,74,0.05)" stroke="#4a4a52" stroke-dasharray="6 4"></rect>
+      <text x="${BUFFET.x + BUFFET.w / 2}" y="${BUFFET.y + BUFFET.h / 2 + 5}" text-anchor="middle" font-size="14" letter-spacing="5" fill="#8a8a94">BBQ BUFFET</text>
       ${tables}
       ${seats}
     </svg>`;
