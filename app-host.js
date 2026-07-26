@@ -4,14 +4,25 @@ let roomRates = getRoomRates();
 function initHost() {
   const sel = document.getElementById('locSelect');
   const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet' };
-  const plannerLocs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : Object.values(RETIREMENT_EVEREST.locations);
+  let plannerLocs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : Object.values(RETIREMENT_EVEREST.locations);
+  /* Sort Kennedy School to top */
+  plannerLocs = plannerLocs.sort((a, b) => {
+    if (a.slug === 'kennedy-school') return -1;
+    if (b.slug === 'kennedy-school') return 1;
+    if (a.slug === 'kennedy-school-bbq') return -1;
+    if (b.slug === 'kennedy-school-bbq') return 1;
+    return 0;
+  });
   sel.innerHTML = plannerLocs.map(l => {
     const typeTag = l.guestSlug ? 'BBQ prefs' : (typeLabels[l.type] || 'Event');
     return `<option value="${l.slug}">${l.shortName} — ${typeTag}</option>`;
   }).join('');
+  /* Show location selector in topbar and old toolbar position */
+  document.getElementById('loc-topbar').style.display = 'flex';
+  document.getElementById('loc-toolbar').style.display = 'flex';
   const p = new URLSearchParams(location.search);
   const startView = ['overview', 'venues', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
-  currentSlug = p.get('location') || 'edgefield';
+  currentSlug = p.get('location') || 'kennedy-school';
   // If someone deep-linked to guest-only BBQ page, show parent Kennedy School
   if (RETIREMENT_EVEREST.locations[currentSlug]?.guestOnly) {
     currentSlug = 'kennedy-school';
