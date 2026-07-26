@@ -70,14 +70,17 @@ function rankBars(counts) {
 
 function renderBbqMenuPickReport(orders, loc) {
   const sideCounts = {}, entreeCounts = {}, dessertCounts = {};
-  let adult = 0, soft = 0;
+  let adult = 0, soft = 0, guests = 0;
   orders.forEach(o => {
-    (o.sides || []).forEach(s => { sideCounts[s] = (sideCounts[s] || 0) + 1; });
-    if (o.entree) entreeCounts[o.entree] = (entreeCounts[o.entree] || 0) + 1;
-    if (o.dessert) dessertCounts[o.dessert] = (dessertCounts[o.dessert] || 0) + 1;
+    /* Couples count double for quantity planning */
+    const w = o.partyType === 'couple' ? 2 : 1;
+    guests += w;
+    (o.sides || []).forEach(s => { sideCounts[s] = (sideCounts[s] || 0) + w; });
+    if (o.entree) entreeCounts[o.entree] = (entreeCounts[o.entree] || 0) + w;
+    if (o.dessert) dessertCounts[o.dessert] = (dessertCounts[o.dessert] || 0) + w;
     const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
-    if (cat === 'Adult') adult += 1;
-    else soft += 1;
+    if (cat === 'Adult') adult += w;
+    else soft += w;
   });
   const bevTotal = adult + soft || 1;
   const adultPct = Math.round((adult / bevTotal) * 100);
@@ -85,7 +88,7 @@ function renderBbqMenuPickReport(orders, loc) {
   const buffetName = loc.menus?.buffetName || 'Backyard Barbecue Buffet';
   return `
     <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-      <div class="card-box"><div class="stat-label">Preferences</div><div class="stat-val">${orders.length}</div></div>
+      <div class="card-box"><div class="stat-label">Preferences</div><div class="stat-val">${orders.length} <span style="font-size:0.75rem;color:var(--muted)">(${guests} guest${guests === 1 ? '' : 's'})</span></div></div>
       <div class="card-box"><div class="stat-label">Dinner package</div><div class="stat-val" style="font-size:0.95rem">${esc(buffetName)}</div></div>
       <div class="card-box"><div class="stat-label">Adult beverages</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
       <div class="card-box"><div class="stat-label">Coffee / tea / soda</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
@@ -109,10 +112,12 @@ function renderBbqMenuPickReport(orders, loc) {
     <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Tallies are preference votes for planning quantities — full BBQ package still served for the group.</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Beverage</th><th>Notes</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Beverage</th><th>Notes</th><th>Time</th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
-          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc((o.sides || []).join(' · ') || '—')}</td><td>${esc(o.entree || '—')}</td><td>${esc(o.dessert || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+          const party = o.partyType === 'couple' ? `Couple${o.spouse ? ` · ${esc(o.spouse)}` : ''}` : 'Solo';
+          const seatCol = o.seatLabel ? `<strong style="color:var(--accent)">${esc(o.seatLabel)}</strong>` : (o.seatAccommodation ? '<span style="color:var(--red,#e05252)">Needs arranging</span>' : '—');
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${party}</td><td>${seatCol}</td><td>${esc((o.sides || []).join(' · ') || '—')}</td><td>${esc(o.entree || '—')}</td><td>${esc(o.dessert || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
@@ -350,6 +355,137 @@ async function renderReport() {
     copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
   });
   body.querySelector('#btnRefreshShared')?.addEventListener('click', () => renderReport());
+  if (reportLoc.bbqMenuPick && window.RESeating) {
+    const seatDiv = document.createElement('div');
+    seatDiv.id = 'seating-panel';
+    seatDiv.innerHTML = '<div class="empty">Loading live seating chart…</div>';
+    body.appendChild(seatDiv);
+    loadSeatingPanel(reportLoc, orders);
+  }
+}
+
+/* ================= Seating chart + couple linking (Kennedy BBQ) ================= */
+
+let seatLinkPicks = [];
+
+async function loadSeatingPanel(loc, orders) {
+  const panel = document.getElementById('seating-panel');
+  if (!panel) return;
+  let st;
+  try {
+    st = await RESeating.fetchState();
+  } catch (e) {
+    panel.innerHTML = '<div class="empty">Seating chart unavailable (network). <button class="btn-sm" onclick="loadSeatingPanel(getReportLoc())">Retry</button></div>';
+    return;
+  }
+  const claims = Object.values(st.seats).sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)));
+  const seatsTaken = claims.length;
+  const totalSeats = RESeating.allSeats().length;
+
+  const rows = claims.map(c => `
+    <tr>
+      <td style="font-weight:700;color:var(--accent)">${esc(c.seatId)}</td>
+      <td>${esc(c.person || c.name)}</td>
+      <td>${esc(c.partyType === 'couple' ? `Couple${c.spouse ? ` · ${c.spouse}` : ''}` : 'Solo')}</td>
+      <td style="font-size:0.78rem;color:var(--muted)">${esc([c.email, c.phone].filter(Boolean).join(' · '))}</td>
+      <td><button class="btn-sm" data-release-seat="${esc(c.seatId)}">Release</button></td>
+    </tr>`).join('');
+
+  const accom = (st.accommodations || []).map(a => `
+    <div class="card-box" style="margin-bottom:8px;font-size:0.85rem">
+      <strong>${esc(a.name)}</strong> · ${esc(a.partyType === 'couple' ? `Couple${a.spouse ? ` (with ${a.spouse})` : ''}` : 'Solo')}
+      <span style="color:var(--muted)">· ${esc([a.email, a.phone].filter(Boolean).join(' · '))}</span>
+      <div style="color:var(--muted);font-size:0.75rem">Asked for help ${a.ts ? new Date(a.ts).toLocaleString() : ''} — reach out to arrange seats.</div>
+    </div>`).join('');
+
+  /* Contacts for couple linking: seat claims + preference submissions, deduped */
+  const contactMap = new Map();
+  const addContact = (name, email, phone) => {
+    const key = (email || '').toLowerCase() || phone || name;
+    if (name && key && !contactMap.has(key)) contactMap.set(key, { name, email: email || '', phone: phone || '' });
+  };
+  (orders || getOrders()).forEach(o => addContact(o.name, o.email, o.phone));
+  claims.forEach(c => addContact(c.name, c.email, c.phone));
+  const contacts = [...contactMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  const linked = (st.couples || []).map(cp => `
+    <div class="card-box" style="margin-bottom:8px;font-size:0.85rem">
+      💑 <strong>${esc(cp.a?.name)}</strong> ♥ <strong>${esc(cp.b?.name)}</strong>
+      <span style="color:var(--muted);font-size:0.75rem">· linked ${cp.ts ? new Date(cp.ts).toLocaleDateString() : ''}</span>
+    </div>`).join('');
+
+  const contactChips = contacts.map((c, i) => {
+    const on = seatLinkPicks.includes(i);
+    return `<button type="button" class="btn-sm" data-link-pick="${i}"
+      style="margin:0 6px 6px 0;${on ? 'background:var(--accent);color:#141414;font-weight:700' : ''}">${esc(c.name)}</button>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="section-gap"></div>
+    <h3 style="font-family:var(--heading-font);color:var(--accent);margin-bottom:4px">Seating Chart — Martha Jordan Room</h3>
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">
+      Arch layout facing the screen · round 10-tops seating 8 (2 screen-side chairs removed) ·
+      <strong style="color:var(--text)">${seatsTaken}/${totalSeats}</strong> seats reserved
+      <button class="btn-sm" style="margin-left:8px" id="btnRefreshSeats">↻ Refresh</button>
+    </div>
+    <div class="card-box" style="padding:10px">${RESeating.renderMapSVG(st, { mode: 'host' })}${RESeating.legendHTML('host')}</div>
+    ${claims.length ? `
+      <div class="section-gap"></div>
+      <h4 style="color:var(--text);margin-bottom:8px">Reserved seats</h4>
+      <div class="card-box" style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
+        <thead><tr><th>Seat</th><th>Guest</th><th>Party</th><th>Contact</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : ''}
+    ${accom ? `<div class="section-gap"></div>
+      <h4 style="color:var(--red,#e05252);margin-bottom:8px">⚠ Seating help requested</h4>${accom}` : ''}
+    <div class="section-gap"></div>
+    <h4 style="color:var(--text);margin-bottom:4px">Couples</h4>
+    <p style="color:var(--muted);font-size:0.8rem;margin-bottom:10px">
+      Tap two names, then <strong>Link as couple</strong>. They'll be labeled a couple here and pushed to GHL
+      (event <code>couple_linked</code>) so your workflow can create the partner/spouse record.
+      The seat map automatically protects side-by-side pairs for couples.
+    </p>
+    ${linked}
+    <div class="card-box" style="padding:12px">
+      <div style="margin-bottom:8px">${contactChips || '<span style="color:var(--muted);font-size:0.85rem">No contacts yet — they appear as guests submit preferences or reserve seats.</span>'}</div>
+      <button class="btn-sm btn-accent" id="btnLinkCouple" ${seatLinkPicks.length === 2 ? '' : 'disabled'}>♥ Link as couple${seatLinkPicks.length === 2 ? `: ${esc(contacts[seatLinkPicks[0]].name)} + ${esc(contacts[seatLinkPicks[1]].name)}` : ' (pick two names)'}</button>
+    </div>`;
+
+  panel.querySelector('#btnRefreshSeats')?.addEventListener('click', () => loadSeatingPanel(loc, orders));
+  panel.querySelectorAll('[data-release-seat]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.releaseSeat;
+      if (!confirm(`Release seat ${id}? It becomes open for guests to pick again.`)) return;
+      btn.disabled = true; btn.textContent = '…';
+      try { await RESeating.releaseSeats([id]); } catch (e) { alert('Release failed: ' + e); }
+      loadSeatingPanel(loc, orders);
+    });
+  });
+  panel.querySelectorAll('[data-link-pick]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.linkPick, 10);
+      if (seatLinkPicks.includes(i)) seatLinkPicks = seatLinkPicks.filter(x => x !== i);
+      else seatLinkPicks = [...seatLinkPicks, i].slice(-2);
+      loadSeatingPanel(loc, orders);
+    });
+  });
+  panel.querySelector('#btnLinkCouple')?.addEventListener('click', async () => {
+    if (seatLinkPicks.length !== 2) return;
+    const a = contacts[seatLinkPicks[0]], b = contacts[seatLinkPicks[1]];
+    const btn = panel.querySelector('#btnLinkCouple');
+    btn.disabled = true; btn.textContent = 'Linking…';
+    try {
+      await RESeating.addCoupleLink(a, b);
+      await RESeating.pushSeatEventToGHL({
+        event: 'couple_linked',
+        form: 'couple-link',
+        name: a.name, email: a.email, phone: a.phone,
+        partnerName: b.name, partnerEmail: b.email, partnerPhone: b.phone,
+        preferencesSummary: `COUPLE LINKED\n${a.name} (${a.email || a.phone})\n♥\n${b.name} (${b.email || b.phone})\nCreate/label partner-spouse records.`
+      });
+    } catch (e) { alert('Link failed: ' + e); }
+    seatLinkPicks = [];
+    loadSeatingPanel(loc, orders);
+  });
 }
 
 function adjustRate() {

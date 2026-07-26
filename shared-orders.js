@@ -131,6 +131,9 @@
         drink: order.drink || '',
         drinkCat: order.drinkCat || '',
         notes: order.notes || '',
+        party: order.partyType === 'couple' ? `Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : 'Solo',
+        seats: order.seatLabel || (Array.isArray(order.seats) ? order.seats.join(', ') : ''),
+        seatingHelp: order.seatAccommodation ? 'NEEDS PERSONAL SEATING ARRANGEMENT' : '',
         message: summary
       })
     });

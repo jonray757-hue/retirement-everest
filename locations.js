@@ -8,6 +8,8 @@ window.RETIREMENT_EVEREST = {
   ghlBrand: 'HAG',
   /* Shared multi-device order log (command center + guest). jsonblob.com CORS store */
   sharedOrdersBlobId: '019f9b86-4651-7f0e-b7ce-120127b03201',
+  /* Live seat reservations (Kennedy BBQ) — jsonblob shared across devices */
+  seatsBlobId: '019f9f6d-3af1-7e53-b473-6a40000c13a4',
   /* Email Johnny a preference report on every guest submit */
   reportEmail: 'johnny@blacksandcapitalgroup.com',
   hero: {

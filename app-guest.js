@@ -96,6 +96,12 @@ let selStarter = null, selMain = null, selDrink = null, starterFilter = 'all';
 let selBuffet = null;
 /** BBQ menu tally: up to 2 side ids */
 let selSides = [];
+/* --- Seat reservations (Kennedy BBQ) --- */
+let seatPartyType = 'solo';       // 'solo' | 'couple'
+let selSeats = [];                // e.g. ['A3'] or ['A3','A4']
+let seatState = null;             // last fetched shared seat state
+let seatFriendly = new Set();     // solo-safe seats
+let seatAccomRequested = false;   // "can't find a seat" pressed
 
 function initGuest() {
   const slug = getLocationSlug();
@@ -222,7 +228,137 @@ function renderBbqMenuPickForm() {
     <div class="field-wrap" style="margin-bottom:0">
       <label class="field-label" for="guestNotes">Dietary notes or allergies (optional)</label>
       <input type="text" id="guestNotes" placeholder="e.g. vegetarian guest, nut allergy, no pork…" autocomplete="off">
+    </div>
+    ${window.RESeating ? renderSeatSection() : ''}`;
+}
+
+function renderSeatSection() {
+  return `
+    <div class="section-gap"></div>
+    <div class="pick-head"><span class="pick-title">Reserve Your Seats</span><span class="pick-req">Tables A–D · facing the screen</span></div>
+    <p class="order-intro" style="margin-top:0;font-size:0.9rem">
+      Round tables of eight, arranged so <strong>no one's back is to the screen</strong>.
+      Pick your seat now and it's yours — reserved seats are blacked out for everyone else.
+    </p>
+    <div class="field-wrap"><label class="field-label">Who's attending?</label>
+      <div class="party-toggle">
+        <div class="party-btn selected" id="seatparty-solo" data-seatparty="solo"><div class="party-num">1</div><div class="party-label">Just Me</div></div>
+        <div class="party-btn" id="seatparty-couple" data-seatparty="couple"><div class="party-num">2</div><div class="party-label">Me &amp; My Spouse / Partner</div></div>
+      </div></div>
+    <div class="field-wrap" id="spouse-wrap" style="display:none">
+      <label class="field-label" for="spouseName">Spouse / partner full name</label>
+      <input type="text" id="spouseName" placeholder="Their first and last name" autocomplete="off"></div>
+    <div id="seatmap-container" style="background:rgba(0,0,0,0.25);border:1px solid var(--border,#333);border-radius:12px;padding:14px">
+      <div class="empty" style="padding:30px;text-align:center;color:var(--muted,#888)">Loading live seat map…</div>
+    </div>
+    <div class="vote-status" id="seat-status">Tap an open seat to reserve it.</div>
+    <div class="err-msg" id="err-seat">Please pick your seat${''} (or tap the button below and we'll arrange one for you).</div>
+    <div style="margin-top:14px;text-align:center">
+      <button type="button" class="submit-btn" id="seatHelpBtn"
+        style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.85rem;padding:12px 18px">
+        Can't find seats that work? Tap here — we'll make arrangements for you
+      </button>
+      <div id="seat-help-note" style="display:none;margin-top:10px;color:var(--accent,#c9a44a);font-size:0.85rem">
+        ✓ Got it — submit your preferences below and we'll personally arrange seating that works for you.
+      </div>
     </div>`;
+}
+
+async function loadSeatMap() {
+  const box = document.getElementById('seatmap-container');
+  if (!box || !window.RESeating) return;
+  try {
+    seatState = await RESeating.fetchState();
+    seatFriendly = RESeating.soloFriendly(seatState);
+    // drop selections that got taken while we looked
+    selSeats = selSeats.filter(id => !seatState.seats[id]);
+    box.innerHTML = RESeating.renderMapSVG(seatState, {
+      mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
+    }) + RESeating.legendHTML('guest') +
+    `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
+    updateSeatStatus();
+  } catch (e) {
+    console.warn('[RE] seat map load failed', e);
+    box.innerHTML = '<div class="empty" style="padding:24px;text-align:center;color:var(--muted,#888)">Seat map unavailable right now — submit your preferences and we\'ll seat you personally.</div>';
+  }
+}
+
+function updateSeatStatus() {
+  const el = document.getElementById('seat-status');
+  if (!el) return;
+  if (seatAccomRequested) { el.textContent = "We'll arrange your seating personally — nothing to pick."; return; }
+  if (!selSeats.length) {
+    el.textContent = seatPartyType === 'couple'
+      ? 'Tap an open seat — we\'ll grab the seat beside it for your spouse automatically.'
+      : 'Tap an open seat to reserve it.';
+  } else {
+    el.textContent = `Your pick: ${RESeating.seatLabel(selSeats)}${seatPartyType === 'couple' ? ' (side by side)' : ''}`;
+  }
+}
+
+function handleSeatClick(id) {
+  if (!seatState || seatState.seats[id]) return;
+  document.getElementById('err-seat')?.classList.remove('show');
+  // toggle off
+  if (selSeats.includes(id)) { selSeats = []; refreshSeatMapUI(); return; }
+  if (seatPartyType === 'solo') {
+    if (seatFriendly.size && !seatFriendly.has(id)) {
+      alert('That seat is being held so a couple can sit together. Please pick one of the solid-outline seats — or tap the arrangements button and we\'ll take care of you.');
+      return;
+    }
+    selSeats = [id];
+  } else {
+    const partner = RESeating.bestPartnerSeat(id, seatState);
+    if (!partner) {
+      alert('No open seat right beside that one. Try another spot with two seats together — or tap the arrangements button and we\'ll make sure you sit together.');
+      return;
+    }
+    selSeats = [id, partner].sort();
+  }
+  refreshSeatMapUI();
+}
+
+function refreshSeatMapUI() {
+  const box = document.getElementById('seatmap-container');
+  if (!box || !seatState) return;
+  const svgWrap = box.querySelector('svg');
+  if (svgWrap) {
+    svgWrap.outerHTML = RESeating.renderMapSVG(seatState, {
+      mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
+    });
+  }
+  updateSeatStatus();
+}
+
+async function requestSeatAccommodation() {
+  const name = document.getElementById('guestName')?.value.trim();
+  const email = (document.getElementById('guestEmail')?.value || '').trim();
+  const phone = (document.getElementById('guestPhone')?.value || '').trim();
+  if (!name || (!email && !phone)) {
+    alert('Add your name and an email or mobile number first, so we know who to arrange seating for.');
+    document.getElementById('guestName')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const btn = document.getElementById('seatHelpBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  const spouse = (document.getElementById('spouseName')?.value || '').trim() || null;
+  const req = { name, email, phone, partyType: seatPartyType, spouse, locationId: LOC.id };
+  try { await RESeating.addAccommodation(req); } catch (e) { console.warn('[RE] accommodation log failed', e); }
+  RESeating.pushSeatEventToGHL({
+    event: 'seat_accommodation_requested',
+    form: 'seat-accommodation',
+    name, email, phone,
+    partyType: seatPartyType, spouse: spouse || '',
+    location: LOC.id, locationName: LOC.name,
+    preferencesSummary: `SEATING HELP NEEDED\nName: ${name}\nParty: ${seatPartyType}${spouse ? ` (with ${spouse})` : ''}\nCouldn't find suitable open seats — please arrange.`
+  });
+  seatAccomRequested = true;
+  selSeats = [];
+  if (btn) { btn.style.display = 'none'; }
+  const note = document.getElementById('seat-help-note');
+  if (note) note.style.display = 'block';
+  document.getElementById('err-seat')?.classList.remove('show');
+  refreshSeatMapUI();
 }
 
 function renderFormFields() {
@@ -234,6 +370,7 @@ function renderFormFields() {
     selDessert = null;
     selDrink = null;
     el.innerHTML = renderBbqMenuPickForm();
+    if (window.RESeating) loadSeatMap();
   } else if (LOC.type === 'buffet') {
     el.innerHTML = `
       <div class="pick-head"><span class="pick-title">Preferred Buffet</span><span class="pick-req">Expand · see menu · Vote</span></div>
@@ -347,6 +484,23 @@ function bindEvents() {
 }
 
 function handleCardClick(e) {
+  /* Seat picker (Kennedy BBQ) — must run before generic .party-btn handling */
+  const seatPartyBtn = e.target.closest('[data-seatparty]');
+  if (seatPartyBtn) {
+    seatPartyType = seatPartyBtn.dataset.seatparty;
+    document.getElementById('seatparty-solo')?.classList.toggle('selected', seatPartyType === 'solo');
+    document.getElementById('seatparty-couple')?.classList.toggle('selected', seatPartyType === 'couple');
+    const sw = document.getElementById('spouse-wrap');
+    if (sw) sw.style.display = seatPartyType === 'couple' ? '' : 'none';
+    selSeats = [];
+    refreshSeatMapUI();
+    return;
+  }
+  const seatEl = e.target.closest('[data-seat]');
+  if (seatEl) { handleSeatClick(seatEl.dataset.seat); return; }
+  if (e.target.closest('#seatRefreshBtn')) { selSeats = []; loadSeatMap(); return; }
+  if (e.target.closest('#seatHelpBtn')) { requestSeatAccommodation(); return; }
+
   const filterBtn = e.target.closest('.filter-btn[data-filter]');
   if (filterBtn) {
     starterFilter = filterBtn.dataset.filter;
@@ -588,6 +742,12 @@ async function pushGuestOrderToGHL(order) {
     drink: order.drink || '',
     drinkCat: order.drinkCat || '',
     notes: order.notes || '',
+    // Seating
+    partyType: order.partyType || '',
+    spouse: order.spouse || '',
+    seats: Array.isArray(order.seats) ? order.seats.join(', ') : '',
+    seatLabel: order.seatLabel || '',
+    seatAccommodation: order.seatAccommodation ? 'yes' : '',
     // Full blob for custom field / notes
     preferencesSummary: [
       order.buffet ? `Dinner: ${order.buffet}` : '',
@@ -595,7 +755,10 @@ async function pushGuestOrderToGHL(order) {
       order.entree ? `Entrée: ${order.entree}` : '',
       order.dessert ? `Dessert: ${order.dessert}` : '',
       order.drink ? `Drink: ${order.drink}${order.drinkCat ? ` (${order.drinkCat})` : ''}` : '',
-      order.notes ? `Notes: ${order.notes}` : ''
+      order.notes ? `Notes: ${order.notes}` : '',
+      order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : ''),
+      order.seatLabel ? `Seats: ${order.seatLabel}` : '',
+      order.seatAccommodation ? 'SEATING: needs personal arrangement (couldn\'t find open seats that work)' : ''
     ].filter(Boolean).join('\n'),
     submittedAt: order.ts || new Date().toISOString()
   };
@@ -671,9 +834,54 @@ async function submitOrder() {
     const drinkBucket = drink.cat === 'Adult' || drink.id === 'd-adult' ? 'Adult' : 'Soft';
     const notes = (document.getElementById('guestNotes')?.value || '').trim();
     const buffetName = LOC.menus.buffetName || 'Backyard Barbecue Buffet';
+
+    /* --- Seat reservation: claim before we finalize --- */
+    const spouseNameVal = (document.getElementById('spouseName')?.value || '').trim() || null;
+    if (window.RESeating && seatPartyType === 'couple' && !spouseNameVal && selSeats.length) {
+      document.getElementById('spouseName')?.classList.add('err');
+      alert('Please add your spouse / partner\'s name so we can put it on their seat.');
+      return;
+    }
+    if (window.RESeating && !selSeats.length && !seatAccomRequested) {
+      document.getElementById('err-seat')?.classList.add('show');
+      if (!confirm('You haven\'t reserved a seat yet. Continue without one? (We\'ll seat you on arrival.)')) {
+        document.getElementById('seatmap-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    let seatClaim = null;
+    if (window.RESeating && selSeats.length) {
+      const btn0 = document.getElementById('submitBtn');
+      btn0.disabled = true;
+      btn0.innerHTML = '<span class="spinner"></span>Reserving your seats…';
+      try {
+        seatClaim = await RESeating.claimSeats(selSeats, {
+          name, email, phone, partyType: seatPartyType, spouse: spouseNameVal
+        });
+      } catch (e) {
+        console.warn('[RE] seat claim error', e);
+        seatClaim = { ok: false, taken: [], error: String(e) };
+      }
+      if (!seatClaim.ok) {
+        btn0.disabled = false;
+        btn0.textContent = 'Confirm My Preferences';
+        alert('So sorry — one of those seats was just taken by another guest. The map has been refreshed; please pick again (or tap the arrangements button).');
+        selSeats = [];
+        await loadSeatMap();
+        document.getElementById('seatmap-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+
     order = {
       id: Date.now(), locationId: LOC.id, name, email, phone,
       form: 'bbq-menu-pick',
+      partyType: window.RESeating ? seatPartyType : undefined,
+      partySize: seatPartyType === 'couple' ? 2 : 1,
+      spouse: spouseNameVal,
+      seats: selSeats.length ? [...selSeats] : null,
+      seatLabel: selSeats.length ? RESeating.seatLabel(selSeats) : null,
+      seatAccommodation: seatAccomRequested || null,
       buffet: buffetName, buffetId: LOC.lockedBuffetId || 'b-bbq', buffetPrice: LOC.menus.buffetPrice || 63.50,
       buffetLocked: true,
       sides: sideItems.map(s => s.name),
@@ -692,7 +900,10 @@ async function submitOrder() {
       <div class="sc-row"><div class="sc-label">Entrée</div><div class="sc-val">${esc(entree.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Dessert</div><div class="sc-val">${esc(dessert.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>
-      ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}`;
+      ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}
+      ${order.spouse ? `<div class="sc-row"><div class="sc-label">Attending with</div><div class="sc-val">${esc(order.spouse)}</div></div>` : ''}
+      ${order.seatLabel ? `<div class="sc-row"><div class="sc-label">Your seat${selSeats.length > 1 ? 's' : ''}</div><div class="sc-val" style="color:var(--accent,#c9a44a);font-weight:700">${esc(order.seatLabel)}</div></div>` : ''}
+      ${order.seatAccommodation ? `<div class="sc-row"><div class="sc-label">Seating</div><div class="sc-val">We'll personally arrange your seats and confirm with you.</div></div>` : ''}`;
   } else if (LOC.type === 'buffet') {
     let ok = true;
     if (!selBuffet) { document.getElementById('err-buffet')?.classList.add('show'); ok = false; }
@@ -818,7 +1029,10 @@ async function submitOrder() {
           order.entree ? `Entrée: ${order.entree}` : '',
           order.dessert ? `Dessert: ${order.dessert}` : '',
           order.drink ? `Drink: ${order.drink}${order.drinkCat ? ` (${order.drinkCat})` : ''}` : '',
-          order.notes ? `Notes: ${order.notes}` : ''
+          order.notes ? `Notes: ${order.notes}` : '',
+          order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : ''),
+          order.seatLabel ? `Seats: ${order.seatLabel}` : '',
+          order.seatAccommodation ? 'SEATING: needs personal arrangement' : ''
         ].filter(Boolean).join('\n')
       });
       emailOk = !!er.ok;
