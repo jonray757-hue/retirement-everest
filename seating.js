@@ -14,18 +14,23 @@
   /* ---------------- Layout ---------------- */
   const TABLES = ['A', 'B', 'C', 'D'];
   const SEATS_PER_TABLE = 8;
-  const VIEW = { w: 1000, h: 640 };
-  const SCREEN = { x: 300, y: 14, w: 400, h: 30, cx: 500, cy: 29 };
+  const VIEW = { w: 1080, h: 720 };
+  const SCREEN = { x: 340, y: 14, w: 400, h: 32, cx: 540, cy: 30 };
   /* Arch: outer tables higher, inner tables lower, opening toward the screen */
   const TABLE_POS = {
-    A: { x: 148, y: 300 },
-    B: { x: 382, y: 442 },
-    C: { x: 618, y: 442 },
-    D: { x: 852, y: 300 }
+    A: { x: 168, y: 330 },
+    B: { x: 425, y: 490 },
+    C: { x: 655, y: 490 },
+    D: { x: 912, y: 330 }
   };
-  const TABLE_R = 56;
-  const SEAT_RING = 96;
-  const SEAT_R = 17;
+  const TABLE_R = 80;
+  const SEAT_RING = 118;
+  const SEAT_R = 19;
+  /* Physical 10-top: chairs every 36°. The 2 chairs nearest the screen are
+     removed, leaving a wide 108° opening that faces the screen. */
+  const SEAT_STEP = 36;
+  const FIRST_SEAT_DEG = 54;      // first kept chair, measured from screen direction
+  const REMOVED_DEG = [18, -18];  // the two removed screen-side chairs
 
   function seatKey(t, n) { return `${t}${n}`; }
 
@@ -37,16 +42,29 @@
     return out;
   }
 
-  /** Seat position: 60° gap (removed chairs) always faces the screen. */
+  function screenAngle(t) {
+    const c = TABLE_POS[t];
+    return Math.atan2(SCREEN.cy - c.y, SCREEN.cx - c.x); // toward screen
+  }
+
+  /** Seat position: real 10-top spacing (36°), 108° opening faces the screen. */
   function seatXY(t, n) {
     const c = TABLE_POS[t];
-    const gap = Math.atan2(SCREEN.cy - c.y, SCREEN.cx - c.x); // toward screen
-    const deg = 30 + ((n - 1) * 300) / 7; // 30°..330° clockwise from gap
-    const a = gap + (deg * Math.PI) / 180;
+    const deg = FIRST_SEAT_DEG + (n - 1) * SEAT_STEP; // 54°..306° clockwise from screen
+    const a = screenAngle(t) + (deg * Math.PI) / 180;
     return {
       x: c.x + SEAT_RING * Math.cos(a),
       y: c.y + SEAT_RING * Math.sin(a)
     };
+  }
+
+  /** Positions of the two REMOVED screen-side chairs (rendered as ghosts). */
+  function removedXY(t) {
+    const c = TABLE_POS[t];
+    return REMOVED_DEG.map((deg) => {
+      const a = screenAngle(t) + (deg * Math.PI) / 180;
+      return { x: c.x + SEAT_RING * Math.cos(a), y: c.y + SEAT_RING * Math.sin(a) };
+    });
   }
 
   /* ---------------- Shared state ---------------- */
@@ -261,15 +279,26 @@
 
     const tables = TABLES.map((t) => {
       const c = TABLE_POS[t];
+      /* Ghosts of the two removed screen-side chairs — makes the opening obvious */
+      const ghosts = removedXY(t).map((p) => `
+        <g opacity="0.38">
+          <title>Chair removed — no one sits with their back to the screen</title>
+          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${SEAT_R - 2}" fill="none" stroke="#63636d" stroke-width="1.5" stroke-dasharray="3 4"></circle>
+          <line x1="${(p.x - 6).toFixed(1)}" y1="${(p.y - 6).toFixed(1)}" x2="${(p.x + 6).toFixed(1)}" y2="${(p.y + 6).toFixed(1)}" stroke="#63636d" stroke-width="1.5"></line>
+          <line x1="${(p.x - 6).toFixed(1)}" y1="${(p.y + 6).toFixed(1)}" x2="${(p.x + 6).toFixed(1)}" y2="${(p.y - 6).toFixed(1)}" stroke="#63636d" stroke-width="1.5"></line>
+        </g>`).join('');
       return `<g>
         <circle cx="${c.x}" cy="${c.y}" r="${TABLE_R}" fill="rgba(201,164,74,0.07)" stroke="var(--accent, #c9a44a)" stroke-width="1.5" stroke-opacity="0.5"></circle>
-        <text x="${c.x}" y="${c.y + 10}" text-anchor="middle" font-size="30" font-weight="800" fill="var(--accent, #c9a44a)" fill-opacity="0.85">${t}</text>
+        <text x="${c.x}" y="${c.y + 2}" text-anchor="middle" font-size="40" font-weight="800" fill="var(--accent, #c9a44a)" fill-opacity="0.9">${t}</text>
+        <text x="${c.x}" y="${c.y + 26}" text-anchor="middle" font-size="12" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.55">SEATS 8</text>
+        ${ghosts}
       </g>`;
     }).join('');
 
     return `<svg viewBox="0 0 ${VIEW.w} ${VIEW.h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">
       <rect x="${SCREEN.x}" y="${SCREEN.y}" width="${SCREEN.w}" height="${SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
-      <text x="${SCREEN.cx}" y="${SCREEN.cy + 5}" text-anchor="middle" font-size="14" letter-spacing="6" fill="#9a9aa4">SCREEN</text>
+      <text x="${SCREEN.cx}" y="${SCREEN.cy + 5}" text-anchor="middle" font-size="15" letter-spacing="6" fill="#9a9aa4">SCREEN</text>
+      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 22}" text-anchor="middle" font-size="13" fill="#8a8a94">Round 10-top tables · the ✕ chairs are removed, so every seat faces the screen</text>
       ${tables}
       ${seats}
     </svg>`;
