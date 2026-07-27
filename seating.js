@@ -286,13 +286,13 @@
 
     const tables = TABLES.map((t) => {
       const c = TABLE_POS[t];
-      /* Ghosts of the two removed screen-side chairs — makes the opening obvious */
+      /* Shaded-out removed screen-side chairs — clear visual indicator not available */
       const ghosts = removedXY(t).map((p) => `
-        <g opacity="0.38">
+        <g>
           <title>Chair removed — no one sits with their back to the screen</title>
-          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${SEAT_R - 2}" fill="none" stroke="#63636d" stroke-width="1.5" stroke-dasharray="3 4"></circle>
-          <line x1="${(p.x - 6).toFixed(1)}" y1="${(p.y - 6).toFixed(1)}" x2="${(p.x + 6).toFixed(1)}" y2="${(p.y + 6).toFixed(1)}" stroke="#63636d" stroke-width="1.5"></line>
-          <line x1="${(p.x - 6).toFixed(1)}" y1="${(p.y + 6).toFixed(1)}" x2="${(p.x + 6).toFixed(1)}" y2="${(p.y - 6).toFixed(1)}" stroke="#63636d" stroke-width="1.5"></line>
+          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${SEAT_R}" fill="#1a1a1f" stroke="#3a3a42" stroke-width="2" opacity="0.8"></circle>
+          <line x1="${(p.x - 8).toFixed(1)}" y1="${(p.y - 8).toFixed(1)}" x2="${(p.x + 8).toFixed(1)}" y2="${(p.y + 8).toFixed(1)}" stroke="#5a5a62" stroke-width="2" stroke-linecap="round"></line>
+          <line x1="${(p.x - 8).toFixed(1)}" y1="${(p.y + 8).toFixed(1)}" x2="${(p.x + 8).toFixed(1)}" y2="${(p.y - 8).toFixed(1)}" stroke="#5a5a62" stroke-width="2" stroke-linecap="round"></line>
         </g>`).join('');
       return `<g>
         <circle cx="${c.x}" cy="${c.y}" r="${TABLE_R}" fill="rgba(201,164,74,0.07)" stroke="var(--accent, #c9a44a)" stroke-width="1.5" stroke-opacity="0.5"></circle>

@@ -681,18 +681,19 @@ window.RETIREMENT_EVEREST = {
         buffetPrice: 63.50,
         /* Exactly the Backyard BBQ menu — sides pick 2, entrée 1, dessert 1 */
         sides: [
-          { id: 'side-biscuits', name: 'Biscuits & honey butter' },
-          { id: 'side-potato', name: 'Picnic potato salad' },
-          { id: 'side-coleslaw', name: 'Buttermilk coleslaw' },
-          { id: 'side-beans', name: "Dad's Moonshine baked beans" }
+          { id: 'side-biscuits', name: 'Biscuits & honey butter', desc: 'Warm house-made biscuits with creamy honey butter' },
+          { id: 'side-potato', name: 'Picnic potato salad', desc: 'Classic mayo-based potato salad with celery, red onion, and fresh herbs' },
+          { id: 'side-coleslaw', name: 'Buttermilk coleslaw', desc: 'Creamy coleslaw slaw with cabbage, carrots, and buttermilk dressing' },
+          { id: 'side-beans', name: "Dad's Moonshine baked beans", desc: 'Slow-cooked beans with brown sugar, bacon, and spice' }
         ],
         entrees: [
-          { id: 'ent-brisket', name: 'Red Eye BBQ beef brisket' },
-          { id: 'ent-chicken', name: 'Peppercorn white BBQ chicken breasts' }
+          { id: 'ent-brisket', name: 'Red Eye BBQ beef brisket', desc: 'Smoked beef brisket with tangy red eye BBQ sauce' },
+          { id: 'ent-chicken', name: 'Peppercorn white BBQ chicken breasts', desc: 'Grilled chicken breasts with peppercorn white BBQ sauce' },
+          { id: 'ent-jackfruit', name: 'Jerk jackfruit sliders (vegan)', desc: 'Plant-based jackfruit with Caribbean jerk spices, served on slider buns', vegan: true }
         ],
         desserts: [
-          { id: 'des-brownies', name: 'Black & Tan brownies' },
-          { id: 'des-berry', name: 'Northwest berry bars' }
+          { id: 'des-brownies', name: 'Black & Tan brownies', desc: 'Rich chocolate brownies with a stout beer swirl' },
+          { id: 'des-berry', name: 'Northwest berry bars', desc: 'Buttery crust with tart marionberry and blackberry filling' }
         ],
         drinks: [
           {
