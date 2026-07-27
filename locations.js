@@ -6,10 +6,11 @@ window.RETIREMENT_EVEREST = {
   ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d',
   ghlLocationId: '24UgqDfh5TcJs5IPnA25',
   ghlBrand: 'HAG',
-  /* Shared multi-device order log (command center + guest). jsonblob.com CORS store */
-  sharedOrdersBlobId: '019f9b86-4651-7f0e-b7ce-120127b03201',
+  /* Shared multi-device order log (command center + guest). jsonblob.com CORS store.
+     Free blobs expire if idle — if host/guest stop syncing, recreate and update these IDs. */
+  sharedOrdersBlobId: '019fa4b4-b774-7ad4-b4f0-b0b7760e95ff',
   /* Live seat reservations (Kennedy BBQ) — jsonblob shared across devices */
-  seatsBlobId: '019f9f6d-3af1-7e53-b473-6a40000c13a4',
+  seatsBlobId: '019fa4b4-b8dc-7ea3-b000-30f2b703796c',
   /* Email Johnny a preference report on every guest submit */
   reportEmail: 'johnny@blacksandcapitalgroup.com',
   hero: {
@@ -360,6 +361,14 @@ window.RETIREMENT_EVEREST = {
       shortName: 'Kennedy School',
       city: 'Portland, OR',
       venue: 'Martha Jordan Room',
+      /* Seeded into localStorage by ensureEventDefaults() so Overview/Planner always show the event */
+      defaultEvent: {
+        eventDate: '2026-08-27',
+        doorsTime: '',
+        showTime: '',
+        guestGoal: 30,
+        notes: 'Martha Jordan Room · Backyard BBQ · ~30 guests · arch seating A–D'
+      },
       /* Preferences save on BBQ page storage (via guestSlug) */
       storageKey: 'kennedyschool_buffet_orders_v1',
       attachments: [

@@ -2,6 +2,9 @@ let currentSlug = 'edgefield';
 let roomRates = getRoomRates();
 
 function initHost() {
+  // Restore scheduled events (localStorage) + seed Kennedy School Aug 27 if missing
+  if (typeof ensureEventDefaults === 'function') ensureEventDefaults();
+
   const sel = document.getElementById('locSelect');
   const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet' };
   let plannerLocs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : Object.values(RETIREMENT_EVEREST.locations);

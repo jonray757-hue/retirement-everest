@@ -8,7 +8,7 @@
 (function (global) {
   const SEATS_BLOB =
     (global.RETIREMENT_EVEREST && global.RETIREMENT_EVEREST.seatsBlobId) ||
-    '019f9f6d-3af1-7e53-b473-6a40000c13a4';
+    '019fa4b4-b8dc-7ea3-b000-30f2b703796c';
   const apiUrl = (id) => `https://jsonblob.com/api/jsonBlob/${id || SEATS_BLOB}`;
 
   /* ---------------- Layout ---------------- */

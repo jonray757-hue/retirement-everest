@@ -6,7 +6,7 @@
 (function (global) {
   const DEFAULT_BLOB =
     (global.RETIREMENT_EVEREST && global.RETIREMENT_EVEREST.sharedOrdersBlobId) ||
-    '019f9b86-4651-7f0e-b7ce-120127b03201';
+    '019fa4b4-b774-7ad4-b4f0-b0b7760e95ff';
 
   function blobUrl(id) {
     return `https://jsonblob.com/api/jsonBlob/${id || DEFAULT_BLOB}`;

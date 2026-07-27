@@ -55,6 +55,48 @@ function saveEventMeta(meta) {
   localStorage.setItem(RE_EVENTS_KEY, JSON.stringify(meta));
 }
 
+/**
+ * Events live in browser localStorage (not git). Without a seed:
+ * - new browser / cleared site data / different origin → "no events"
+ * - date saved on guest-only slug (kennedy-school-bbq) → hidden after hideFromPlanner
+ * Call once on host init. Safe to re-run.
+ */
+function ensureEventDefaults() {
+  const meta = getEventMeta();
+  let changed = false;
+  const locs = RETIREMENT_EVEREST?.locations || {};
+
+  // Migrate guest-only package page events onto the parent planner venue
+  Object.values(locs).forEach((loc) => {
+    if (!loc?.guestSlug) return;
+    const child = meta[loc.guestSlug];
+    const parent = meta[loc.slug];
+    if (child?.eventDate && !parent?.eventDate) {
+      meta[loc.slug] = { ...(parent || {}), ...child };
+      changed = true;
+    }
+  });
+
+  // Seed any location that declares defaultEvent and has no saved date yet
+  Object.values(locs).forEach((loc) => {
+    if (!loc?.defaultEvent?.eventDate) return;
+    if (meta[loc.slug]?.eventDate) return;
+    meta[loc.slug] = {
+      ...(meta[loc.slug] || {}),
+      eventDate: loc.defaultEvent.eventDate,
+      doorsTime: loc.defaultEvent.doorsTime || '',
+      showTime: loc.defaultEvent.showTime || '',
+      guestGoal: loc.defaultEvent.guestGoal ?? null,
+      notes: loc.defaultEvent.notes || '',
+      checklist: meta[loc.slug]?.checklist || []
+    };
+    changed = true;
+  });
+
+  if (changed) saveEventMeta(meta);
+  return meta;
+}
+
 function getLocationEvent(slug) {
   return getEventMeta()[slug] || null;
 }
