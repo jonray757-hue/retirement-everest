@@ -269,18 +269,21 @@ async function loadSeatMap() {
   if (!box || !window.RESeating) return;
   try {
     seatState = await RESeating.fetchState();
-    seatFriendly = RESeating.soloFriendly(seatState);
-    // drop selections that got taken while we looked
-    selSeats = selSeats.filter(id => !seatState.seats[id]);
-    box.innerHTML = RESeating.renderMapSVG(seatState, {
-      mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
-    }) + RESeating.legendHTML('guest') +
-    `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
-    updateSeatStatus();
   } catch (e) {
     console.warn('[RE] seat map load failed', e);
-    box.innerHTML = '<div class="empty" style="padding:24px;text-align:center;color:var(--muted,#888)">Seat map unavailable right now — submit your preferences and we\'ll seat you personally.</div>';
+    seatState = RESeating.emptyState ? { ...RESeating.emptyState(), offline: true } : { seats: {}, couples: [], accommodations: [], offline: true };
   }
+  // Always paint the floor plan — never blank the section if the shared store is down
+  seatFriendly = RESeating.soloFriendly(seatState);
+  selSeats = selSeats.filter(id => !seatState.seats?.[id]);
+  const offlineNote = seatState.offline
+    ? `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:rgba(224,82,82,0.12);color:#e8a0a0;font-size:0.78rem">Live seat sync is offline — chart still works on this device. Tap ↻ after refresh if others reserved seats.</div>`
+    : '';
+  box.innerHTML = offlineNote + RESeating.renderMapSVG(seatState, {
+    mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
+  }) + RESeating.legendHTML('guest') +
+  `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
+  updateSeatStatus();
 }
 
 function updateSeatStatus() {

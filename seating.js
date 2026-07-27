@@ -75,37 +75,89 @@
   }
 
   /* ---------------- Shared state ---------------- */
-  function normalize(data) {
-    const st = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  const LOCAL_KEY = 're_seats_cache_v1';
+
+  function emptyState() {
     return {
       v: 1,
-      event: st.event || 'kennedy-school-bbq',
-      seats: st.seats && typeof st.seats === 'object' ? st.seats : {},
-      couples: Array.isArray(st.couples) ? st.couples : [],
-      accommodations: Array.isArray(st.accommodations) ? st.accommodations : []
+      event: 'kennedy-school-bbq',
+      seats: {},
+      couples: [],
+      accommodations: [],
+      offline: false
     };
   }
 
+  function normalize(data) {
+    const st = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    // Prefer seats map; ignore legacy "tables" shape from bad blob seeds
+    const seats =
+      st.seats && typeof st.seats === 'object' && !Array.isArray(st.seats) ? st.seats : {};
+    return {
+      v: 1,
+      event: st.event || 'kennedy-school-bbq',
+      seats,
+      couples: Array.isArray(st.couples) ? st.couples : [],
+      accommodations: Array.isArray(st.accommodations) ? st.accommodations : [],
+      offline: !!st.offline
+    };
+  }
+
+  function readLocalCache() {
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(LOCAL_KEY);
+      return raw ? normalize(JSON.parse(raw)) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeLocalCache(state) {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      const clean = normalize(state);
+      delete clean.offline;
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(clean));
+    } catch (_) {}
+  }
+
+  /**
+   * Always returns a usable state so the floor plan can paint.
+   * Remote jsonblob is best-effort; on failure uses local cache or empty map.
+   */
   async function fetchState() {
-    const res = await fetch(apiUrl() + '?t=' + Date.now(), {
-      method: 'GET',
-      mode: 'cors',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store'
-    });
-    if (!res.ok) throw new Error('Seats HTTP ' + res.status);
-    return normalize(await res.json());
+    try {
+      const res = await fetch(apiUrl() + '?t=' + Date.now(), {
+        method: 'GET',
+        mode: 'cors',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error('Seats HTTP ' + res.status);
+      const st = normalize(await res.json());
+      writeLocalCache(st);
+      return st;
+    } catch (e) {
+      console.warn('[RE] seat fetch failed — showing local/empty map', e);
+      const cached = readLocalCache();
+      if (cached) return { ...cached, offline: true };
+      return { ...emptyState(), offline: true };
+    }
   }
 
   async function putState(state) {
+    const clean = normalize(state);
+    delete clean.offline;
+    writeLocalCache(clean);
     const res = await fetch(apiUrl(), {
       method: 'PUT',
       mode: 'cors',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(state)
+      body: JSON.stringify(clean)
     });
     if (!res.ok) throw new Error('Seats write HTTP ' + res.status);
-    return state;
+    return clean;
   }
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -361,7 +413,9 @@
     TABLES,
     SEATS_PER_TABLE,
     allSeats,
+    emptyState,
     fetchState,
+    putState,
     claimSeats,
     releaseSeats,
     addAccommodation,

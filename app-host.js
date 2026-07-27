@@ -383,17 +383,19 @@ let seatLinkPicks = [];
 
 async function loadSeatingPanel(loc, orders) {
   const panel = document.getElementById('seating-panel');
-  if (!panel) return;
+  if (!panel || !window.RESeating) return;
   let st;
   try {
     st = await RESeating.fetchState();
   } catch (e) {
-    panel.innerHTML = '<div class="empty">Seating chart unavailable (network). <button class="btn-sm" onclick="loadSeatingPanel(getReportLoc())">Retry</button></div>';
-    return;
+    st = RESeating.emptyState ? { ...RESeating.emptyState(), offline: true } : { seats: {}, couples: [], accommodations: [], offline: true };
   }
-  const claims = Object.values(st.seats).sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)));
+  const claims = Object.values(st.seats || {}).sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)));
   const seatsTaken = claims.length;
   const totalSeats = RESeating.allSeats().length;
+  const offlineBanner = st.offline
+    ? `<div class="empty" style="margin-bottom:10px">Live seat sync offline — showing local chart. <button class="btn-sm" id="btnRetrySeats">Retry sync</button></div>`
+    : '';
 
   const rows = claims.map(c => `
     <tr>
@@ -441,7 +443,8 @@ async function loadSeatingPanel(loc, orders) {
       <strong style="color:var(--text)">${seatsTaken}/${totalSeats}</strong> seats reserved
       <button class="btn-sm" style="margin-left:8px" id="btnRefreshSeats">↻ Refresh</button>
     </div>
-    <div class="card-box" style="padding:10px">${RESeating.renderMapSVG(st, { mode: 'host' })}${RESeating.legendHTML('host')}</div>
+    ${offlineBanner}
+    <div class="card-box" style="padding:10px;min-height:280px">${RESeating.renderMapSVG(st, { mode: 'host' })}${RESeating.legendHTML('host')}</div>
     ${claims.length ? `
       <div class="section-gap"></div>
       <h4 style="color:var(--text);margin-bottom:8px">Reserved seats</h4>
@@ -464,6 +467,7 @@ async function loadSeatingPanel(loc, orders) {
     </div>`;
 
   panel.querySelector('#btnRefreshSeats')?.addEventListener('click', () => loadSeatingPanel(loc, orders));
+  panel.querySelector('#btnRetrySeats')?.addEventListener('click', () => loadSeatingPanel(loc, orders));
   panel.querySelectorAll('[data-release-seat]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.releaseSeat;
