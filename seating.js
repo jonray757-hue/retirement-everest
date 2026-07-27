@@ -288,9 +288,31 @@
           person: seatIds.length > 1 ? (i === 0 ? info.name : info.spouse || info.name) : info.name,
           groupId,
           orderId: info.orderId || null,
+          partnerJoined: false,
           ts: new Date().toISOString()
         };
       });
+      // First-time couple: record pending couple (spouse contact fills in when they join)
+      if ((info.partyType === 'couple' || seatIds.length > 1) && info.spouse) {
+        const pending = {
+          a: { name: info.name || '', email: info.email || '', phone: info.phone || '' },
+          b: { name: info.spouse || '', email: '', phone: '' },
+          seats: seatIds.slice(),
+          groupId,
+          source: 'guest-reserve',
+          pendingPartner: true,
+          ts: new Date().toISOString()
+        };
+        const pe = (info.email || '').toLowerCase();
+        const exists = (st.couples || []).some((c) => {
+          const ae = (c.a?.email || '').toLowerCase();
+          return (pe && ae && pe === ae) || (c.groupId && c.groupId === groupId);
+        });
+        if (!exists) {
+          st.couples.unshift(pending);
+          st.couples = st.couples.slice(0, 200);
+        }
+      }
       await putState(st);
       await sleep(500 + Math.random() * 400);
       const verify = await fetchState();
@@ -315,12 +337,320 @@
     return st;
   }
 
-  async function addCoupleLink(a, b) {
+  async function addCoupleLink(a, b, meta) {
     const st = await fetchState();
-    st.couples.unshift({ a, b, ts: new Date().toISOString() });
-    st.couples = st.couples.slice(0, 200);
-    await putState(st);
+    const link = {
+      a: { name: a?.name || '', email: a?.email || '', phone: a?.phone || '' },
+      b: { name: b?.name || '', email: b?.email || '', phone: b?.phone || '' },
+      seats: meta?.seats || null,
+      groupId: meta?.groupId || null,
+      source: meta?.source || 'host',
+      ts: new Date().toISOString()
+    };
+    // Avoid exact duplicates (same two people, either order)
+    const samePerson = (p, q) => {
+      const pe = (p.email || '').toLowerCase();
+      const qe = (q.email || '').toLowerCase();
+      if (pe && qe && pe === qe) return true;
+      const pn = (p.name || '').toLowerCase().trim();
+      const qn = (q.name || '').toLowerCase().trim();
+      return !!(pn && qn && pn === qn);
+    };
+    const exists = (st.couples || []).some((c) =>
+      (samePerson(c.a, link.a) && samePerson(c.b, link.b)) ||
+      (samePerson(c.a, link.b) && samePerson(c.b, link.a))
+    );
+    if (!exists) {
+      st.couples.unshift(link);
+      st.couples = st.couples.slice(0, 200);
+      await putState(st);
+    }
     return st;
+  }
+
+  /**
+   * People who already reserved as a couple so a spouse/partner can join
+   * without picking new seats. Built from seat claims (+ optional orders).
+   * Returns [{ key, groupId, name, email, phone, spouseExpected, seats,
+   *            partnerSeatId, seatLabel, label }]
+   */
+  function listJoinablePartners(state, orders) {
+    const byGroup = {};
+    Object.values((state && state.seats) || {}).forEach((c) => {
+      if (!c || !c.seatId) return;
+      const gid = c.groupId || ('solo-' + c.seatId);
+      if (!byGroup[gid]) byGroup[gid] = [];
+      byGroup[gid].push(c);
+    });
+
+    const out = [];
+    const seen = new Set();
+
+    Object.entries(byGroup).forEach(([gid, claims]) => {
+      const isCouple =
+        claims.some((c) => c.partyType === 'couple') || claims.length >= 2;
+      if (!isCouple) return;
+
+      // Partner already filled their own contact on the partner seat?
+      const sorted = claims.slice().sort((a, b) =>
+        String(a.seatId).localeCompare(String(b.seatId))
+      );
+      const primary =
+        sorted.find((c) => (c.person || '') === (c.name || '')) || sorted[0];
+      if (!primary?.name) return;
+
+      const partnerClaim =
+        sorted.find((c) => c.seatId !== primary.seatId) ||
+        sorted.find((c) => (c.person || '') !== (c.name || '')) ||
+        null;
+      // Already joined: flag set, or partner seat has its own contact
+      if (partnerClaim?.partnerJoined || partnerClaim?.joinedAsPartner) return;
+      if (primary.partnerJoined) return;
+      if (
+        partnerClaim &&
+        partnerClaim.email &&
+        primary.email &&
+        partnerClaim.email.toLowerCase() !== String(primary.email).toLowerCase() &&
+        partnerClaim.person &&
+        partnerClaim.person !== primary.name
+      ) {
+        return;
+      }
+
+      const seats = sorted.map((c) => c.seatId);
+      const spouseExpected =
+        primary.spouse ||
+        (partnerClaim && partnerClaim.person !== primary.name
+          ? partnerClaim.person
+          : '') ||
+        '';
+      const key = gid;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const label = spouseExpected
+        ? `${primary.name} — reserved seats for ${spouseExpected}`
+        : `${primary.name} — couple seats ${seatLabel(seats)}`;
+
+      out.push({
+        key,
+        groupId: primary.groupId || gid,
+        name: primary.name,
+        email: primary.email || '',
+        phone: primary.phone || '',
+        spouseExpected,
+        seats,
+        partnerSeatId: partnerClaim?.seatId || seats[1] || null,
+        seatLabel: seatLabel(seats),
+        label
+      });
+    });
+
+    // Orders backup: couple prefs with seats but thin seat blob
+    (orders || []).forEach((o) => {
+      if (!o || o.partyType !== 'couple' || !o.name) return;
+      if (o.joinedPartner || o.partnerJoined) return;
+      let ids = Array.isArray(o.seats)
+        ? o.seats.filter((id) => SEAT_ID_RE.test(String(id)))
+        : [];
+      if (!ids.length) ids = parseSeatLabel(o.seatLabel);
+      if (ids.length < 1) return;
+      const key = o.id != null ? 'order-' + o.id : (o.email || o.name).toLowerCase();
+      if (seen.has(key) || seen.has('order-' + o.id)) return;
+      // Skip if already represented by a seat group with same name
+      if (out.some((p) => (p.email && o.email && p.email.toLowerCase() === o.email.toLowerCase()) ||
+        p.name.toLowerCase() === String(o.name).toLowerCase())) return;
+      seen.add(key);
+      const spouseExpected = o.spouse || '';
+      out.push({
+        key,
+        groupId: o.id != null ? 'order-' + o.id : null,
+        name: o.name,
+        email: o.email || '',
+        phone: o.phone || '',
+        spouseExpected,
+        seats: ids,
+        partnerSeatId: ids[1] || ids[0] || null,
+        seatLabel: o.seatLabel || seatLabel(ids),
+        label: spouseExpected
+          ? `${o.name} — reserved seats for ${spouseExpected}`
+          : `${o.name} — couple (${o.seatLabel || seatLabel(ids)})`
+      });
+    });
+
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Spouse/partner joins an existing couple reservation:
+   * updates the partner seat with their name/contact, flags partnerJoined,
+   * and records a couple link. Does NOT claim new seats.
+   * partnerInfo: { name, email, phone }
+   * primary: { groupId?, seats?, name?, email? } from listJoinablePartners entry
+   */
+  async function attachPartnerToCouple(primary, partnerInfo) {
+    const st = await fetchState({ healRemote: false });
+    const seats = Array.isArray(primary.seats) ? primary.seats.filter((id) => SEAT_ID_RE.test(id)) : [];
+    let groupClaims = [];
+
+    if (primary.groupId) {
+      groupClaims = Object.values(st.seats || {}).filter((c) => c.groupId === primary.groupId);
+    }
+    if (!groupClaims.length && seats.length) {
+      groupClaims = seats.map((id) => st.seats[id]).filter(Boolean);
+    }
+    // Match by primary name if group not found (order-recovered claims)
+    if (!groupClaims.length && primary.name) {
+      groupClaims = Object.values(st.seats || {}).filter(
+        (c) =>
+          c.partyType === 'couple' &&
+          ((c.name || '').toLowerCase() === primary.name.toLowerCase() ||
+            (primary.email && (c.email || '').toLowerCase() === primary.email.toLowerCase()))
+      );
+    }
+
+    if (!groupClaims.length && seats.length) {
+      // Reconstruct claims from primary + partner if seats were only in orders
+      const groupId =
+        primary.groupId ||
+        'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      seats.forEach((id, i) => {
+        if (st.seats[id] && st.seats[id].partnerJoined) {
+          throw new Error('That partner seat is already claimed.');
+        }
+        if (!st.seats[id]) {
+          st.seats[id] = {
+            seatId: id,
+            name: primary.name || '',
+            email: primary.email || '',
+            phone: primary.phone || '',
+            partyType: 'couple',
+            spouse: partnerInfo.name || primary.spouseExpected || null,
+            person: i === 0 ? primary.name : partnerInfo.name,
+            groupId,
+            ts: new Date().toISOString()
+          };
+        }
+      });
+      groupClaims = seats.map((id) => st.seats[id]).filter(Boolean);
+    }
+
+    if (!groupClaims.length) {
+      throw new Error('Could not find your partner\'s reserved seats. Ask them to re-open the form or contact the host.');
+    }
+
+    const sorted = groupClaims.slice().sort((a, b) =>
+      String(a.seatId).localeCompare(String(b.seatId))
+    );
+    const primaryClaim =
+      sorted.find((c) => (c.person || '') === (c.name || '')) || sorted[0];
+    let partnerClaim =
+      (primary.partnerSeatId && st.seats[primary.partnerSeatId]) ||
+      sorted.find((c) => c.seatId !== primaryClaim.seatId) ||
+      sorted[1] ||
+      null;
+
+    if (!partnerClaim && sorted.length === 1) {
+      // Only one seat claim — still link contacts, no seat rewrite for second
+      partnerClaim = null;
+    }
+
+    if (partnerClaim?.partnerJoined || partnerClaim?.joinedAsPartner) {
+      throw new Error('Someone already joined as partner on those seats.');
+    }
+
+    const groupId = primaryClaim.groupId || primary.groupId || null;
+    const allSeatIds = sorted.map((c) => c.seatId);
+
+    if (partnerClaim) {
+      st.seats[partnerClaim.seatId] = {
+        ...partnerClaim,
+        person: partnerInfo.name || partnerClaim.person,
+        // Keep primary booker as `name` on both for group identity, but track partner contact
+        partnerName: partnerInfo.name || '',
+        partnerEmail: partnerInfo.email || '',
+        partnerPhone: partnerInfo.phone || '',
+        email: partnerInfo.email || partnerClaim.email || '',
+        phone: partnerInfo.phone || partnerClaim.phone || '',
+        partyType: 'couple',
+        spouse: primaryClaim.name || primary.name || null,
+        partnerJoined: true,
+        joinedAsPartner: true,
+        groupId,
+        ts: new Date().toISOString()
+      };
+    }
+
+    // Flag primary seat so host UI shows the pair as complete
+    if (primaryClaim && st.seats[primaryClaim.seatId]) {
+      st.seats[primaryClaim.seatId] = {
+        ...st.seats[primaryClaim.seatId],
+        spouse: partnerInfo.name || st.seats[primaryClaim.seatId].spouse,
+        partnerJoined: true,
+        partnerName: partnerInfo.name || '',
+        partnerEmail: partnerInfo.email || '',
+        partnerPhone: partnerInfo.phone || ''
+      };
+    }
+
+    const link = {
+      a: {
+        name: primaryClaim.name || primary.name || '',
+        email: primaryClaim.email || primary.email || '',
+        phone: primaryClaim.phone || primary.phone || ''
+      },
+      b: {
+        name: partnerInfo.name || '',
+        email: partnerInfo.email || '',
+        phone: partnerInfo.phone || ''
+      },
+      seats: allSeatIds,
+      groupId,
+      source: 'guest-join',
+      pendingPartner: false,
+      ts: new Date().toISOString()
+    };
+    const samePerson = (p, q) => {
+      const pe = (p.email || '').toLowerCase();
+      const qe = (q.email || '').toLowerCase();
+      if (pe && qe && pe === qe) return true;
+      return !!(p.name && q.name && p.name.toLowerCase() === q.name.toLowerCase());
+    };
+    // Upgrade a pending couple row if one exists for this primary / group
+    let upgraded = false;
+    st.couples = (st.couples || []).map((c) => {
+      const matchGroup = groupId && c.groupId && c.groupId === groupId;
+      const matchPrimary = samePerson(c.a, link.a) || samePerson(c.b, link.a);
+      if (!upgraded && (matchGroup || matchPrimary)) {
+        upgraded = true;
+        return {
+          ...c,
+          a: link.a,
+          b: link.b,
+          seats: allSeatIds,
+          groupId,
+          source: 'guest-join',
+          pendingPartner: false,
+          ts: link.ts
+        };
+      }
+      return c;
+    });
+    if (!upgraded) {
+      st.couples.unshift(link);
+      st.couples = st.couples.slice(0, 200);
+    }
+
+    await putState(st);
+    return {
+      ok: true,
+      state: st,
+      seats: allSeatIds,
+      seatLabel: seatLabel(allSeatIds),
+      groupId,
+      primary: link.a,
+      partner: link.b
+    };
   }
 
   /* ---------------- Pairing logic ---------------- */
@@ -528,6 +858,8 @@
     releaseSeats,
     addAccommodation,
     addCoupleLink,
+    listJoinablePartners,
+    attachPartnerToCouple,
     soloFriendly,
     adjacentOpen,
     bestPartnerSeat,

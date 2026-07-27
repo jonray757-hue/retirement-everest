@@ -213,7 +213,18 @@ body.theme-gold .about h2 { text-transform: none; font-style: italic; }
 .field-label { display: block; font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
 input[type="text"] { width: 100%; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 0.95rem; border-radius: 2px; }
 input[type="text"]:focus { outline: none; border-color: var(--accent); }
-input.err { border-color: var(--red); }
+input.err, select.err { border-color: var(--red); }
+select {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  appearance: auto;
+}
 
 .party-toggle { display: flex; gap: 10px; margin-bottom: 36px; }
 .party-btn { flex: 1; padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 2px; cursor: pointer; text-align: center; }

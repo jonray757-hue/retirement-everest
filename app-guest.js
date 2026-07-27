@@ -98,10 +98,13 @@ let selBuffet = null;
 let selSides = [];
 /* --- Seat reservations (Kennedy BBQ) --- */
 let seatPartyType = 'solo';       // 'solo' | 'couple'
+let coupleMode = 'new';           // 'new' = first-time reserve | 'join' = partner already reserved
 let selSeats = [];                // e.g. ['A3'] or ['A3','A4']
 let seatState = null;             // last fetched shared seat state
 let seatFriendly = new Set();     // solo-safe seats
 let seatAccomRequested = false;   // "can't find a seat" pressed
+let joinablePartners = [];        // dropdown options for "partner already reserved"
+let selectedPartnerKey = '';      // key from listJoinablePartners
 
 function initGuest() {
   const slug = getLocationSlug();
@@ -246,20 +249,43 @@ function renderSeatSection() {
         <div class="party-btn" id="seatparty-couple" data-seatparty="couple"><div class="party-num">2</div><div class="party-label">Me &amp; My Spouse / Partner</div></div>
       </div></div>
     <div class="field-wrap" id="spouse-wrap" style="display:none">
-      <label class="field-label" for="spouseName">Spouse / partner full name</label>
-      <input type="text" id="spouseName" placeholder="Their first and last name" autocomplete="off"></div>
-    <div id="seatmap-container" style="background:rgba(0,0,0,0.25);border:1px solid var(--border,#333);border-radius:12px;padding:14px">
-      <div class="empty" style="padding:30px;text-align:center;color:var(--muted,#888)">Loading live seat map…</div>
+      <label class="field-label">How are you reserving?</label>
+      <div class="party-toggle" style="margin-bottom:16px">
+        <div class="party-btn selected" id="couplemode-new" data-couplemode="new">
+          <div class="party-label" style="font-size:0.85rem;line-height:1.35">We're reserving together<br><span style="opacity:0.75;font-size:0.78rem">First time — pick two seats</span></div>
+        </div>
+        <div class="party-btn" id="couplemode-join" data-couplemode="join">
+          <div class="party-label" style="font-size:0.85rem;line-height:1.35">Partner already reserved<br><span style="opacity:0.75;font-size:0.78rem">Join their seats — no new seats</span></div>
+        </div>
+      </div>
+      <div id="spouse-new-fields">
+        <label class="field-label" for="spouseName">Spouse / partner full name</label>
+        <input type="text" id="spouseName" placeholder="Their first and last name" autocomplete="off">
+        <p class="order-intro" style="margin:8px 0 0;font-size:0.78rem">We'll put their name on the seat beside yours. They can come back later and submit their own food prefs by choosing “Partner already reserved.”</p>
+      </div>
+      <div id="spouse-join-fields" style="display:none">
+        <label class="field-label" for="partnerSelect">Who already reserved your seats?</label>
+        <select id="partnerSelect" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border,#333);background:var(--panel,#1a1a1a);color:var(--text,#eee);font-size:1rem">
+          <option value="">Loading people who reserved…</option>
+        </select>
+        <p class="order-intro" style="margin:8px 0 0;font-size:0.78rem">Pick your partner from the list. Your seats stay with them — you only submit <strong>your</strong> food &amp; drink preferences (no extra seats blocked).</p>
+        <div id="partner-join-summary" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;border:1px solid var(--accent,#c9a44a);background:rgba(201,164,74,0.08);font-size:0.9rem;color:var(--text,#eee)"></div>
+      </div>
     </div>
-    <div class="vote-status" id="seat-status">Tap an open seat to reserve it.</div>
-    <div class="err-msg" id="err-seat">Please pick your seat${''} (or tap the button below and we'll arrange one for you).</div>
-    <div style="margin-top:14px;text-align:center">
-      <button type="button" class="submit-btn" id="seatHelpBtn"
-        style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.85rem;padding:12px 18px">
-        Can't find seats that work? Tap here — we'll make arrangements for you
-      </button>
-      <div id="seat-help-note" style="display:none;margin-top:10px;color:var(--accent,#c9a44a);font-size:0.85rem">
-        ✓ Got it — submit your preferences below and we'll personally arrange seating that works for you.
+    <div id="seat-pick-block">
+      <div id="seatmap-container" style="background:rgba(0,0,0,0.25);border:1px solid var(--border,#333);border-radius:12px;padding:14px">
+        <div class="empty" style="padding:30px;text-align:center;color:var(--muted,#888)">Loading live seat map…</div>
+      </div>
+      <div class="vote-status" id="seat-status">Tap an open seat to reserve it.</div>
+      <div class="err-msg" id="err-seat">Please pick your seat (or tap the button below and we'll arrange one for you).</div>
+      <div style="margin-top:14px;text-align:center">
+        <button type="button" class="submit-btn" id="seatHelpBtn"
+          style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.85rem;padding:12px 18px">
+          Can't find seats that work? Tap here — we'll make arrangements for you
+        </button>
+        <div id="seat-help-note" style="display:none;margin-top:10px;color:var(--accent,#c9a44a);font-size:0.85rem">
+          ✓ Got it — submit your preferences below and we'll personally arrange seating that works for you.
+        </div>
       </div>
     </div>`;
 }
@@ -298,6 +324,11 @@ async function loadSeatMap() {
   // Always paint the floor plan — never blank the section if the shared store is down
   seatFriendly = RESeating.soloFriendly(seatState);
   selSeats = selSeats.filter(id => !seatState.seats?.[id]);
+  joinablePartners = typeof RESeating.listJoinablePartners === 'function'
+    ? RESeating.listJoinablePartners(seatState, orderBackup)
+    : [];
+  refreshPartnerSelect();
+  applyCoupleModeUI();
   const takenN = Object.keys(seatState.seats || {}).length;
   const offlineNote = seatState.offline
     ? `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:rgba(224,82,82,0.12);color:#e8a0a0;font-size:0.78rem">Live seat sync is offline — chart still works on this device. Tap ↻ after refresh if others reserved seats.</div>`
@@ -312,9 +343,78 @@ async function loadSeatMap() {
   updateSeatStatus();
 }
 
+function refreshPartnerSelect() {
+  const sel = document.getElementById('partnerSelect');
+  if (!sel) return;
+  const prev = selectedPartnerKey || sel.value || '';
+  if (!joinablePartners.length) {
+    sel.innerHTML = '<option value="">No couple reservations yet — ask your partner to reserve first, or choose “reserving together”</option>';
+    selectedPartnerKey = '';
+  } else {
+    sel.innerHTML =
+      '<option value="">Select your partner who already reserved…</option>' +
+      joinablePartners.map(p =>
+        `<option value="${esc(p.key)}">${esc(p.label)}</option>`
+      ).join('');
+    if (prev && joinablePartners.some(p => p.key === prev)) {
+      sel.value = prev;
+      selectedPartnerKey = prev;
+    }
+  }
+  updatePartnerJoinSummary();
+}
+
+function getSelectedPartner() {
+  if (!selectedPartnerKey) return null;
+  return joinablePartners.find(p => p.key === selectedPartnerKey) || null;
+}
+
+function updatePartnerJoinSummary() {
+  const box = document.getElementById('partner-join-summary');
+  if (!box) return;
+  const p = getSelectedPartner();
+  if (!p) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = 'block';
+  box.innerHTML = `✓ You'll sit with <strong>${esc(p.name)}</strong>${p.spouseExpected ? ` (they reserved for <strong>${esc(p.spouseExpected)}</strong>)` : ''}<br>
+    <span style="color:var(--accent,#c9a44a);font-weight:700">${esc(p.seatLabel || 'Seats reserved')}</span>
+    — no extra seats will be blocked.`;
+}
+
+function applyCoupleModeUI() {
+  const isCouple = seatPartyType === 'couple';
+  const isJoin = isCouple && coupleMode === 'join';
+  const sw = document.getElementById('spouse-wrap');
+  if (sw) sw.style.display = isCouple ? '' : 'none';
+  document.getElementById('couplemode-new')?.classList.toggle('selected', coupleMode === 'new');
+  document.getElementById('couplemode-join')?.classList.toggle('selected', coupleMode === 'join');
+  const newF = document.getElementById('spouse-new-fields');
+  const joinF = document.getElementById('spouse-join-fields');
+  if (newF) newF.style.display = isCouple && coupleMode === 'new' ? '' : 'none';
+  if (joinF) joinF.style.display = isCouple && coupleMode === 'join' ? '' : 'none';
+  const pick = document.getElementById('seat-pick-block');
+  if (pick) pick.style.display = isJoin ? 'none' : '';
+  if (isJoin) {
+    selSeats = [];
+    seatAccomRequested = false;
+  }
+  updatePartnerJoinSummary();
+  updateSeatStatus();
+}
+
 function updateSeatStatus() {
   const el = document.getElementById('seat-status');
   if (!el) return;
+  if (seatPartyType === 'couple' && coupleMode === 'join') {
+    const p = getSelectedPartner();
+    el.textContent = p
+      ? `Joining ${p.name} at ${p.seatLabel || 'their reserved seats'} — no seat pick needed.`
+      : 'Select your partner who already reserved from the dropdown above.';
+    return;
+  }
   if (seatAccomRequested) { el.textContent = "We'll arrange your seating personally — nothing to pick."; return; }
   if (!selSeats.length) {
     el.textContent = seatPartyType === 'couple'
@@ -510,6 +610,14 @@ function renderPeople() {
 function bindEvents() {
   document.getElementById('submitBtn').addEventListener('click', submitOrder);
   document.getElementById('app').addEventListener('click', handleCardClick);
+  document.getElementById('app').addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'partnerSelect') {
+      selectedPartnerKey = e.target.value || '';
+      document.getElementById('partnerSelect')?.classList.remove('err');
+      updatePartnerJoinSummary();
+      updateSeatStatus();
+    }
+  });
 }
 
 function handleCardClick(e) {
@@ -519,10 +627,27 @@ function handleCardClick(e) {
     seatPartyType = seatPartyBtn.dataset.seatparty;
     document.getElementById('seatparty-solo')?.classList.toggle('selected', seatPartyType === 'solo');
     document.getElementById('seatparty-couple')?.classList.toggle('selected', seatPartyType === 'couple');
-    const sw = document.getElementById('spouse-wrap');
-    if (sw) sw.style.display = seatPartyType === 'couple' ? '' : 'none';
+    if (seatPartyType === 'solo') coupleMode = 'new';
     selSeats = [];
+    selectedPartnerKey = '';
+    applyCoupleModeUI();
     refreshSeatMapUI();
+    return;
+  }
+  const coupleModeBtn = e.target.closest('[data-couplemode]');
+  if (coupleModeBtn) {
+    coupleMode = coupleModeBtn.dataset.couplemode === 'join' ? 'join' : 'new';
+    selSeats = [];
+    selectedPartnerKey = '';
+    const ps = document.getElementById('partnerSelect');
+    if (ps) ps.value = '';
+    applyCoupleModeUI();
+    if (coupleMode === 'join') {
+      // Refresh list of people who already reserved
+      loadSeatMap();
+    } else {
+      refreshSeatMapUI();
+    }
     return;
   }
   const seatEl = e.target.closest('[data-seat]');
@@ -771,9 +896,14 @@ async function pushGuestOrderToGHL(order) {
     drink: order.drink || '',
     drinkCat: order.drinkCat || '',
     notes: order.notes || '',
-    // Seating
+    // Seating / couple linking
     partyType: order.partyType || '',
     spouse: order.spouse || '',
+    coupleMode: order.coupleMode || '',
+    joinedPartner: order.joinedPartner ? 'yes' : '',
+    partnerName: order.linkedPartnerName || order.spouse || '',
+    partnerEmail: order.linkedPartnerEmail || '',
+    partnerPhone: order.linkedPartnerPhone || '',
     seats: Array.isArray(order.seats) ? order.seats.join(', ') : '',
     seatLabel: order.seatLabel || '',
     seatAccommodation: order.seatAccommodation ? 'yes' : '',
@@ -785,9 +915,12 @@ async function pushGuestOrderToGHL(order) {
       order.dessert ? `Dessert: ${order.dessert}` : '',
       order.drink ? `Drink: ${order.drink}${order.drinkCat ? ` (${order.drinkCat})` : ''}` : '',
       order.notes ? `Notes: ${order.notes}` : '',
-      order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : ''),
+      order.joinedPartner
+        ? `Party: Joined partner seats — with ${order.linkedPartnerName || order.spouse || ''}`
+        : (order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : '')),
       order.seatLabel ? `Seats: ${order.seatLabel}` : '',
-      order.seatAccommodation ? 'SEATING: needs personal arrangement (couldn\'t find open seats that work)' : ''
+      order.seatAccommodation ? 'SEATING: needs personal arrangement (couldn\'t find open seats that work)' : '',
+      order.joinedPartner ? 'CRM: link this contact to partner record (couple_linked / partner-join)' : ''
     ].filter(Boolean).join('\n'),
     submittedAt: order.ts || new Date().toISOString()
   };
@@ -864,23 +997,75 @@ async function submitOrder() {
     const notes = (document.getElementById('guestNotes')?.value || '').trim();
     const buffetName = LOC.menus.buffetName || 'Backyard Barbecue Buffet';
 
-    /* --- Seat reservation: claim before we finalize --- */
-    const spouseNameVal = (document.getElementById('spouseName')?.value || '').trim() || null;
-    if (window.RESeating && seatPartyType === 'couple' && !spouseNameVal && selSeats.length) {
+    /* --- Seat reservation / partner join --- */
+    const isJoinPartner = window.RESeating && seatPartyType === 'couple' && coupleMode === 'join';
+    const spouseNameVal = isJoinPartner
+      ? null
+      : ((document.getElementById('spouseName')?.value || '').trim() || null);
+    const selectedPartner = isJoinPartner ? getSelectedPartner() : null;
+
+    if (isJoinPartner) {
+      if (!selectedPartner) {
+        document.getElementById('partnerSelect')?.classList.add('err');
+        alert('Select your partner who already reserved from the dropdown — or switch to “We\'re reserving together” if you need to pick seats.');
+        document.getElementById('spouse-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    } else if (window.RESeating && seatPartyType === 'couple' && !spouseNameVal && selSeats.length) {
       document.getElementById('spouseName')?.classList.add('err');
       alert('Please add your spouse / partner\'s name so we can put it on their seat.');
       return;
     }
-    if (window.RESeating && !selSeats.length && !seatAccomRequested) {
+
+    if (window.RESeating && !isJoinPartner && !selSeats.length && !seatAccomRequested) {
       document.getElementById('err-seat')?.classList.add('show');
       if (!confirm('You haven\'t reserved a seat yet. Continue without one? (We\'ll seat you on arrival.)')) {
         document.getElementById('seatmap-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
     }
+
     let seatClaim = null;
-    if (window.RESeating && selSeats.length) {
-      const btn0 = document.getElementById('submitBtn');
+    let partnerAttach = null;
+    const btn0 = document.getElementById('submitBtn');
+
+    if (isJoinPartner && selectedPartner) {
+      btn0.disabled = true;
+      btn0.innerHTML = '<span class="spinner"></span>Linking to your partner\'s seats…';
+      try {
+        partnerAttach = await RESeating.attachPartnerToCouple(selectedPartner, { name, email, phone });
+        selSeats = partnerAttach.seats || selectedPartner.seats || [];
+      } catch (e) {
+        console.warn('[RE] partner attach error', e);
+        btn0.disabled = false;
+        btn0.textContent = 'Confirm My Preferences';
+        alert(String(e.message || e) || 'Could not link to your partner\'s seats. Refresh and try again, or contact the host.');
+        await loadSeatMap();
+        return;
+      }
+      // GHL + command-center couple link event
+      try {
+        await RESeating.pushSeatEventToGHL({
+          event: 'couple_linked',
+          form: 'partner-join',
+          name,
+          email,
+          phone,
+          firstName: splitName(name).firstName,
+          lastName: splitName(name).lastName,
+          partnerName: selectedPartner.name,
+          partnerEmail: selectedPartner.email || '',
+          partnerPhone: selectedPartner.phone || '',
+          seats: (partnerAttach.seats || []).join(', '),
+          seatLabel: partnerAttach.seatLabel || selectedPartner.seatLabel || '',
+          location: LOC.id,
+          locationName: LOC.name,
+          preferencesSummary: `PARTNER JOINED\n${name} (${email || phone}) joined seats reserved by ${selectedPartner.name} (${selectedPartner.email || selectedPartner.phone || ''})\nSeats: ${partnerAttach.seatLabel || selectedPartner.seatLabel || ''}\nLink/create partner-spouse contact in CRM.`
+        });
+      } catch (e) {
+        console.warn('[RE] couple_linked GHL push failed', e);
+      }
+    } else if (window.RESeating && selSeats.length) {
       btn0.disabled = true;
       btn0.innerHTML = '<span class="spinner"></span>Reserving your seats…';
       try {
@@ -900,17 +1085,52 @@ async function submitOrder() {
         document.getElementById('seatmap-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
+      // First-time couple → notify GHL of pending partner so workflow can prep spouse record
+      if (seatPartyType === 'couple' && spouseNameVal) {
+        try {
+          await RESeating.pushSeatEventToGHL({
+            event: 'couple_reserved',
+            form: 'couple-reserve',
+            name, email, phone,
+            firstName: splitName(name).firstName,
+            lastName: splitName(name).lastName,
+            partnerName: spouseNameVal,
+            partnerEmail: '',
+            partnerPhone: '',
+            seats: selSeats.join(', '),
+            seatLabel: RESeating.seatLabel(selSeats),
+            location: LOC.id,
+            locationName: LOC.name,
+            preferencesSummary: `COUPLE RESERVED\n${name} reserved seats for self + ${spouseNameVal}\nSeats: ${RESeating.seatLabel(selSeats)}\nPartner will submit own prefs via “Partner already reserved.”`
+          });
+        } catch (e) {
+          console.warn('[RE] couple_reserved GHL push failed', e);
+        }
+      }
     }
+
+    const joinSeats = isJoinPartner
+      ? (partnerAttach?.seats || selectedPartner?.seats || [])
+      : selSeats;
+    const joinSeatLabel = isJoinPartner
+      ? (partnerAttach?.seatLabel || selectedPartner?.seatLabel || (joinSeats.length ? RESeating.seatLabel(joinSeats) : null))
+      : (selSeats.length ? RESeating.seatLabel(selSeats) : null);
 
     order = {
       id: Date.now(), locationId: LOC.id, name, email, phone,
       form: 'bbq-menu-pick',
       partyType: window.RESeating ? seatPartyType : undefined,
-      partySize: seatPartyType === 'couple' ? 2 : 1,
-      spouse: spouseNameVal,
-      seats: selSeats.length ? [...selSeats] : null,
-      seatLabel: selSeats.length ? RESeating.seatLabel(selSeats) : null,
-      seatAccommodation: seatAccomRequested || null,
+      /* Join partner = 1 meal prefs row; primary couple still 2 until partner joins */
+      partySize: isJoinPartner ? 1 : (seatPartyType === 'couple' ? 2 : 1),
+      spouse: isJoinPartner ? (selectedPartner?.name || null) : spouseNameVal,
+      joinedPartner: isJoinPartner || null,
+      linkedPartnerName: isJoinPartner ? (selectedPartner?.name || '') : '',
+      linkedPartnerEmail: isJoinPartner ? (selectedPartner?.email || '') : '',
+      linkedPartnerPhone: isJoinPartner ? (selectedPartner?.phone || '') : '',
+      coupleMode: window.RESeating && seatPartyType === 'couple' ? coupleMode : undefined,
+      seats: joinSeats.length ? [...joinSeats] : null,
+      seatLabel: joinSeatLabel,
+      seatAccommodation: (!isJoinPartner && seatAccomRequested) || null,
       buffet: buffetName, buffetId: LOC.lockedBuffetId || 'b-bbq', buffetPrice: LOC.menus.buffetPrice || 63.50,
       buffetLocked: true,
       sides: sideItems.map(s => s.name),
@@ -930,8 +1150,10 @@ async function submitOrder() {
       <div class="sc-row"><div class="sc-label">Dessert</div><div class="sc-val">${esc(dessert.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>
       ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}
-      ${order.spouse ? `<div class="sc-row"><div class="sc-label">Attending with</div><div class="sc-val">${esc(order.spouse)}</div></div>` : ''}
-      ${order.seatLabel ? `<div class="sc-row"><div class="sc-label">Your seat${selSeats.length > 1 ? 's' : ''}</div><div class="sc-val" style="color:var(--accent,#c9a44a);font-weight:700">${esc(order.seatLabel)}</div></div>` : ''}
+      ${order.joinedPartner
+        ? `<div class="sc-row"><div class="sc-label">Joined partner</div><div class="sc-val">${esc(order.linkedPartnerName)} — your seats stay with them</div></div>`
+        : (order.spouse ? `<div class="sc-row"><div class="sc-label">Attending with</div><div class="sc-val">${esc(order.spouse)}</div></div>` : '')}
+      ${order.seatLabel ? `<div class="sc-row"><div class="sc-label">Your seat${(order.seats || []).length > 1 ? 's' : ''}</div><div class="sc-val" style="color:var(--accent,#c9a44a);font-weight:700">${esc(order.seatLabel)}</div></div>` : ''}
       ${order.seatAccommodation ? `<div class="sc-row"><div class="sc-label">Seating</div><div class="sc-val">We'll personally arrange your seats and confirm with you.</div></div>` : ''}`;
   } else if (LOC.type === 'buffet') {
     let ok = true;
@@ -1059,7 +1281,9 @@ async function submitOrder() {
           order.dessert ? `Dessert: ${order.dessert}` : '',
           order.drink ? `Drink: ${order.drink}${order.drinkCat ? ` (${order.drinkCat})` : ''}` : '',
           order.notes ? `Notes: ${order.notes}` : '',
-          order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : ''),
+          order.joinedPartner
+            ? `Party: Joined partner — with ${order.linkedPartnerName || order.spouse || ''}`
+            : (order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : '')),
           order.seatLabel ? `Seats: ${order.seatLabel}` : '',
           order.seatAccommodation ? 'SEATING: needs personal arrangement' : ''
         ].filter(Boolean).join('\n')

@@ -81,12 +81,27 @@ function rankBars(counts) {
     <div class="rank-count">${count}</div></div>`).join('');
 }
 
+function mealWeight(o, orders) {
+  /* Each join-partner submission is 1 meal. Primary couple counts as 2 until
+     their partner submits via “Partner already reserved”; then both are 1. */
+  if (o.joinedPartner) return 1;
+  if (o.partyType !== 'couple') return 1;
+  const joined = (orders || []).some(j =>
+    j.joinedPartner &&
+    (
+      (o.email && j.linkedPartnerEmail && o.email.toLowerCase() === j.linkedPartnerEmail.toLowerCase()) ||
+      (o.name && j.linkedPartnerName && o.name.toLowerCase() === j.linkedPartnerName.toLowerCase()) ||
+      (o.name && j.spouse && o.name.toLowerCase() === String(j.spouse).toLowerCase())
+    )
+  );
+  return joined ? 1 : 2;
+}
+
 function renderBbqMenuPickReport(orders, loc) {
   const sideCounts = {}, entreeCounts = {}, dessertCounts = {};
   let adult = 0, soft = 0, guests = 0;
   orders.forEach(o => {
-    /* Couples count double for quantity planning */
-    const w = o.partyType === 'couple' ? 2 : 1;
+    const w = mealWeight(o, orders);
     guests += w;
     (o.sides || []).forEach(s => { sideCounts[s] = (sideCounts[s] || 0) + w; });
     if (o.entree) entreeCounts[o.entree] = (entreeCounts[o.entree] || 0) + w;
@@ -128,7 +143,17 @@ function renderBbqMenuPickReport(orders, loc) {
         <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Beverage</th><th>Notes</th><th>Time</th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
-          const party = o.partyType === 'couple' ? `Couple${o.spouse ? ` · ${esc(o.spouse)}` : ''}` : 'Solo';
+          let party = 'Solo';
+          if (o.joinedPartner) {
+            party = `Joined · ${esc(o.linkedPartnerName || o.spouse || 'partner')}`;
+          } else if (o.partyType === 'couple') {
+            const partnerIn = (orders || []).some(j =>
+              j.joinedPartner &&
+              ((o.email && j.linkedPartnerEmail && o.email.toLowerCase() === j.linkedPartnerEmail.toLowerCase()) ||
+               (o.name && j.linkedPartnerName && o.name.toLowerCase() === j.linkedPartnerName.toLowerCase()))
+            );
+            party = `Couple${o.spouse ? ` · ${esc(o.spouse)}` : ''}${partnerIn ? ' ✓ linked' : ' · awaiting partner form'}`;
+          }
           const seatCol = o.seatLabel ? `<strong style="color:var(--accent)">${esc(o.seatLabel)}</strong>` : (o.seatAccommodation ? '<span style="color:var(--red,#e05252)">Needs arranging</span>' : '—');
           return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${party}</td><td>${seatCol}</td><td>${esc((o.sides || []).join(' · ') || '—')}</td><td>${esc(o.entree || '—')}</td><td>${esc(o.dessert || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
         }).join('')}</tbody>
@@ -488,11 +513,20 @@ async function loadSeatingPanel(loc, orders) {
   claims.forEach(c => addContact(c.name, c.email, c.phone));
   const contacts = [...contactMap.values()].sort((a, b) => a.name.localeCompare(b.name));
 
-  const linked = (st.couples || []).map(cp => `
+  const linked = (st.couples || []).map(cp => {
+    const pending = cp.pendingPartner && !(cp.b?.email || cp.b?.phone);
+    const src = cp.source === 'guest-join' ? 'guest joined'
+      : cp.source === 'guest-reserve' ? (pending ? 'awaiting partner form' : 'reserved together')
+      : (cp.source || 'host');
+    return `
     <div class="card-box" style="margin-bottom:8px;font-size:0.85rem">
-      💑 <strong>${esc(cp.a?.name)}</strong> ♥ <strong>${esc(cp.b?.name)}</strong>
-      <span style="color:var(--muted);font-size:0.75rem">· linked ${cp.ts ? new Date(cp.ts).toLocaleDateString() : ''}</span>
-    </div>`).join('');
+      💑 <strong>${esc(cp.a?.name)}</strong> ♥ <strong>${esc(cp.b?.name || 'Partner')}</strong>
+      ${pending ? '<span style="color:var(--accent);font-size:0.75rem"> · partner form pending</span>' : ''}
+      <span style="color:var(--muted);font-size:0.75rem">· ${esc(src)}${cp.ts ? ` · ${new Date(cp.ts).toLocaleDateString()}` : ''}</span>
+      ${cp.seats?.length ? `<div style="color:var(--accent);font-size:0.75rem;margin-top:2px">${esc(Array.isArray(cp.seats) ? RESeating.seatLabel(cp.seats) : cp.seats)}</div>` : ''}
+      ${(cp.a?.email || cp.b?.email) ? `<div style="color:var(--muted);font-size:0.72rem">${esc([cp.a?.email, cp.b?.email].filter(Boolean).join(' · '))}</div>` : ''}
+    </div>`;
+  }).join('');
 
   const contactChips = contacts.map((c, i) => {
     const on = seatLinkPicks.includes(i);
@@ -521,9 +555,9 @@ async function loadSeatingPanel(loc, orders) {
     <div class="section-gap"></div>
     <h4 style="color:var(--text);margin-bottom:4px">Couples</h4>
     <p style="color:var(--muted);font-size:0.8rem;margin-bottom:10px">
-      Tap two names, then <strong>Link as couple</strong>. They'll be labeled a couple here and pushed to GHL
-      (event <code>couple_linked</code>) so your workflow can create the partner/spouse record.
-      The seat map automatically protects side-by-side pairs for couples.
+      Couples link automatically when someone reserves for a spouse, or when the spouse submits via
+      <strong>Partner already reserved</strong> on the guest form (GHL events <code>couple_reserved</code> /
+      <code>couple_linked</code>). You can also tap two names below and <strong>Link as couple</strong> manually.
     </p>
     ${linked}
     <div class="card-box" style="padding:12px">
@@ -556,13 +590,13 @@ async function loadSeatingPanel(loc, orders) {
     const btn = panel.querySelector('#btnLinkCouple');
     btn.disabled = true; btn.textContent = 'Linking…';
     try {
-      await RESeating.addCoupleLink(a, b);
+      await RESeating.addCoupleLink(a, b, { source: 'host' });
       await RESeating.pushSeatEventToGHL({
         event: 'couple_linked',
         form: 'couple-link',
         name: a.name, email: a.email, phone: a.phone,
         partnerName: b.name, partnerEmail: b.email, partnerPhone: b.phone,
-        preferencesSummary: `COUPLE LINKED\n${a.name} (${a.email || a.phone})\n♥\n${b.name} (${b.email || b.phone})\nCreate/label partner-spouse records.`
+        preferencesSummary: `COUPLE LINKED (host)\n${a.name} (${a.email || a.phone})\n♥\n${b.name} (${b.email || b.phone})\nCreate/label partner-spouse records.`
       });
     } catch (e) { alert('Link failed: ' + e); }
     seatLinkPicks = [];
