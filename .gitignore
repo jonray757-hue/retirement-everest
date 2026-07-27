@@ -1,4 +1,9 @@
 .DS_Store
 *.log
+.env
+.env.*
+!.env.example
+*.pem
+*pit*
 assets/retirement-everest-poster-source.jpg
 assets/hero-poster-crop.jpg

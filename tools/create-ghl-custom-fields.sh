@@ -1,10 +1,29 @@
 #!/bin/bash
 # Creates the Retirement Everest custom contact fields in the HAG GHL account.
-# Run:  bash tools/create-ghl-custom-fields.sh
-# Safe to re-run — GHL rejects duplicates with an error you can ignore.
+# Run:
+#   export GHL_PIT="pit-...."          # from GHL → Settings → Integrations → Private Integrations
+#   export GHL_LOCATION_ID="24UgqDfh5TcJs5IPnA25"   # optional; defaults to HAG
+#   bash tools/create-ghl-custom-fields.sh
+#
+# Never commit a real PIT. Safe to re-run — GHL rejects duplicates.
 
-LOCATION_ID="24UgqDfh5TcJs5IPnA25"
-PIT="pit-f4b67ff6-f5cb-4fce-a1cd-7746bf29a25f"   # HAG private integration token (from your Grok sessions)
+set -euo pipefail
+
+LOCATION_ID="${GHL_LOCATION_ID:-24UgqDfh5TcJs5IPnA25}"
+PIT="${GHL_PIT:-}"
+
+if [[ -z "$PIT" ]]; then
+  echo "ERROR: Set GHL_PIT in your environment (do not hardcode it in this file)."
+  echo "  export GHL_PIT='pit-...'"
+  echo "  bash tools/create-ghl-custom-fields.sh"
+  exit 1
+fi
+
+if [[ "$PIT" == pit-* && ${#PIT} -lt 20 ]]; then
+  echo "ERROR: GHL_PIT looks invalid."
+  exit 1
+fi
+
 API="https://services.leadconnectorhq.com/locations/$LOCATION_ID/customFields"
 
 create_field() {
