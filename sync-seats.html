@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RE · Sync seats to guest map</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { max-width: 720px; margin: 40px auto; padding: 0 20px; font-family: system-ui, sans-serif; }
+  pre { background: #1a1a1f; padding: 14px; border-radius: 10px; overflow: auto; font-size: 0.8rem; }
+  .ok { color: #7dcea0; }
+  .bad { color: #e05252; }
+</style>
+</head>
+<body class="theme-hub">
+  <h1 style="color:var(--accent)">Sync local seats → guest map</h1>
+  <p style="color:var(--muted)">Open this page on the same browser where the command center shows your test reservations. It reads <code>localStorage</code> and writes the shared seat + preference logs so the guest form blackouts match.</p>
+  <button class="btn-sm btn-accent" id="go" type="button">Sync now</button>
+  <a class="btn-sm" href="host.html" style="margin-left:8px;text-decoration:none">← Command center</a>
+  <pre id="out">Ready.</pre>
+<script src="locations.js"></script>
+<script src="shared-orders.js"></script>
+<script src="seating.js"></script>
+<script>
+async function run() {
+  const out = document.getElementById('out');
+  const log = (s) => { out.textContent += '\n' + s; };
+  out.textContent = 'Running…';
+  try {
+    const key = RETIREMENT_EVEREST.locations['kennedy-school-bbq']?.storageKey || 'kennedyschool_bbq_prefs_v4';
+    const local = JSON.parse(localStorage.getItem(key) || '[]');
+    const seatsCache = JSON.parse(localStorage.getItem('re_seats_cache_v1') || 'null');
+    log('Local preferences: ' + local.length);
+    local.forEach((o, i) => log(`  ${i + 1}. ${o.name} · seats=${JSON.stringify(o.seats || null)} · ${o.seatLabel || '—'}`));
+    log('Local seat cache claims: ' + (seatsCache?.seats ? Object.keys(seatsCache.seats).join(', ') : '(none)'));
+
+    const loc = RETIREMENT_EVEREST.locations['kennedy-school-bbq'];
+    const orders = await RESharedOrders.publishLocalOrdersForLocation(loc);
+    log('Shared preferences after publish: ' + orders.length);
+
+    const st = await RESeating.fetchState({ orders, healRemote: true });
+    if (Object.keys(st.seats || {}).length) await RESeating.putState(st);
+    log('Shared seats after publish: ' + Object.keys(st.seats || {}).join(', '));
+    log('');
+    log('DONE. Hard-refresh guest form (Cmd+Shift+R):');
+    log('guest.html?location=kennedy-school-bbq');
+  } catch (e) {
+    log('ERROR: ' + e);
+  }
+}
+document.getElementById('go').onclick = run;
+// Auto-run once so a single open is enough
+run();
+</script>
+</body>
+</html>

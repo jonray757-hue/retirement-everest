@@ -336,6 +336,36 @@ function renderShareBar(loc) {
   </div>`;
 }
 
+/**
+ * Push this browser's Kennedy prefs + seat blackouts into the shared jsonblobs
+ * so the guest selection page shows the same reserved seats (prevents double-book).
+ */
+async function publishHostStateToGuestMap(reportLoc, orders) {
+  if (!reportLoc?.bbqMenuPick) return { orders: orders || [], seats: null };
+  let mergedOrders = orders || [];
+  try {
+    if (window.RESharedOrders?.publishLocalOrdersForLocation) {
+      mergedOrders = await RESharedOrders.publishLocalOrdersForLocation(reportLoc);
+    }
+  } catch (e) {
+    console.warn('[RE] publish orders failed', e);
+  }
+  let st = null;
+  try {
+    if (window.RESeating?.fetchState) {
+      // Merge remote + this browser's seat cache + every preference that has seats
+      st = await RESeating.fetchState({ orders: mergedOrders, healRemote: true });
+      // Force a write when we have any claims (heals guest map even if counts matched)
+      if (st && Object.keys(st.seats || {}).length && RESeating.putState) {
+        await RESeating.putState(st);
+      }
+    }
+  } catch (e) {
+    console.warn('[RE] publish seats failed', e);
+  }
+  return { orders: mergedOrders, seats: st };
+}
+
 async function renderReport() {
   const loc = getLoc();
   const reportLoc = getReportLoc();
@@ -347,13 +377,23 @@ async function renderReport() {
   body.innerHTML = `${renderShareBar(loc)}<div class="empty">Loading preferences (this browser + shared log)…</div>`;
 
   // Pull multi-device submissions so command center shows real guest fills, not only localStorage
-  const orders = await refreshOrdersFromShared();
+  let orders = await refreshOrdersFromShared();
+  // If this browser has more prefs/seats than the shared store, push them out to the guest map
+  let publishedSeats = null;
+  if (reportLoc.bbqMenuPick) {
+    const pub = await publishHostStateToGuestMap(reportLoc, orders);
+    orders = pub.orders?.length ? pub.orders : orders;
+    publishedSeats = pub.seats;
+  }
+  const seatClaimN = publishedSeats ? Object.keys(publishedSeats.seats || {}).length : 0;
   const share = renderShareBar(loc);
   const syncNote = `<div class="card-box" style="margin-bottom:16px;font-size:0.85rem;color:var(--muted)">
     <strong style="color:var(--text)">Preference log</strong> ·
     Showing <strong style="color:var(--text)">${orders.length}</strong> submission(s) from this browser + shared multi-device log.
     Guest submits also go to HAG GHL and email <strong style="color:var(--text)">${esc(RETIREMENT_EVEREST.reportEmail || 'johnny@blacksandcapitalgroup.com')}</strong>.
     <button type="button" class="btn-sm" style="margin-left:8px" id="btnRefreshShared">Refresh shared log</button>
+    ${reportLoc.bbqMenuPick ? `<button type="button" class="btn-sm btn-accent" style="margin-left:8px" id="btnPublishSeats">Publish seats to guest map${seatClaimN ? ` (${seatClaimN})` : ''}</button>` : ''}
+    ${seatClaimN ? `<div style="margin-top:8px;color:var(--text)">Guest map blackouts synced: <strong>${seatClaimN}</strong> seat(s) reserved (from this report + shared log).</div>` : ''}
   </div>`;
 
   if (!orders.length) {
@@ -368,6 +408,18 @@ async function renderReport() {
     copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
   });
   body.querySelector('#btnRefreshShared')?.addEventListener('click', () => renderReport());
+  body.querySelector('#btnPublishSeats')?.addEventListener('click', async () => {
+    const btn = body.querySelector('#btnPublishSeats');
+    if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+    try {
+      const pub = await publishHostStateToGuestMap(reportLoc, orders);
+      const n = Object.keys(pub.seats?.seats || {}).length;
+      alert(`Published to guest map.\n\nPreferences: ${pub.orders?.length || 0}\nSeats blacked out: ${n}\n\nHard-refresh the guest page (Cmd+Shift+R) to confirm.`);
+    } catch (e) {
+      alert('Publish failed: ' + e);
+    }
+    renderReport();
+  });
   if (reportLoc.bbqMenuPick && window.RESeating) {
     const seatDiv = document.createElement('div');
     seatDiv.id = 'seating-panel';

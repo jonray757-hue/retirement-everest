@@ -60,6 +60,20 @@
     return data;
   }
 
+  async function putSharedOrders(list) {
+    const id = global.RETIREMENT_EVEREST?.sharedOrdersBlobId || DEFAULT_BLOB;
+    const url = blobUrl(id);
+    const body = Array.isArray(list) ? list.slice(0, 500) : [];
+    const put = await fetch(url, {
+      method: 'PUT',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!put.ok) throw new Error('Shared log write HTTP ' + put.status);
+    return body;
+  }
+
   async function appendSharedOrder(order) {
     const id = global.RETIREMENT_EVEREST?.sharedOrdersBlobId || DEFAULT_BLOB;
     const url = blobUrl(id);
@@ -81,14 +95,49 @@
     list.unshift(order);
     // Cap log size
     list = list.slice(0, 500);
-    const put = await fetch(url, {
-      method: 'PUT',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(list)
+    return putSharedOrders(list);
+  }
+
+  /**
+   * Host: push this browser's preference log into the shared blob when local
+   * is richer (e.g. after a blob expiry wiped the remote list).
+   */
+  async function publishLocalOrdersForLocation(loc) {
+    if (!loc?.storageKey) return [];
+    let local = [];
+    try {
+      local = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
+    } catch (_) {
+      local = [];
+    }
+    // Also pull any legacy storage keys if present
+    const legacyKeys = [
+      'kennedyschool_bbq_prefs_v3',
+      'kennedyschool_bbq_prefs_v2',
+      'kennedyschool_bbq_prefs_v1'
+    ];
+    legacyKeys.forEach((k) => {
+      try {
+        const arr = JSON.parse(localStorage.getItem(k) || '[]');
+        if (Array.isArray(arr) && arr.length) local = mergeOrders(local, arr);
+      } catch (_) {}
     });
-    if (!put.ok) throw new Error('Shared log write HTTP ' + put.status);
-    return list;
+    let remote = [];
+    try {
+      remote = await fetchSharedOrders(loc.id || loc.slug);
+    } catch (_) {}
+    const merged = mergeOrders(local, remote);
+    if (merged.length > remote.length) {
+      try {
+        await putSharedOrders(merged);
+        try {
+          localStorage.setItem(loc.storageKey, JSON.stringify(merged));
+        } catch (_) {}
+      } catch (e) {
+        console.warn('[RE] publish local orders failed', e);
+      }
+    }
+    return merged;
   }
 
   /** Email Johnny a plain report (FormSubmit). First use may require email confirm from FormSubmit. */
@@ -164,7 +213,9 @@
     blobUrl,
     mergeOrders,
     fetchSharedOrders,
+    putSharedOrders,
     appendSharedOrder,
+    publishLocalOrdersForLocation,
     emailHostReport,
     loadOrdersForLocation
   };
