@@ -384,11 +384,24 @@ let seatLinkPicks = [];
 async function loadSeatingPanel(loc, orders) {
   const panel = document.getElementById('seating-panel');
   if (!panel || !window.RESeating) return;
+  // Merge preference submissions into seat map so host + guest never disagree after a blob wipe
+  let orderList = orders || getOrders();
+  try {
+    if (window.RESharedOrders?.loadOrdersForLocation) {
+      orderList = await RESharedOrders.loadOrdersForLocation(loc);
+    }
+  } catch (_) {}
   let st;
   try {
-    st = await RESeating.fetchState();
+    st = await RESeating.fetchState({ orders: orderList, healRemote: true });
   } catch (e) {
-    st = RESeating.emptyState ? { ...RESeating.emptyState(), offline: true } : { seats: {}, couples: [], accommodations: [], offline: true };
+    const fromOrders = RESeating.claimsFromOrders
+      ? { seats: RESeating.claimsFromOrders(orderList) }
+      : { seats: {} };
+    st = RESeating.mergeStates
+      ? RESeating.mergeStates(RESeating.emptyState(), fromOrders)
+      : { seats: fromOrders.seats || {}, couples: [], accommodations: [], offline: true };
+    st.offline = true;
   }
   const claims = Object.values(st.seats || {}).sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)));
   const seatsTaken = claims.length;

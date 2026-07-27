@@ -76,6 +76,7 @@
 
   /* ---------------- Shared state ---------------- */
   const LOCAL_KEY = 're_seats_cache_v1';
+  const SEAT_ID_RE = /^[A-D][1-8]$/;
 
   function emptyState() {
     return {
@@ -103,6 +104,79 @@
     };
   }
 
+  function seatCount(st) {
+    return st && st.seats ? Object.keys(st.seats).length : 0;
+  }
+
+  /** "Table C · Seats 3 & 4" → ["C3","C4"] */
+  function parseSeatLabel(label) {
+    if (!label) return [];
+    const m = String(label).match(/Table\s+([A-D]).*?Seat[s]?\s+([0-9]+(?:\s*&\s*[0-9]+)*)/i);
+    if (!m) return [];
+    const t = m[1].toUpperCase();
+    return m[2].split(/\s*&\s*/).map((n) => t + String(n).trim()).filter((id) => SEAT_ID_RE.test(id));
+  }
+
+  /**
+   * Rebuild seat claims from preference submissions (local or shared log).
+   * Orders are a durable backup when the live seats blob is empty/expired.
+   */
+  function claimsFromOrders(orders) {
+    const seats = {};
+    (orders || []).forEach((o) => {
+      if (!o || typeof o !== 'object') return;
+      let ids = Array.isArray(o.seats) ? o.seats.filter((id) => SEAT_ID_RE.test(String(id))) : [];
+      if (!ids.length) ids = parseSeatLabel(o.seatLabel);
+      ids.forEach((id, i) => {
+        if (seats[id]) return;
+        seats[id] = {
+          seatId: id,
+          name: o.name || '',
+          email: o.email || '',
+          phone: o.phone || '',
+          partyType: o.partyType || (ids.length > 1 ? 'couple' : 'solo'),
+          spouse: o.spouse || null,
+          person:
+            ids.length > 1
+              ? i === 0
+                ? o.name
+                : o.spouse || o.name
+              : o.name,
+          groupId: o.id != null ? 'order-' + o.id : 'order-recov',
+          orderId: o.id || null,
+          ts: o.ts || '',
+          recoveredFromOrder: true
+        };
+      });
+    });
+    return seats;
+  }
+
+  /** Union seat maps / couples / accommodations. Newer claim.ts wins on conflict. */
+  function mergeStates(...states) {
+    const out = emptyState();
+    states.forEach((raw) => {
+      if (!raw) return;
+      const st = normalize(raw);
+      Object.entries(st.seats || {}).forEach(([id, claim]) => {
+        if (!claim || !SEAT_ID_RE.test(id)) return;
+        const prev = out.seats[id];
+        if (!prev || String(claim.ts || '') >= String(prev.ts || '')) {
+          out.seats[id] = { ...claim, seatId: id };
+        }
+      });
+      (st.couples || []).forEach((c) => {
+        if (!out.couples.some((x) => JSON.stringify(x) === JSON.stringify(c))) out.couples.push(c);
+      });
+      (st.accommodations || []).forEach((a) => {
+        if (!out.accommodations.some((x) => JSON.stringify(x) === JSON.stringify(a))) {
+          out.accommodations.push(a);
+        }
+      });
+    });
+    return out;
+  }
+
   function readLocalCache() {
     try {
       if (typeof localStorage === 'undefined') return null;
@@ -118,15 +192,25 @@
       if (typeof localStorage === 'undefined') return;
       const clean = normalize(state);
       delete clean.offline;
+      // Never shrink a richer local cache with an empty snapshot
+      const prev = readLocalCache();
+      if (prev && seatCount(clean) === 0 && seatCount(prev) > 0) return;
       localStorage.setItem(LOCAL_KEY, JSON.stringify(clean));
     } catch (_) {}
   }
 
   /**
    * Always returns a usable state so the floor plan can paint.
-   * Remote jsonblob is best-effort; on failure uses local cache or empty map.
+   * Merges remote + local cache + optional preference orders, then heals a
+   * thinner remote blob so guest devices see the same blackouts as host.
+   * opts: { orders?: array, healRemote?: boolean }
    */
-  async function fetchState() {
+  async function fetchState(opts = {}) {
+    const local = readLocalCache();
+    const fromOrders = { seats: claimsFromOrders(opts.orders || []) };
+    let remote = null;
+    let offline = false;
+
     try {
       const res = await fetch(apiUrl() + '?t=' + Date.now(), {
         method: 'GET',
@@ -135,15 +219,34 @@
         cache: 'no-store'
       });
       if (!res.ok) throw new Error('Seats HTTP ' + res.status);
-      const st = normalize(await res.json());
-      writeLocalCache(st);
-      return st;
+      remote = normalize(await res.json());
     } catch (e) {
-      console.warn('[RE] seat fetch failed — showing local/empty map', e);
-      const cached = readLocalCache();
-      if (cached) return { ...cached, offline: true };
-      return { ...emptyState(), offline: true };
+      console.warn('[RE] seat fetch failed — merging local/orders', e);
+      offline = true;
     }
+
+    const merged = mergeStates(remote, local, fromOrders);
+    merged.offline = offline;
+
+    // Heal empty/thin remote so other devices see blocked seats
+    const shouldHeal =
+      opts.healRemote !== false &&
+      remote &&
+      seatCount(merged) > seatCount(remote);
+    if (shouldHeal) {
+      try {
+        await putState(merged);
+        merged.offline = false;
+      } catch (e) {
+        console.warn('[RE] seat remote heal failed', e);
+      }
+    } else if (!offline) {
+      writeLocalCache(merged);
+    } else if (seatCount(merged)) {
+      writeLocalCache(merged);
+    }
+
+    return merged;
   }
 
   async function putState(state) {
@@ -170,7 +273,8 @@
     const groupId =
       'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const st = await fetchState();
+      // healRemote false during claim loop — we putState ourselves after merge
+      const st = await fetchState({ healRemote: false });
       const taken = seatIds.filter((id) => st.seats[id]);
       if (taken.length) return { ok: false, taken, state: st };
       seatIds.forEach((id, i) => {
@@ -414,6 +518,10 @@
     SEATS_PER_TABLE,
     allSeats,
     emptyState,
+    normalize,
+    mergeStates,
+    claimsFromOrders,
+    parseSeatLabel,
     fetchState,
     putState,
     claimSeats,

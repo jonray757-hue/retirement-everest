@@ -267,19 +267,45 @@ function renderSeatSection() {
 async function loadSeatMap() {
   const box = document.getElementById('seatmap-container');
   if (!box || !window.RESeating) return;
+  // Preference log is a backup source of seat claims (blocks double-booking if seats blob was wiped)
+  let orderBackup = [];
   try {
-    seatState = await RESeating.fetchState();
+    if (window.RESharedOrders?.fetchSharedOrders) {
+      orderBackup = await RESharedOrders.fetchSharedOrders(LOC.id || LOC.slug);
+    }
+  } catch (e) {
+    console.warn('[RE] order backup for seats failed', e);
+  }
+  try {
+    const localOrders = JSON.parse(localStorage.getItem(LOC.storageKey) || '[]');
+    orderBackup = window.RESharedOrders?.mergeOrders
+      ? RESharedOrders.mergeOrders(localOrders, orderBackup)
+      : [...localOrders, ...orderBackup];
+  } catch (_) {}
+
+  try {
+    seatState = await RESeating.fetchState({ orders: orderBackup, healRemote: true });
   } catch (e) {
     console.warn('[RE] seat map load failed', e);
-    seatState = RESeating.emptyState ? { ...RESeating.emptyState(), offline: true } : { seats: {}, couples: [], accommodations: [], offline: true };
+    const fromOrders = RESeating.claimsFromOrders
+      ? { seats: RESeating.claimsFromOrders(orderBackup) }
+      : { seats: {} };
+    seatState = RESeating.mergeStates
+      ? RESeating.mergeStates(RESeating.emptyState(), fromOrders)
+      : { seats: fromOrders.seats || {}, couples: [], accommodations: [], offline: true };
+    seatState.offline = true;
   }
   // Always paint the floor plan — never blank the section if the shared store is down
   seatFriendly = RESeating.soloFriendly(seatState);
   selSeats = selSeats.filter(id => !seatState.seats?.[id]);
+  const takenN = Object.keys(seatState.seats || {}).length;
   const offlineNote = seatState.offline
     ? `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:rgba(224,82,82,0.12);color:#e8a0a0;font-size:0.78rem">Live seat sync is offline — chart still works on this device. Tap ↻ after refresh if others reserved seats.</div>`
     : '';
-  box.innerHTML = offlineNote + RESeating.renderMapSVG(seatState, {
+  const takenNote = takenN
+    ? `<div style="margin-bottom:6px;font-size:0.78rem;color:var(--muted,#888)"><strong style="color:var(--text,#ddd)">${takenN}</strong> seat${takenN === 1 ? '' : 's'} already reserved (blacked out)</div>`
+    : '';
+  box.innerHTML = offlineNote + takenNote + RESeating.renderMapSVG(seatState, {
     mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
   }) + RESeating.legendHTML('guest') +
   `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
