@@ -887,6 +887,24 @@ async function pushGuestOrderToGHL(order) {
     return { ok: false, reason: 'no-url' };
   }
   const { firstName, lastName } = splitName(order.name);
+  const locSlug = order.locationId || LOC.id || LOC.slug || '';
+  const locShort = LOC.shortName || LOC.name || locSlug;
+  const locName = LOC.name || locShort;
+  const locVenue = LOC.venue || '';
+  const locCity = LOC.city || '';
+  /* Friendly line for SMS: "Kennedy School BBQ" / "Jake's Grill" */
+  const eventLocationLabel = locShort;
+  /* Event date: host planner stores in localStorage (not on guest devices).
+     Fall back to location defaultEvent if declared in locations.js. */
+  let eventDate = '';
+  try {
+    if (typeof getLocationEvent === 'function') {
+      const ev = getLocationEvent(LOC.slug || locSlug) || getLocationEvent(locSlug);
+      eventDate = ev?.eventDate || '';
+    }
+  } catch (_) {}
+  if (!eventDate && LOC.defaultEvent?.eventDate) eventDate = LOC.defaultEvent.eventDate;
+
   const payload = {
     // Contact (map these in GHL inbound webhook)
     firstName,
@@ -894,14 +912,30 @@ async function pushGuestOrderToGHL(order) {
     name: order.name,
     email: order.email || '',
     phone: order.phone || '',
-    // Event
+    // Event type
     event: 'preference_submitted',
     source: 'retirement-everest-guest',
     brand: RETIREMENT_EVEREST.ghlBrand || 'HAG',
     ghlLocationId: RETIREMENT_EVEREST.ghlLocationId || '',
-    location: order.locationId || LOC.id,
-    locationName: LOC.name,
-    locationShort: LOC.shortName,
+    // --- Map these to RE location custom fields (one workflow, all venues) ---
+    // RE Event Location        ← eventLocation / locationShort / reEventLocation
+    // RE Event Location Slug   ← location / locationSlug / reEventLocationSlug
+    // RE Venue Name            ← venue / reVenueName
+    // RE Venue City            ← city / reVenueCity
+    // RE Event Date            ← eventDate / reEventDate
+    location: locSlug,
+    locationSlug: locSlug,
+    locationName: locName,
+    locationShort: locShort,
+    eventLocation: eventLocationLabel,
+    reEventLocation: eventLocationLabel,
+    reEventLocationSlug: locSlug,
+    venue: locVenue,
+    reVenueName: locVenue,
+    city: locCity,
+    reVenueCity: locCity,
+    eventDate: eventDate,
+    reEventDate: eventDate,
     // BBQ / food prefs
     buffet: order.buffet || '',
     sides: Array.isArray(order.sides) ? order.sides.join(' · ') : (order.sides || order.starter || ''),
@@ -925,6 +959,9 @@ async function pushGuestOrderToGHL(order) {
     seatAccommodation: order.seatAccommodation ? 'yes' : '',
     // Full blob for custom field / notes
     preferencesSummary: [
+      `Event location: ${eventLocationLabel}${locVenue ? ` · ${locVenue}` : ''}${locCity ? ` · ${locCity}` : ''}`,
+      locSlug ? `Location slug: ${locSlug}` : '',
+      eventDate ? `Event date: ${eventDate}` : '',
       order.buffet ? `Dinner: ${order.buffet}` : '',
       order.sides?.length ? `Sides: ${order.sides.join(' · ')}` : (order.starter ? `Starter: ${order.starter}` : ''),
       order.entree ? `Entrée: ${order.entree}` : '',

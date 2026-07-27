@@ -55,12 +55,48 @@ Each location can use its own tab — the push uses the location short name as t
 
 ## GoHighLevel (GHL)
 
-When your GHL workflow is ready:
+### One workflow for every venue (location custom fields)
 
-1. Create an **Inbound Webhook** trigger in GHL
-2. Copy the webhook URL
-3. Paste into **GHL webhook URL** in Outreach → Integrations
-4. When you **Save to queue** on an invite, the host sends:
+Do **not** hardcode “Kennedy School” in SMS/email. Map the webhook into contact custom fields and use merge tags.
+
+**Custom fields (HAG)** — already created:
+
+| Custom field | Field key | Webhook keys to map |
+|--------------|-----------|---------------------|
+| **RE Event Location** | `contact.re_event_location` | `eventLocation` or `reEventLocation` or `locationShort` |
+| **RE Event Location Slug** | `contact.re_event_location_slug` | `location` or `locationSlug` or `reEventLocationSlug` |
+| **RE Venue Name** | `contact.re_venue_name` | `venue` or `reVenueName` |
+| **RE Venue City** | `contact.re_venue_city` | `city` or `reVenueCity` |
+| **RE Event Date** | `contact.re_event_date` | `eventDate` or `reEventDate` |
+
+**Guest preference submit** also sends: `firstName`, `lastName`, `email`, `phone`, food prefs (`buffet`, `sides`, `entree`, …), seating, `preferencesSummary`.
+
+**In the inbound webhook workflow:**
+
+1. Trigger: Inbound Webhook  
+2. **Create/Update Contact** — map standard + custom fields above  
+3. SMS/email body examples:
+
+```text
+Hi {{contact.first_name}}, thanks for sharing your preferences for
+Retirement Everest at {{contact.re_event_location}}
+{{contact.re_venue_city}}.
+```
+
+4. Optional **If/Else** only when copy must differ by venue:
+   - If `{{contact.re_event_location_slug}}` is `kennedy-school-bbq` → BBQ seating copy  
+   - Else → generic plated-dinner copy  
+
+Slug examples: `kennedy-school-bbq`, `jakes-grill`, `edgefield`, `the-cove`, `ringside`.
+
+Re-create missing fields: `bash tools/create-ghl-custom-fields.sh`
+
+---
+
+### Host invite queue (Outreach)
+
+1. Webhook URL is set in Outreach → Integrations (defaults to HAG)  
+2. When you **Also push to HAG GHL** on an invite, the host sends:
 
 ```json
 {
@@ -75,9 +111,7 @@ When your GHL workflow is ready:
 }
 ```
 
-Map these fields in your GHL workflow to send SMS/email automations.
-
-Until GHL is connected, use **Open email** and **Open SMS** — they launch your device's mail/SMS apps with the message pre-filled.
+Until GHL is connected for invites, use **Email them** / **Text them** — they launch Mail / Messages with the message pre-filled.
 
 ---
 
