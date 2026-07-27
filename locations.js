@@ -867,7 +867,7 @@ window.RETIREMENT_EVEREST = {
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
       formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your salad, entrée, dessert, and drink below so we can have it ready for you.',
-      formNote: 'Steaks include choice of garlic mashed, baked potato, fries, or garlic rice pilaf. Menu from RingSide dinner PDF (July 2026).',
+      formNote: '🍽 Steaks include choice of garlic mashed, baked potato, fries, or garlic rice pilaf.',
       footer: 'Retirement Everest · Private Screening Series · RingSide Steakhouse · Portland, OR',
       menus: {
         salads: [
@@ -956,7 +956,7 @@ window.RETIREMENT_EVEREST = {
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
       formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your starter, entrée, dessert, and drink so we can have it ready for you.',
-      formNote: 'REAL QUOTE 2026-07-14 (Cyrano Clark @ ldry.com): Hardy Room held for 8/15/26 option. Gold Dinner $65/pp (groups 25–50 pre-select 4 days out) + 22% service. Room $200 + screen/projector $250 + F&B min $1,500. Menus from private dining PDF May 2026.',
+      formNote: '🍽 Gold Dinner package: choose your starter, entrée, and dessert below. Dinner is served after the film — complimentary.',
       footer: "Retirement Everest · Private Screening Series · Jake's Grill Hardy Room · Portland, OR",
       contact: {
         name: 'OP Cyrano Clark',
@@ -1073,7 +1073,7 @@ window.RETIREMENT_EVEREST = {
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
       formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your entrée and drink so we can have it ready for you.',
-      formNote: 'REAL QUOTE 2026-07-17 (Brianna Carlson): F&B min $3,000 Sun–Thu (closed Mon) / $3,800 Fri–Sat + 20% grat + 4% admin + tax. Plated mains $61–$73 + dessert $14. $600 deposit + LOI to hold. 60\" rolling TV only.',
+      formNote: '🍽 Plated dinner after the film — group salad, your entrée choice, and dessert. Select below so we can have it ready for you.',
       footer: 'Retirement Everest · Private Screening Series · The Cove · Vancouver, WA',
       menus: {
         salads: [
@@ -1160,7 +1160,7 @@ window.RETIREMENT_EVEREST = {
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
       formIntro: 'Dinner is included — selections finalize after the venue package is confirmed.',
-      formNote: 'OUTLOOK 2026-07-17: Brandie Hiser (brandie.hiser@ldry.com — LEGIT Landry\'s corp domain). Private space available Aug 15 @ 5:30pm; wants in-person tour. F&B min + AV NOT YET QUOTED — do not model as firm until Brandie confirms.',
+      formNote: '🍽 Dinner is complimentary. Select your preferences below so we can plan the evening for you.',
       footer: 'Retirement Everest · Private Screening Series · Chart House · Portland, OR',
       menus: {
         salads: [
@@ -1235,7 +1235,7 @@ window.RETIREMENT_EVEREST = {
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
       formIntro: 'Dinner is included — menu locks after we confirm the package with the lodge.',
-      formNote: 'OUTLOOK 2026-07-17: Kayla Storms sent catering menu + AV pricing; pricing TBD on menu/date. Import Kayla attachments when available from Outlook.',
+      formNote: '🍽 Dinner is complimentary. Select your preferences below so we can plan the evening for you.',
       footer: "Retirement Everest · Private Screening Series · Hudson's / Heathman Lodge · Vancouver, WA",
       menus: {
         salads: [
@@ -1313,7 +1313,7 @@ window.RETIREMENT_EVEREST = {
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
       formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your entrée and drink so we can have it ready for you.',
-      formNote: 'QUOTE: $20/head FOOD ONLY (OSF Vancouver banquet). Then beverages + tip + WA tax (bread, salad, entrée, spumoni) by location. Model uses $25 food + $10 drink + 18% service + ~8.7% WA sales tax. Phone (360) 253-9030. Callback received — confirm exact package, room capacity for film, and AV fees. Note: WA tax applies (Oregon venues do not).',
+      formNote: '🍽 Banquet dinner after the film — bread, salad, entrée, and dessert. Select your preferences so we can have everything ready.',
       footer: 'Retirement Everest · Private Screening Series · Old Spaghetti Factory · Vancouver, WA',
       menus: {
         salads: [
@@ -1405,7 +1405,7 @@ window.RETIREMENT_EVEREST = {
       formTitle: 'Reserve Your Seat at the Table',
       formLabel: 'Your Dinner Selection',
       formIntro: 'Dinner is included with your attendance — complimentary, no strings attached.<br>Select your starter, main, dessert, and drink below so we can have it ready for you.',
-      formNote: 'REAL package: Andina Experience $110/pp family-style (pre-select for whole group). Entradas + platos + postres from Summer 2026 private dining PDF. Tupai room required for ~35 with AV ($4,000 F&B min — over series budget).',
+      formNote: '🍽 Family-style Andina Experience dinner for the group — entradas, platos, and postres. Share your preferences so we can plan the table.',
       footer: 'Retirement Everest · Private Screening Series · Andina · Portland, OR',
       menus: {
         salads: [

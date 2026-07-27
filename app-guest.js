@@ -7,6 +7,22 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+/**
+ * Never show internal venue quotes / host notes on guest pages.
+ * Host-only pricing lives in costModel.note / venue CRM — not formNote.
+ */
+function guestSafeFormNote(note) {
+  if (!note || typeof note !== 'string') return '';
+  const n = note.trim();
+  if (!n) return '';
+  // Internal ops markers that must never reach guests
+  if (/REAL QUOTE|OUTLOOK\s|QUOTE:|F&B min|FOOD ONLY|ldry\.com|@\w+\.(com|org)|deposit|LOI|PARKED|UNDER \$\d|OVER \$\d|cost model|PLACEHOLDER|do not model|Import Kayla|series budget|\$\d[\d,]*(?:\/pp|\/head| room| F&B)/i.test(n)) {
+    console.warn('[RE] Blocked internal formNote from guest page');
+    return '';
+  }
+  return n;
+}
+
 function tags(item) {
   let t = '';
   if (item.vegan) t += '<span class="tag">Vegan</span>';
@@ -153,7 +169,7 @@ function renderPage() {
       <div class="section-label">${LOC.formLabel}</div>
       <h2>${LOC.formTitle}</h2>
       <p class="order-intro">${LOC.formIntro}</p>
-      ${LOC.formNote ? `<div class="order-note">${LOC.formNote}</div>` : ''}
+      ${guestSafeFormNote(LOC.formNote) ? `<div class="order-note">${guestSafeFormNote(LOC.formNote)}</div>` : ''}
       <div class="field-wrap"><label class="field-label" for="guestName">Your Full Name</label>
         <input type="text" id="guestName" placeholder="First and last name" autocomplete="name"></div>
       <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px">
