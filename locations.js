@@ -16,7 +16,7 @@ window.RETIREMENT_EVEREST = {
    */
   /* Durable multi-device seats + prefs (Google Apps Script web app — Anyone) */
   sharedStoreUrl: 'https://script.google.com/macros/s/AKfycbxrlFuH-he19CfpJOlOJL1fKCg3ud5VDx58ZsarHLwEcrArxTyxznPi2nomkyN7sytN/exec',
-  /* Spreadsheet backing store (do not delete): 1uKa7UrgmBJaKhr3rGWjdJQT1nwajU5_OsFnV4_KKes8 */
+  /* Spreadsheet backing store (do not delete): 1GRhsaSpJzYpYMtatuWtWKDQOSTvB1-5LUZLVGtFQH98 */
   /* Legacy jsonblob fallbacks only (expire ~24h) — unused when sharedStoreUrl is set */
   sharedOrdersBlobId: '019faaca-6d9a-7cda-8085-3cd63ebda2bf',
   seatsBlobId: '019faaca-6bf5-7f2b-a3d5-1b92f1c0387d',
