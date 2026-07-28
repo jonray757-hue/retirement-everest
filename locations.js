@@ -682,8 +682,8 @@ window.RETIREMENT_EVEREST = {
       ],
       formTitle: 'Tell Us What You Prefer',
       formLabel: 'Backyard BBQ Preferences',
-      formIntro: 'The <strong>Backyard Barbecue Buffet</strong> is set. Choose <strong>two sides &amp; salads</strong> you prefer most, <strong>one entrée</strong>, and <strong>one dessert</strong> — then your beverage. Everything is still a group buffet; this is how we tally favorites.',
-      formNote: '📋 Pick only from the Backyard BBQ menu below. Not a plated order — preference tallies for planning.',
+      formIntro: '',
+      formNote: '',
       footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Backyard BBQ · Portland, OR',
       menus: {
         buffetName: 'Backyard Barbecue Buffet',

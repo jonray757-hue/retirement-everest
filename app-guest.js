@@ -169,7 +169,7 @@ function renderPage() {
     <div class="order-section" id="order">
       <div class="section-label">${LOC.formLabel}</div>
       <h2>${LOC.formTitle}</h2>
-      <p class="order-intro">${LOC.formIntro}</p>
+      ${LOC.formIntro ? `<p class="order-intro">${LOC.formIntro}</p>` : ''}
       ${guestSafeFormNote(LOC.formNote) ? `<div class="order-note">${guestSafeFormNote(LOC.formNote)}</div>` : ''}
       <div class="field-wrap"><label class="field-label" for="guestName">Your Full Name</label>
         <input type="text" id="guestName" placeholder="First and last name" autocomplete="name"></div>
