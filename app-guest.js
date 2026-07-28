@@ -152,7 +152,6 @@ function renderPage() {
       <div class="hero-overlay"></div>` : '';
 
   document.getElementById('app').innerHTML = `
-    <a class="back-link" href="index.html">← All locations</a>
     <div class="hero${hero?.image ? ' hero--has-poster' : ''}">
       <div class="hero-bg theme-${LOC.theme}-bg${hero?.image ? ' has-image' : ''}">${heroImgHTML}</div>
       <div class="hero-content">
@@ -347,13 +346,11 @@ async function loadSeatMap() {
   refreshPartnerSelect();
   applyCoupleModeUI();
   const takenN = Object.keys(seatState.seats || {}).length;
-  const offlineNote = seatState.offline
-    ? `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:rgba(224,82,82,0.12);color:#e8a0a0;font-size:0.78rem">Live seat sync is offline — chart still works on this device. Tap ↻ after refresh if others reserved seats.</div>`
-    : '';
+  // Never show sync/offline diagnostics on the guest form — chart still works quietly.
   const takenNote = takenN
     ? `<div style="margin-bottom:6px;font-size:0.78rem;color:var(--muted,#888)"><strong style="color:var(--text,#ddd)">${takenN}</strong> seat${takenN === 1 ? '' : 's'} already reserved (blacked out)</div>`
     : '';
-  box.innerHTML = offlineNote + takenNote + RESeating.renderMapSVG(seatState, {
+  box.innerHTML = takenNote + RESeating.renderMapSVG(seatState, {
     mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
   }) + RESeating.legendHTML('guest') +
   `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
