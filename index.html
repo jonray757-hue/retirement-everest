@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Retirement Everest — Event Series</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<link rel="stylesheet" href="styles.css?v=20260727b">
+<link rel="stylesheet" href="styles.css?v=20260728c">
 </head>
 <body class="theme-hub">
   <div class="hero hero--hub hero--has-poster">
@@ -20,14 +20,17 @@
   <div class="hub-admin">
     <a href="host.html">Command center</a>
   </div>
-  <script src="locations.js?v=20260727b"></script>
+  <script src="locations.js?v=20260728c"></script>
   <script>
     const hero = RETIREMENT_EVEREST.hero;
     if (hero?.image) {
+      const bust = '20260728c';
+      const mobile = hero.imageMobile ? `${hero.imageMobile}?v=${bust}` : '';
+      const desktop = `${hero.image}?v=${bust}`;
       document.getElementById('hubHeroBg').innerHTML = `
         <picture>
-          ${hero.imageMobile ? `<source media="(max-width: 768px)" srcset="${hero.imageMobile}">` : ''}
-          <img src="${hero.image}" alt="${hero.alt || 'Retirement Everest'}">
+          ${mobile ? `<source media="(max-width: 768px)" srcset="${mobile}">` : ''}
+          <img src="${desktop}" alt="${hero.alt || 'Retirement Everest'}">
         </picture>
         <div class="hero-overlay"></div>`;
     }

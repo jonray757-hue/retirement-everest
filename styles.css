@@ -64,6 +64,9 @@ body { background: var(--bg); color: var(--text); }
 .hero-bg.theme-forest-bg { background: linear-gradient(180deg, #1a2e26 0%, #0d1410 60%, #0d1410 100%); }
 .hero-bg.theme-navy-bg { background: linear-gradient(180deg, #0a1628 0%, #050a14 60%, #050a14 100%); }
 .hero-bg.has-image { background: #0b0b0b; }
+.hero-bg picture {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%;
+}
 .hero-bg img {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; object-position: center top;
@@ -112,17 +115,42 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
 .back-link { position: fixed; top: 16px; left: 16px; z-index: 10; font-size: 0.72rem; color: var(--muted); text-decoration: none; padding: 8px 12px; background: rgba(0,0,0,0.4); border-radius: 4px; }
 .back-link:hover { color: var(--accent); }
 
-/* ── MOBILE HERO (poster art already shows the title) ── */
+/* ── MOBILE HERO ──
+   Uses portrait poster (title baked into art). Desktop rules above stay unchanged.
+   Portrait asset + cover + top-anchor keeps "RETIREMENT EVEREST" readable. */
 @media (max-width: 768px) {
   .hero.hero--has-poster {
-    min-height: 100svh;
+    /* Tall enough for poster title, not forced into extreme crop */
+    min-height: 92svh;
+    max-height: none;
     justify-content: flex-end;
-    padding: 0 18px 32px;
+    padding: 0 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .hero.hero--has-poster .hero-bg img {
+    /* Portrait mobile asset — lock to cover, never stretch */
+    object-fit: cover;
+    object-position: center top;
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+    filter: none;
+  }
+  .hero.hero--has-poster .hero-bg.has-image .hero-overlay {
+    /* Light top (poster title stays sharp) · dark bottom (UI text readable) */
+    background: linear-gradient(180deg,
+      rgba(0,0,0,0.08) 0%,
+      rgba(0,0,0,0.05) 28%,
+      rgba(0,0,0,0.35) 52%,
+      rgba(0,0,0,0.78) 72%,
+      rgba(0,0,0,0.94) 100%);
   }
   .hero.hero--has-poster .hero-content {
-    padding-top: 46vh;
+    /* Sit in the dark gradient band under the poster title */
+    padding-top: min(48vh, 420px);
     max-width: 100%;
+    text-shadow: 0 2px 16px rgba(0,0,0,0.75);
   }
+  /* Poster already has the big title — hide HTML duplicate on guest pages */
   .hero.hero--has-poster .hero-content h1 {
     display: none;
   }
@@ -132,8 +160,10 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
     letter-spacing: 2px;
     line-height: 1.55;
     gap: 6px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     padding: 0 4px;
+    color: var(--accent);
+    opacity: 0.95;
   }
   .hero.hero--has-poster .eyebrow::before,
   .hero.hero--has-poster .eyebrow::after {
@@ -142,16 +172,19 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
   .hero.hero--has-poster .hero-sub {
     font-size: 0.9rem;
     line-height: 1.65;
-    margin: 10px 0 22px;
+    margin: 8px 0 20px;
     padding: 0 6px;
+    color: rgba(255,255,255,0.92);
   }
   .hero.hero--has-poster .event-meta {
     display: flex;
     flex-direction: column;
     width: 100%;
     max-width: 340px;
-    margin: 0 auto 28px;
+    margin: 0 auto 24px;
     text-align: center;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
   }
   .hero.hero--has-poster .meta-item {
     border-right: none;
@@ -164,25 +197,42 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
   .hero.hero--has-poster .meta-item strong {
     font-size: 0.9rem;
     margin-bottom: 4px;
+    color: #fff;
   }
-  .hero.hero--has-poster .hero-bg.has-image .hero-overlay {
-    background: linear-gradient(180deg,
-      rgba(0,0,0,0) 0%,
-      rgba(0,0,0,0.1) 38%,
-      rgba(0,0,0,0.62) 58%,
-      rgba(0,0,0,0.9) 100%);
+  .hero.hero--has-poster .hero-cta {
+    width: 100%;
+    max-width: 340px;
+    box-sizing: border-box;
+    text-align: center;
   }
-  .hero.hero--has-poster .hero-bg img {
-    object-position: center 12%;
+  /* Hub: keep short intro readable under poster title */
+  .hero--hub.hero--has-poster {
+    min-height: 88svh;
   }
   .hero--hub.hero--has-poster .hero-content {
-    padding-top: 50vh;
+    padding-top: min(52vh, 460px);
+  }
+  .hero--hub.hero--has-poster .hero-content h1 {
+    /* Hub page uses plain h1 (not in poster layout the same way) — still hide; poster has it */
+    display: none;
   }
   .hero--hub.hero--has-poster .hero-content p {
     font-size: 0.92rem;
     line-height: 1.65;
     padding: 0 8px;
     margin-bottom: 0;
+    color: rgba(255,255,255,0.92);
+  }
+}
+
+/* Very short phones: don't push content off-screen */
+@media (max-width: 768px) and (max-height: 700px) {
+  .hero.hero--has-poster {
+    min-height: 100svh;
+  }
+  .hero.hero--has-poster .hero-content,
+  .hero--hub.hero--has-poster .hero-content {
+    padding-top: 38vh;
   }
 }
 
