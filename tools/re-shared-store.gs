@@ -85,9 +85,10 @@ function writeKey_(key, data) {
   var values = sheet.getDataRange().getValues();
   var json = JSON.stringify(data);
   var now = new Date().toISOString();
+  // Sheet.getRange(row, column, numRows, numColumns) — NOT endRow/endColumn
   for (var i = 1; i < values.length; i++) {
     if (String(values[i][0]) === key) {
-      sheet.getRange(i + 1, 2, i + 1, 3).setValues([[json, now]]);
+      sheet.getRange(i + 1, 2, 1, 2).setValues([[json, now]]);
       return { ok: true, key: key, updatedAt: now, bytes: json.length };
     }
   }
