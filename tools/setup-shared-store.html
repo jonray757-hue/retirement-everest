@@ -3,63 +3,460 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RE Shared Store Setup</title>
+<title>RE — Deploy shared store + Sheets webhook</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.55; color: #1a1a1a; }
-  h1 { font-size: 1.5rem; }
-  code, pre { background: #f4f4f4; border-radius: 6px; }
-  code { padding: 2px 6px; font-size: 0.9em; }
-  pre { padding: 14px; overflow: auto; font-size: 0.82rem; }
-  ol { padding-left: 1.3rem; }
-  li { margin: 10px 0; }
-  .ok { color: #0a7; font-weight: 600; }
-  .warn { background: #fff6e5; border: 1px solid #f0c060; padding: 12px 14px; border-radius: 8px; }
-  a.btn { display: inline-block; margin: 6px 8px 6px 0; padding: 10px 16px; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.9rem; }
+  :root { --bg:#0f0f10; --panel:#1a1a1c; --text:#eee; --muted:#999; --accent:#c9a44a; --ok:#5c5; --border:#333; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); max-width: 900px; margin: 0 auto; padding: 28px 18px 80px; line-height: 1.55; }
+  h1 { font-size: 1.45rem; color: var(--accent); margin: 0 0 8px; }
+  h2 { font-size: 1.1rem; margin: 28px 0 10px; color: var(--accent); }
+  p, li { color: #ccc; }
+  .warn { background: rgba(200,140,40,.15); border: 1px solid rgba(200,140,40,.4); padding: 12px 14px; border-radius: 8px; color: #f0d080; margin: 16px 0; }
+  .okbox { background: rgba(60,160,80,.12); border: 1px solid rgba(60,160,80,.35); padding: 12px 14px; border-radius: 8px; color: #9d9; margin: 16px 0; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li { counter-increment: step; margin: 12px 0; padding-left: 2.2rem; position: relative; }
+  .steps li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--accent); color: #111; font-size: .75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  pre { background: #0a0a0b; border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; max-height: 280px; font-size: 0.72rem; line-height: 1.4; color: #cde; white-space: pre; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  button, a.btn { appearance: none; border: 1px solid var(--border); background: #252528; color: var(--text); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; text-decoration: none; display: inline-block; }
+  button.primary, a.btn.primary { background: var(--accent); color: #141414; border-color: var(--accent); font-weight: 600; }
+  button:hover, a.btn:hover { border-color: var(--accent); }
+  input[type=url], input[type=text] { width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: #111; color: #fff; font-size: 0.9rem; margin: 6px 0 12px; }
+  label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .status { font-size: 0.85rem; min-height: 1.2em; color: var(--ok); }
+  code { background: #222; padding: 1px 6px; border-radius: 4px; font-size: 0.88em; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+  footer { margin-top: 40px; color: var(--muted); font-size: 0.8rem; }
 </style>
 </head>
 <body>
-  <h1>Durable shared store setup</h1>
-  <p class="warn">
-    Phone Safari, desktop Safari, and Chrome must share <strong>one</strong> live database for seats and preferences.
-    Free jsonblob expires in about <strong>24 hours</strong> — too short for an event four weeks out.
-    This Google Apps Script store lasts through August (and beyond), free on your Google account.
-  </p>
+  <h1>Deploy shared store + Sheets webhook</h1>
+  <p>For Claude / Johnny: skip fighting the Apps Script editor with automation. <strong>Copy → paste → deploy</strong> is faster (~5 min total).</p>
+  <div class="warn"><strong>After both /exec URLs exist:</strong> paste them in the boxes at the bottom (or reply in chat). Grok will put them in <code>locations.js</code>, commit as Johnny Harris, and push to GitHub Pages so guest phones use the durable store.</div>
 
-  <h2>3-minute deploy</h2>
-  <ol>
-    <li>Open <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> signed in as <strong>jonray757@gmail.com</strong> (or your BSCG Google).</li>
-    <li><strong>New project</strong> → name it <code>RE Shared Store</code>.</li>
-    <li>Delete any default code. Open <code>re-shared-store.gs</code> from this repo’s <code>tools/</code> folder, copy <strong>all</strong> of it, paste into the editor, <strong>Save</strong>.</li>
-    <li>Top menu: select function <code>setupOnce</code> → <strong>Run</strong>. Approve permissions (Google will warn about unverified app — Advanced → Go to project → Allow).</li>
-    <li>View → <strong>Logs</strong> — confirm a spreadsheet URL was created (keep that sheet; don’t delete it).</li>
-    <li><strong>Deploy</strong> → <strong>New deployment</strong> → type <strong>Web app</strong>:
-      <ul>
-        <li>Execute as: <strong>Me</strong></li>
-        <li>Who has access: <strong>Anyone</strong></li>
-      </ul>
-      Deploy → copy the <code>/exec</code> URL.
-    </li>
-    <li>Command center → <strong>Outreach</strong> → paste into <strong>Durable shared store URL</strong> → <strong>Save integrations</strong> → <strong>Test shared store</strong> (should say OK).</li>
-    <li>Hard-refresh guest form on phone + desktop. Location Report should say <strong>durable Google store</strong>.</li>
-  </ol>
+  <div class="card">
+    <h2 style="margin-top:0">Quick links</h2>
+    <div class="toolbar">
+      <a class="btn primary" href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">New Apps Script project</a>
+      <a class="btn" href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>
+      <a class="btn" href="https://raw.githubusercontent.com/jonray757-hue/retirement-everest/main/tools/re-shared-store.gs" target="_blank" rel="noopener">Raw: re-shared-store.gs</a>
+      <a class="btn" href="https://raw.githubusercontent.com/jonray757-hue/retirement-everest/main/tools/google-sheets-webhook.gs" target="_blank" rel="noopener">Raw: google-sheets-webhook.gs</a>
+      <a class="btn" href="../host.html?view=outreach" target="_blank" rel="noopener">Command center → Outreach</a>
+    </div>
+  </div>
 
-  <p>
-    <a class="btn" href="https://script.google.com" target="_blank" rel="noopener">Open Apps Script</a>
-    <a class="btn" href="../host.html?view=outreach" target="_blank" rel="noopener">Open command center Outreach</a>
-    <a class="btn" href="re-shared-store.gs" target="_blank" rel="noopener">Open re-shared-store.gs</a>
-  </p>
+  <div class="card">
+    <h2 style="margin-top:0">A · Shared store (seats + prefs) — required</h2>
+    <ol class="steps">
+      <li>Open <strong>New Apps Script project</strong> (button above). Name it <code>RE Shared Store</code>.</li>
+      <li>Click in the code editor → Cmd+A → Delete. Click <strong>Copy shared store code</strong> below → Cmd+V into the editor → Save (Cmd+S).</li>
+      <li>Function dropdown → <code>setupOnce</code> → <strong>Run</strong>. Authorize (Advanced → Go to RE Shared Store → Allow). Check <strong>Execution log</strong> for a spreadsheet URL.</li>
+      <li><strong>Deploy</strong> → New deployment → gear → <strong>Web app</strong> → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong> → Deploy.</li>
+      <li>Copy the <code>/exec</code> URL into box 1 below.</li>
+    </ol>
+    <div class="toolbar">
+      <button type="button" class="primary" data-copy="code-store">Copy shared store code</button>
+      <span class="status" id="st-store"></span>
+    </div>
+    <pre id="code-store">/**
+ * Retirement Everest — durable multi-device store (seats + preference log)
+ *
+ * Survives weeks/months (Google Apps Script + Spreadsheet). Replaces jsonblob.
+ *
+ * SETUP (once, ~3 minutes):
+ * 1. https://script.google.com → New project → name it &quot;RE Shared Store&quot;
+ * 2. Paste this entire file, save
+ * 3. Run → setupOnce  (authorize when asked — open spreadsheet link in Logs)
+ * 4. Deploy → New deployment → Web app
+ *      Execute as: Me
+ *      Who has access: Anyone
+ * 5. Copy the /exec URL
+ * 6. Command center → Outreach → paste into &quot;Shared store URL&quot; → Save
+ *    (or set RETIREMENT_EVEREST.sharedStoreUrl in locations.js and redeploy Pages)
+ *
+ * API (JSON, CORS-friendly via redirect mode from browser):
+ *   GET  ?key=seats|orders|health
+ *   POST { key: &quot;seats&quot;|&quot;orders&quot;, data: &lt;object|array&gt; }
+ *   POST { action: &quot;appendOrder&quot;, order: {...} }
+ *   POST { action: &quot;clearOrders&quot;, locationIds: [&quot;kennedy-school-bbq&quot;, ...] }
+ *   POST { action: &quot;stripSeats&quot;, locationIds: [...], seatIds: [&quot;A1&quot;,...] }
+ */
 
-  <h2>Why this instead of jsonblob</h2>
-  <ul>
-    <li>jsonblob free bins were returning <strong>404 after ~1 day</strong> — each browser then used its own localStorage (ghost seats).</li>
-    <li>Apps Script + a Google Sheet is free, CORS-friendly, and stable for multi-week events.</li>
-    <li>Same Google account pattern you already use for the Sheets export webhook.</li>
-  </ul>
+var STORE_SHEET = &#x27;RE_STORE&#x27;;
+var META_KEY = &#x27;re_shared_store_sheet_id&#x27;;
 
-  <h2>After deploy</h2>
-  <p>Optional: also put the same <code>/exec</code> URL into <code>locations.js</code> as <code>sharedStoreUrl</code> so every device gets it without pasting (requires a git commit + Pages deploy). Outreach localStorage is enough for your machines once each browser has saved integrations.</p>
-  <p><strong>Guest phones</strong> don’t load host integrations — they need <code>sharedStoreUrl</code> in <code>locations.js</code> on GitHub Pages. So after you have a working URL, put it in the repo and push.</p>
+function setupOnce() {
+  var ss = SpreadsheetApp.create(&#x27;Retirement Everest — Shared Store&#x27;);
+  var sheet = ss.getSheets()[0];
+  sheet.setName(STORE_SHEET);
+  sheet.getRange(1, 1, 1, 3).setValues([[&#x27;key&#x27;, &#x27;json&#x27;, &#x27;updatedAt&#x27;]]);
+  sheet.getRange(2, 1, 2, 3).setValues([
+    [&#x27;seats&#x27;, JSON.stringify({ v: 1, event: &#x27;kennedy-school-bbq&#x27;, seats: {}, couples: [], accommodations: [] }), new Date().toISOString()],
+    [&#x27;orders&#x27;, &#x27;[]&#x27;, new Date().toISOString()]
+  ]);
+  PropertiesService.getScriptProperties().setProperty(META_KEY, ss.getId());
+  Logger.log(&#x27;Sheet created: &#x27; + ss.getUrl());
+  Logger.log(&#x27;Spreadsheet ID: &#x27; + ss.getId());
+  Logger.log(&#x27;Next: Deploy → New deployment → Web app → Anyone → copy /exec URL&#x27;);
+  return ss.getUrl();
+}
 
-  <p class="ok">Once locations.js has the URL and is pushed, every guest form worldwide uses the durable store automatically.</p>
+function getSheet_() {
+  var id = PropertiesService.getScriptProperties().getProperty(META_KEY);
+  if (!id) {
+    // Prefer bound spreadsheet if this script is container-bound
+    try {
+      var bound = SpreadsheetApp.getActiveSpreadsheet();
+      if (bound) {
+        id = bound.getId();
+        PropertiesService.getScriptProperties().setProperty(META_KEY, id);
+      }
+    } catch (e) {}
+  }
+  if (!id) throw new Error(&#x27;Run setupOnce() once, then Deploy as Web app.&#x27;);
+  var ss = SpreadsheetApp.openById(id);
+  var sheet = ss.getSheetByName(STORE_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(STORE_SHEET);
+    sheet.getRange(1, 1, 1, 3).setValues([[&#x27;key&#x27;, &#x27;json&#x27;, &#x27;updatedAt&#x27;]]);
+  }
+  return sheet;
+}
+
+function readKey_(key) {
+  var sheet = getSheet_();
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i &lt; values.length; i++) {
+    if (String(values[i][0]) === key) {
+      var raw = values[i][1];
+      if (raw === &#x27;&#x27; || raw == null) return key === &#x27;orders&#x27; ? [] : {};
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return key === &#x27;orders&#x27; ? [] : {};
+      }
+    }
+  }
+  return key === &#x27;orders&#x27; ? [] : null;
+}
+
+function writeKey_(key, data) {
+  var sheet = getSheet_();
+  var values = sheet.getDataRange().getValues();
+  var json = JSON.stringify(data);
+  var now = new Date().toISOString();
+  for (var i = 1; i &lt; values.length; i++) {
+    if (String(values[i][0]) === key) {
+      sheet.getRange(i + 1, 2, i + 1, 3).setValues([[json, now]]);
+      return { ok: true, key: key, updatedAt: now, bytes: json.length };
+    }
+  }
+  sheet.appendRow([key, json, now]);
+  return { ok: true, key: key, updatedAt: now, bytes: json.length };
+}
+
+function matchesLocation_(o, locationIds) {
+  if (!o) return false;
+  var ids = locationIds || [];
+  var oid = o.locationId || o.location || &#x27;&#x27;;
+  if (!oid) return false;
+  for (var i = 0; i &lt; ids.length; i++) {
+    if (oid === ids[i]) return true;
+  }
+  // Kennedy parent/child aliases
+  if (ids.indexOf(&#x27;kennedy-school-bbq&#x27;) &gt;= 0 &amp;&amp; oid === &#x27;kennedy-school&#x27;) return true;
+  if (ids.indexOf(&#x27;kennedy-school&#x27;) &gt;= 0 &amp;&amp; oid === &#x27;kennedy-school-bbq&#x27;) return true;
+  return false;
+}
+
+function doGet(e) {
+  try {
+    var key = (e &amp;&amp; e.parameter &amp;&amp; e.parameter.key) || &#x27;health&#x27;;
+    if (key === &#x27;health&#x27;) {
+      return json_({
+        ok: true,
+        service: &#x27;Retirement Everest Shared Store&#x27;,
+        version: 2,
+        durable: true,
+        keys: [&#x27;seats&#x27;, &#x27;orders&#x27;]
+      });
+    }
+    if (key !== &#x27;seats&#x27; &amp;&amp; key !== &#x27;orders&#x27;) {
+      return json_({ ok: false, error: &#x27;Unknown key&#x27; }, 400);
+    }
+    var data = readKey_(key);
+    if (data === null &amp;&amp; key === &#x27;seats&#x27;) {
+      data = { v: 1, event: &#x27;kennedy-school-bbq&#x27;, seats: {}, couples: [], accommodations: [] };
+    }
+    if (data === null &amp;&amp; key === &#x27;orders&#x27;) data = [];
+    return json_({ ok: true, key: key, data: data });
+  } catch (err) {
+    return json_({ ok: false, error: String(err.message || err) });
+  }
+}
+
+function doPost(e) {
+  try {
+    var body = {};
+    if (e &amp;&amp; e.postData &amp;&amp; e.postData.contents) {
+      body = JSON.parse(e.postData.contents);
+    }
+    // Also accept form-encoded fallback
+    if ((!body || !Object.keys(body).length) &amp;&amp; e &amp;&amp; e.parameter) {
+      body = e.parameter;
+      if (body.data &amp;&amp; typeof body.data === &#x27;string&#x27;) {
+        try { body.data = JSON.parse(body.data); } catch (x) {}
+      }
+      if (body.order &amp;&amp; typeof body.order === &#x27;string&#x27;) {
+        try { body.order = JSON.parse(body.order); } catch (x) {}
+      }
+    }
+
+    var action = body.action || &#x27;&#x27;;
+
+    if (action === &#x27;appendOrder&#x27;) {
+      var list = readKey_(&#x27;orders&#x27;) || [];
+      if (!Array.isArray(list)) list = [];
+      list.unshift(body.order || {});
+      list = list.slice(0, 500);
+      writeKey_(&#x27;orders&#x27;, list);
+      return json_({ ok: true, action: &#x27;appendOrder&#x27;, count: list.length });
+    }
+
+    if (action === &#x27;clearOrders&#x27;) {
+      var ids = body.locationIds || [];
+      var all = readKey_(&#x27;orders&#x27;) || [];
+      if (!Array.isArray(all)) all = [];
+      var kept = all.filter(function (o) { return !matchesLocation_(o, ids); });
+      // If clearing BBQ, also drop blank locationId rows (legacy ghosts)
+      var clearingBbq = ids.indexOf(&#x27;kennedy-school-bbq&#x27;) &gt;= 0 || ids.indexOf(&#x27;kennedy-school&#x27;) &gt;= 0;
+      if (clearingBbq) {
+        kept = kept.filter(function (o) {
+          return !!(o &amp;&amp; (o.locationId || o.location));
+        });
+      }
+      writeKey_(&#x27;orders&#x27;, kept);
+      return json_({ ok: true, action: &#x27;clearOrders&#x27;, removed: all.length - kept.length, remaining: kept.length });
+    }
+
+    if (action === &#x27;stripSeats&#x27;) {
+      var seatIds = (body.seatIds || []).map(String);
+      var set = {};
+      seatIds.forEach(function (id) { set[id] = true; });
+      var orders = readKey_(&#x27;orders&#x27;) || [];
+      if (!Array.isArray(orders)) orders = [];
+      var locIds = body.locationIds || [];
+      var next = orders.map(function (o) {
+        if (!o || typeof o !== &#x27;object&#x27;) return o;
+        if (locIds.length &amp;&amp; !matchesLocation_(o, locIds) &amp;&amp; (o.locationId || o.location)) return o;
+        var seats = Array.isArray(o.seats) ? o.seats.map(String) : [];
+        var hit = seats.some(function (s) { return set[s]; });
+        var labelHit = o.seatLabel &amp;&amp; seatIds.some(function (id) {
+          return String(o.seatLabel).indexOf(id) &gt;= 0;
+        });
+        if (!hit &amp;&amp; !labelHit) return o;
+        var copy = JSON.parse(JSON.stringify(o));
+        copy.seats = seats.filter(function (s) { return !set[s]; });
+        if (!copy.seats.length) {
+          delete copy.seats;
+          delete copy.seatLabel;
+        }
+        return copy;
+      });
+      writeKey_(&#x27;orders&#x27;, next);
+      return json_({ ok: true, action: &#x27;stripSeats&#x27;, seatIds: seatIds });
+    }
+
+    var key = body.key;
+    if (key !== &#x27;seats&#x27; &amp;&amp; key !== &#x27;orders&#x27;) {
+      return json_({ ok: false, error: &#x27;POST requires key=seats|orders or action=...&#x27; });
+    }
+    if (typeof body.data === &#x27;undefined&#x27;) {
+      return json_({ ok: false, error: &#x27;Missing data&#x27; });
+    }
+    var result = writeKey_(key, body.data);
+    return json_(result);
+  } catch (err) {
+    return json_({ ok: false, error: String(err.message || err) });
+  }
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+</pre>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">B · Google Sheets webhook — optional export</h2>
+    <ol class="steps">
+      <li>Create a Google Sheet named <code>Retirement Everest Events</code> (any account). Copy the Sheet ID from the URL: <code>/d/<strong>SHEET_ID</strong>/edit</code>.</li>
+      <li>New Apps Script project → name <code>RE Sheets Webhook</code>.</li>
+      <li><strong>Copy Sheets webhook code</strong> → paste → Save.</li>
+      <li>Deploy → Web app → Me / <strong>Anyone</strong> → Deploy → copy <code>/exec</code> URL into box 2.</li>
+      <li>Command center → Outreach → paste webhook URL + Sheet ID → Save. (No need for locations.js unless you want defaults in repo.)</li>
+    </ol>
+    <div class="toolbar">
+      <button type="button" class="primary" data-copy="code-sheets">Copy Sheets webhook code</button>
+      <span class="status" id="st-sheets"></span>
+    </div>
+    <pre id="code-sheets">/**
+ * Retirement Everest — Google Sheets webhook
+ *
+ * Deploy as Web App (Execute as: Me, Access: Anyone)
+ * Paste the /exec URL into host.html → Outreach → Google Sheets webhook URL
+ */
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const sheetId = data.sheetId;
+    if (!sheetId) throw new Error(&#x27;Missing sheetId&#x27;);
+
+    const ss = SpreadsheetApp.openById(sheetId);
+    const tabName = data.sheetName || data.location || &#x27;Orders&#x27;;
+    let sheet = ss.getSheetByName(tabName);
+    if (!sheet) {
+      sheet = ss.insertSheet(tabName);
+    }
+
+    const rows = data.rows || [];
+    if (!rows.length) {
+      return jsonResponse({ ok: true, message: &#x27;No rows&#x27; });
+    }
+
+    const lastRow = sheet.getLastRow();
+    const needsHeader = lastRow === 0;
+    const hasTitleRow = rows[0][0] === &#x27;#&#x27; || rows[0][0] === &#x27;Location&#x27; || rows[0][0] === &#x27;Field&#x27;;
+    const dataRows = needsHeader ? rows : (hasTitleRow ? rows.slice(1) : rows);
+    const startRow = needsHeader ? 1 : lastRow + 1;
+
+    if (needsHeader) {
+      sheet.getRange(1, 1, 1, rows[0].length).setValues([rows[0]]);
+      if (rows.length &gt; 1) {
+        sheet.getRange(2, 1, rows.length - 1, rows[0].length).setValues(rows.slice(1));
+      }
+    } else if (dataRows.length) {
+      sheet.getRange(startRow, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
+    }
+
+    return jsonResponse({ ok: true, tab: tabName, rows: rows.length });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: err.message });
+  }
+}
+
+function doGet() {
+  return jsonResponse({ ok: true, service: &#x27;Retirement Everest Sheets Webhook&#x27;, version: 1 });
+}
+
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">C · Paste URLs (then tell Grok / Claude)</h2>
+    <p style="margin-top:0">Grok can write these into <code>locations.js</code> + push. Guest phones <strong>must</strong> get <code>sharedStoreUrl</code> from the repo (not only host localStorage).</p>
+    <label>1 · Shared store /exec URL (required)</label>
+    <input type="url" id="urlStore" placeholder="https://script.google.com/macros/s/..../exec" autocomplete="off">
+    <label>2 · Sheets webhook /exec URL (optional)</label>
+    <input type="url" id="urlSheets" placeholder="https://script.google.com/macros/s/..../exec" autocomplete="off">
+    <label>3 · Google Sheet ID (optional, with sheets webhook)</label>
+    <input type="text" id="sheetId" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms" autocomplete="off">
+    <div class="toolbar">
+      <button type="button" class="primary" id="btnTestStore">Test shared store</button>
+      <button type="button" id="btnCopyHandoff">Copy handoff message for Grok</button>
+      <span class="status" id="st-test"></span>
+    </div>
+    <div class="okbox" id="handoffPreview" style="display:none;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:0.82rem"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">What Claude should NOT spend time on</h2>
+    <ul>
+      <li>Automating Ace editor select-all/paste in script.google.com (flaky).</li>
+      <li>clasp/gcloud (not installed on this Mac).</li>
+      <li>Renaming projects — optional.</li>
+    </ul>
+    <p><strong>What Claude/Grok can do after URLs exist:</strong> edit <code>locations.js</code> (<code>sharedStoreUrl</code>), optionally defaults in <code>integrations.js</code>, commit author Johnny Harris, push <code>main</code>, verify health GET returns <code>ok: true</code>.</p>
+  </div>
+
+  <footer>
+    Repo: <a href="https://github.com/jonray757-hue/retirement-everest" style="color:var(--accent)">jonray757-hue/retirement-everest</a>
+    · Local: <code>~/Downloads/retirement-everest-multi</code>
+  </footer>
+
+<script>
+function copyFrom(id, statusId) {
+  const el = document.getElementById(id);
+  const text = el.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById(statusId).textContent = 'Copied (' + text.length + ' chars)';
+  }).catch(() => {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+    document.getElementById(statusId).textContent = 'Selected — press Cmd+C';
+  });
+}
+document.querySelectorAll('[data-copy]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.getAttribute('data-copy');
+    copyFrom(id, id === 'code-store' ? 'st-store' : 'st-sheets');
+  });
+});
+document.getElementById('btnTestStore').addEventListener('click', async () => {
+  const url = document.getElementById('urlStore').value.trim();
+  const st = document.getElementById('st-test');
+  if (!url) { st.textContent = 'Paste shared store URL first'; st.style.color = '#e88'; return; }
+  st.textContent = 'Testing…'; st.style.color = '#999';
+  try {
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'key=health&t=' + Date.now(), { mode: 'cors', cache: 'no-store' });
+    const data = await res.json();
+    if (data && data.ok) {
+      st.textContent = 'OK — durable store is live'; st.style.color = '#5c5';
+    } else {
+      st.textContent = 'Responded but not ok: ' + JSON.stringify(data); st.style.color = '#e88';
+    }
+  } catch (e) {
+    st.textContent = 'Failed: ' + e.message + ' (redeploy as Web app, Anyone)'; st.style.color = '#e88';
+  }
+});
+document.getElementById('btnCopyHandoff').addEventListener('click', () => {
+  const store = document.getElementById('urlStore').value.trim();
+  const sheets = document.getElementById('urlSheets').value.trim();
+  const sheetId = document.getElementById('sheetId').value.trim();
+  const msg = [
+    'Wire durable store into retirement-everest and push as Johnny Harris.',
+    '',
+    'sharedStoreUrl:',
+    store || '(missing — deploy re-shared-store.gs first)',
+    '',
+    'googleSheetsWebhookUrl:',
+    sheets || '(optional)',
+    '',
+    'googleSheetId:',
+    sheetId || '(optional)',
+    '',
+    'Update locations.js sharedStoreUrl, optionally integrations.js DEFAULT_INTEGRATIONS,',
+    'commit, push main. Cache-bust host.html/guest.html if needed.',
+    'Repo: https://github.com/jonray757-hue/retirement-everest',
+    'Local: /Users/ramseykoaharris/Downloads/retirement-everest-multi'
+  ].join('\n');
+  const prev = document.getElementById('handoffPreview');
+  prev.style.display = 'block';
+  prev.textContent = msg;
+  navigator.clipboard.writeText(msg).then(() => {
+    document.getElementById('st-test').textContent = 'Handoff message copied';
+    document.getElementById('st-test').style.color = '#5c5';
+  });
+});
+</script>
 </body>
 </html>
