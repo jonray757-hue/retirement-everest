@@ -2,14 +2,53 @@
  * Seat reservations — Kennedy School BBQ (Martha Jordan Room).
  * Round 10-top tables seating 8 (the 2 screen-side chairs are removed so no
  * one's back faces the screen). Tables A–D in an arch facing the screen.
- * Live shared state via jsonblob so every guest phone + the command center
- * see seat blackouts in real time.
+ *
+ * Live shared state: durable Google Apps Script store (RESharedStore) preferred.
+ * jsonblob fallback only if sharedStoreUrl is not configured (expires ~24h).
  */
 (function (global) {
   const SEATS_BLOB =
     (global.RETIREMENT_EVEREST && global.RETIREMENT_EVEREST.seatsBlobId) ||
     '019faaca-6bf5-7f2b-a3d5-1b92f1c0387d';
   const apiUrl = (id) => `https://jsonblob.com/api/jsonBlob/${id || SEATS_BLOB}`;
+
+  function useDurableStore() {
+    return !!(global.RESharedStore && global.RESharedStore.isConfigured && global.RESharedStore.isConfigured());
+  }
+
+  async function remoteGetSeats() {
+    if (useDurableStore()) {
+      return global.RESharedStore.fetchSeats();
+    }
+    const res = await fetch(apiUrl() + '?t=' + Date.now(), {
+      method: 'GET',
+      mode: 'cors',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error('Seats HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.error) throw new Error(String(data.error));
+    return data;
+  }
+
+  async function remotePutSeats(clean) {
+    if (useDurableStore()) {
+      await global.RESharedStore.putSeats(clean);
+      return clean;
+    }
+    const res = await fetch(apiUrl(), {
+      method: 'PUT',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(clean)
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error('Seats write HTTP ' + res.status + (text ? ': ' + text : ''));
+    }
+    return clean;
+  }
 
   /* ---------------- Layout ---------------- */
   const TABLES = ['A', 'B', 'C', 'D'];
@@ -236,16 +275,7 @@
     let offline = false;
 
     try {
-      const res = await fetch(apiUrl() + '?t=' + Date.now(), {
-        method: 'GET',
-        mode: 'cors',
-        headers: { Accept: 'application/json' },
-        cache: 'no-store'
-      });
-      if (!res.ok) throw new Error('Seats HTTP ' + res.status);
-      const data = await res.json();
-      if (data && data.error) throw new Error(String(data.error));
-      remote = normalize(data);
+      remote = normalize(await remoteGetSeats());
     } catch (e) {
       console.warn('[RE] seat fetch failed — offline mode', e);
       offline = true;
@@ -285,16 +315,7 @@
     delete clean.offline;
     // Always persist intentional writes — including empty seat maps after release/clear
     writeLocalCache(clean, { force: true });
-    const res = await fetch(apiUrl(), {
-      method: 'PUT',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(clean)
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error('Seats write HTTP ' + res.status + (text ? ': ' + text : ''));
-    }
+    await remotePutSeats(clean);
     return clean;
   }
 

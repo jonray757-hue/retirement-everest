@@ -10,6 +10,8 @@ const DEFAULT_INTEGRATIONS = {
   googleSheetsWebhookUrl: '',
   googleSheetId: '',
   defaultSheetTab: 'Orders',
+  /* Durable multi-device seats + prefs — Google Apps Script web app /exec URL */
+  sharedStoreUrl: '',
   organizerName: 'Johnny Harris',
   organizerEmail: 'johnny@blacksandcapitalgroup.com',
   organizerPhone: '9715702438'

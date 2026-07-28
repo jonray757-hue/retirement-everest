@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RE Shared Store Setup</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.55; color: #1a1a1a; }
+  h1 { font-size: 1.5rem; }
+  code, pre { background: #f4f4f4; border-radius: 6px; }
+  code { padding: 2px 6px; font-size: 0.9em; }
+  pre { padding: 14px; overflow: auto; font-size: 0.82rem; }
+  ol { padding-left: 1.3rem; }
+  li { margin: 10px 0; }
+  .ok { color: #0a7; font-weight: 600; }
+  .warn { background: #fff6e5; border: 1px solid #f0c060; padding: 12px 14px; border-radius: 8px; }
+  a.btn { display: inline-block; margin: 6px 8px 6px 0; padding: 10px 16px; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+  <h1>Durable shared store setup</h1>
+  <p class="warn">
+    Phone Safari, desktop Safari, and Chrome must share <strong>one</strong> live database for seats and preferences.
+    Free jsonblob expires in about <strong>24 hours</strong> — too short for an event four weeks out.
+    This Google Apps Script store lasts through August (and beyond), free on your Google account.
+  </p>
+
+  <h2>3-minute deploy</h2>
+  <ol>
+    <li>Open <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> signed in as <strong>jonray757@gmail.com</strong> (or your BSCG Google).</li>
+    <li><strong>New project</strong> → name it <code>RE Shared Store</code>.</li>
+    <li>Delete any default code. Open <code>re-shared-store.gs</code> from this repo’s <code>tools/</code> folder, copy <strong>all</strong> of it, paste into the editor, <strong>Save</strong>.</li>
+    <li>Top menu: select function <code>setupOnce</code> → <strong>Run</strong>. Approve permissions (Google will warn about unverified app — Advanced → Go to project → Allow).</li>
+    <li>View → <strong>Logs</strong> — confirm a spreadsheet URL was created (keep that sheet; don’t delete it).</li>
+    <li><strong>Deploy</strong> → <strong>New deployment</strong> → type <strong>Web app</strong>:
+      <ul>
+        <li>Execute as: <strong>Me</strong></li>
+        <li>Who has access: <strong>Anyone</strong></li>
+      </ul>
+      Deploy → copy the <code>/exec</code> URL.
+    </li>
+    <li>Command center → <strong>Outreach</strong> → paste into <strong>Durable shared store URL</strong> → <strong>Save integrations</strong> → <strong>Test shared store</strong> (should say OK).</li>
+    <li>Hard-refresh guest form on phone + desktop. Location Report should say <strong>durable Google store</strong>.</li>
+  </ol>
+
+  <p>
+    <a class="btn" href="https://script.google.com" target="_blank" rel="noopener">Open Apps Script</a>
+    <a class="btn" href="../host.html?view=outreach" target="_blank" rel="noopener">Open command center Outreach</a>
+    <a class="btn" href="re-shared-store.gs" target="_blank" rel="noopener">Open re-shared-store.gs</a>
+  </p>
+
+  <h2>Why this instead of jsonblob</h2>
+  <ul>
+    <li>jsonblob free bins were returning <strong>404 after ~1 day</strong> — each browser then used its own localStorage (ghost seats).</li>
+    <li>Apps Script + a Google Sheet is free, CORS-friendly, and stable for multi-week events.</li>
+    <li>Same Google account pattern you already use for the Sheets export webhook.</li>
+  </ul>
+
+  <h2>After deploy</h2>
+  <p>Optional: also put the same <code>/exec</code> URL into <code>locations.js</code> as <code>sharedStoreUrl</code> so every device gets it without pasting (requires a git commit + Pages deploy). Outreach localStorage is enough for your machines once each browser has saved integrations.</p>
+  <p><strong>Guest phones</strong> don’t load host integrations — they need <code>sharedStoreUrl</code> in <code>locations.js</code> on GitHub Pages. So after you have a working URL, put it in the repo and push.</p>
+
+  <p class="ok">Once locations.js has the URL and is pushed, every guest form worldwide uses the durable store automatically.</p>
+</body>
+</html>

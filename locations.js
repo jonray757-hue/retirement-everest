@@ -8,9 +8,15 @@ window.RETIREMENT_EVEREST = {
   ghlBrand: 'HAG',
   /* Shared multi-device order log (command center + guest). jsonblob.com CORS store.
      Free blobs expire if idle — if host/guest stop syncing, recreate and update these IDs. */
-  /* Shared multi-device preference log (jsonblob). Recreate if GET returns 404. */
+  /**
+   * Durable multi-device store (seats + preference log).
+   * Google Apps Script web app /exec URL — see tools/re-shared-store.gs
+   * Also savable in command center → Outreach (preferred for quick setup).
+   * Until set, falls back to short-lived jsonblob (NOT safe for 4+ week events).
+   */
+  sharedStoreUrl: '',
+  /* Legacy jsonblob fallbacks only (expire ~24h) */
   sharedOrdersBlobId: '019faaca-6d9a-7cda-8085-3cd63ebda2bf',
-  /* Live seat reservations (Kennedy BBQ) — jsonblob shared across devices */
   seatsBlobId: '019faaca-6bf5-7f2b-a3d5-1b92f1c0387d',
   /* Email Johnny a preference report on every guest submit */
   reportEmail: 'johnny@blacksandcapitalgroup.com',

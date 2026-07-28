@@ -1,4 +1,4 @@
-# Integrations — GHL & Google Sheets
+# Integrations — Shared store, GHL & Google Sheets
 
 ## Overview
 
@@ -7,6 +7,21 @@ The command center **Outreach** tab stores webhook URLs in your browser. When yo
 1. Open `host.html` → **Outreach**
 2. Paste your webhook URLs → **Save integrations**
 3. Use **Export ▾** on location reports or **Send guest link** for invites
+
+---
+
+## Durable shared store (seats + preferences) — required for multi-device
+
+Guest phones and the command center must share **one** live database. Free jsonblob bins expire in ~24 hours and caused Safari/Chrome/phone to disagree.
+
+**Use Google Apps Script** (`tools/re-shared-store.gs`) — free, lasts through the Aug 27 event.
+
+1. Open [setup guide](../tools/setup-shared-store.html) or `tools/setup-shared-store.html`
+2. Deploy web app (Execute as Me, access **Anyone**) → copy `/exec` URL
+3. Paste into Outreach → **Durable shared store URL** → Save → **Test shared store**
+4. **Also** put that URL in `locations.js` as `sharedStoreUrl` and push to GitHub so **guest** devices get it without host localStorage
+
+Until `sharedStoreUrl` is set on the live site, the app falls back to short-lived jsonblob.
 
 ---
 

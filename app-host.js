@@ -422,15 +422,17 @@ async function renderReport() {
   }
   const seatClaimN = liveSeats ? Object.keys(liveSeats.seats || {}).length : 0;
   const share = renderShareBar(loc);
+  const durable = !!(window.RESharedStore?.isConfigured?.());
   const syncBadge = reportLoc.bbqMenuPick
     ? seatsOnline
-      ? `<span style="color:#6d6;font-weight:600">● Seats sync online</span> · <strong style="color:var(--text)">${seatClaimN}</strong> reserved`
-      : `<span style="color:#e88;font-weight:600">● Seats sync offline</span> — guest phones may show different charts until the shared store is back`
+      ? `<span style="color:#6d6;font-weight:600">● Seats sync online</span> · <strong style="color:var(--text)">${seatClaimN}</strong> reserved · ${durable ? 'durable Google store' : '<span style="color:#e8a">jsonblob fallback (expires ~24h — set Shared store URL)</span>'}`
+      : `<span style="color:#e88;font-weight:600">● Seats sync offline</span> — ${durable ? 'check Apps Script deploy' : 'configure durable shared store (Outreach)'}`
     : '';
   const syncNote = `<div class="card-box" style="margin-bottom:16px;font-size:0.85rem;color:var(--muted)">
     <strong style="color:var(--text)">Shared state</strong> ·
     Showing <strong style="color:var(--text)">${orders.length}</strong> preference submission(s) from the shared log (+ this browser).
     ${syncBadge ? `<div style="margin-top:8px">${syncBadge}</div>` : ''}
+    ${!durable ? `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(224,130,50,0.15);color:#f0c080;font-size:0.82rem"><strong>Action needed:</strong> Deploy the durable store (lasts through Aug 27). Open <a href="tools/setup-shared-store.html" style="color:var(--accent)">Shared store setup</a> → paste URL under Outreach. jsonblob is only a 24h emergency fallback.</div>` : ''}
     <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
       <button type="button" class="btn-sm" id="btnRefreshShared">Refresh shared log</button>
       ${reportLoc.bbqMenuPick ? `<button type="button" class="btn-sm btn-accent" id="btnPublishSeats">Publish this browser → guest map</button>` : ''}
@@ -1018,6 +1020,9 @@ function renderOutreach() {
         <h3>Integrations</h3>
         <p class="integration-note">Primary send is <strong>Email them / Text them</strong> (opens your Mail &amp; Messages apps). HAG GHL webhook is optional for automation — location <code>24UgqDfh5TcJs5IPnA25</code>.</p>
         <div class="planner-form" style="margin-top:16px">
+          <label class="planner-field full"><span>Durable shared store URL (seats + prefs across phones)</span>
+            <input type="url" id="intSharedStore" value="${esc(cfg.sharedStoreUrl || '')}" placeholder="https://script.google.com/macros/s/.../exec"></label>
+          <p class="integration-note" style="margin-top:0">Required for multi-device seating. Deploy <code>tools/re-shared-store.gs</code> as a Google Apps Script web app (Anyone). See setup steps below the save button.</p>
           <label class="planner-field full"><span>HAG GHL inbound webhook URL</span>
             <input type="url" id="intGhl" value="${esc(cfg.ghlWebhookUrl)}" placeholder="https://services.leadconnectorhq.com/hooks/..."></label>
           <label class="planner-field full"><span>Google Sheets webhook URL</span>
@@ -1033,7 +1038,9 @@ function renderOutreach() {
         </div>
         <div class="planner-actions">
           <button type="button" class="lock-btn" id="saveIntegrationsBtn" style="max-width:none;width:auto;padding:12px 24px">Save integrations</button>
-          <a class="btn-sm" href="docs/INTEGRATIONS.md" target="_blank" style="text-decoration:none">Setup guide ↗</a>
+          <button type="button" class="btn-sm btn-accent" id="testSharedStoreBtn">Test shared store</button>
+          <a class="btn-sm" href="tools/setup-shared-store.html" target="_blank" style="text-decoration:none">Shared store setup ↗</a>
+          <a class="btn-sm" href="docs/INTEGRATIONS.md" target="_blank" style="text-decoration:none">Integrations guide ↗</a>
         </div>
       </div>
       <div class="card-box">
@@ -1051,6 +1058,7 @@ function renderOutreach() {
 
   document.getElementById('saveIntegrationsBtn').addEventListener('click', () => {
     saveIntegrations({
+      sharedStoreUrl: document.getElementById('intSharedStore').value.trim(),
       ghlWebhookUrl: document.getElementById('intGhl').value.trim(),
       googleSheetsWebhookUrl: document.getElementById('intSheets').value.trim(),
       googleSheetId: document.getElementById('intSheetId').value.trim(),
@@ -1058,6 +1066,28 @@ function renderOutreach() {
       organizerName: document.getElementById('intOrgName').value.trim(),
       organizerEmail: document.getElementById('intOrgEmail').value.trim()
     });
-    alert('Integrations saved.');
+    // Mirror into runtime so guest tabs opened later on this browser pick it up immediately
+    if (typeof RETIREMENT_EVEREST !== 'undefined') {
+      RETIREMENT_EVEREST.sharedStoreUrl = document.getElementById('intSharedStore').value.trim();
+    }
+    alert('Integrations saved.' + (document.getElementById('intSharedStore').value.trim()
+      ? '\n\nShared store URL is set — hard-refresh guest form on each device once after deploy.'
+      : '\n\nWARNING: No shared store URL — seats still use short-lived jsonblob.'));
+  });
+  document.getElementById('testSharedStoreBtn')?.addEventListener('click', async () => {
+    const url = document.getElementById('intSharedStore').value.trim();
+    if (url) {
+      saveIntegrations({ sharedStoreUrl: url });
+      if (typeof RETIREMENT_EVEREST !== 'undefined') RETIREMENT_EVEREST.sharedStoreUrl = url;
+    }
+    if (!window.RESharedStore?.health) {
+      return alert('shared-store.js not loaded — hard-refresh command center.');
+    }
+    const h = await RESharedStore.health();
+    if (h.ok) {
+      alert('Shared store OK (durable).\n\n' + JSON.stringify(h.raw || h, null, 2));
+    } else {
+      alert('Shared store NOT ready.\n\n' + (h.error || 'unknown') + '\n\nOpen Shared store setup and deploy tools/re-shared-store.gs as a Web app (Anyone).');
+    }
   });
 }

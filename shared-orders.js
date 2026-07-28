@@ -1,7 +1,7 @@
 /**
  * Shared preference log — multi-device command center + guest writes.
- * Uses jsonblob.com (CORS) so host browser and guest browsers share one list.
- * Host also merges into localStorage so reports persist after first sync.
+ * Durable store: Google Apps Script (RESharedStore) when configured.
+ * Fallback: jsonblob (short-lived — only if sharedStoreUrl not set).
  */
 (function (global) {
   const DEFAULT_BLOB =
@@ -10,6 +10,10 @@
 
   function blobUrl(id) {
     return `https://jsonblob.com/api/jsonBlob/${id || DEFAULT_BLOB}`;
+  }
+
+  function useDurableStore() {
+    return !!(global.RESharedStore && global.RESharedStore.isConfigured && global.RESharedStore.isConfigured());
   }
 
   function reportEmail() {
@@ -35,25 +39,29 @@
   }
 
   async function fetchSharedOrders(locationId) {
-    const id = global.RETIREMENT_EVEREST?.sharedOrdersBlobId || DEFAULT_BLOB;
-    const res = await fetch(blobUrl(id) + '?t=' + Date.now(), {
-      method: 'GET',
-      mode: 'cors',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store'
-    });
-    if (!res.ok) throw new Error('Shared log HTTP ' + res.status);
-    let data = await res.json();
-    if (data && data.error) throw new Error(String(data.error));
-    if (!Array.isArray(data)) data = data?.orders || [];
-    if (!Array.isArray(data)) data = [];
+    let data = [];
+    if (useDurableStore()) {
+      data = await global.RESharedStore.fetchOrders();
+    } else {
+      const id = global.RETIREMENT_EVEREST?.sharedOrdersBlobId || DEFAULT_BLOB;
+      const res = await fetch(blobUrl(id) + '?t=' + Date.now(), {
+        method: 'GET',
+        mode: 'cors',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error('Shared log HTTP ' + res.status);
+      let raw = await res.json();
+      if (raw && raw.error) throw new Error(String(raw.error));
+      if (!Array.isArray(raw)) raw = raw?.orders || [];
+      data = Array.isArray(raw) ? raw : [];
+    }
     if (locationId) {
       data = data.filter(
         (o) =>
           !o.locationId ||
           o.locationId === locationId ||
           o.location === locationId ||
-          // parent venue kennedy-school should see bbq submits
           (locationId === 'kennedy-school-bbq' && o.locationId === 'kennedy-school') ||
           (locationId === 'kennedy-school' &&
             (o.locationId === 'kennedy-school-bbq' || o.location === 'kennedy-school-bbq'))
@@ -63,10 +71,13 @@
   }
 
   async function putSharedOrders(list) {
-    const id = global.RETIREMENT_EVEREST?.sharedOrdersBlobId || DEFAULT_BLOB;
-    const url = blobUrl(id);
     const body = Array.isArray(list) ? list.slice(0, 500) : [];
-    const put = await fetch(url, {
+    if (useDurableStore()) {
+      await global.RESharedStore.putOrders(body);
+      return body;
+    }
+    const id = global.RETIREMENT_EVEREST?.sharedOrdersBlobId || DEFAULT_BLOB;
+    const put = await fetch(blobUrl(id), {
       method: 'PUT',
       mode: 'cors',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -77,32 +88,24 @@
   }
 
   async function appendSharedOrder(order) {
-    const id = global.RETIREMENT_EVEREST?.sharedOrdersBlobId || DEFAULT_BLOB;
-    const url = blobUrl(id);
+    if (useDurableStore()) {
+      await global.RESharedStore.appendOrder(order);
+      return true;
+    }
     let list = [];
     try {
-      const res = await fetch(url + '?t=' + Date.now(), {
-        method: 'GET',
-        mode: 'cors',
-        headers: { Accept: 'application/json' },
-        cache: 'no-store'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        list = Array.isArray(data) ? data : data?.orders || [];
-      }
+      list = await fetchSharedOrders();
     } catch (_) {
       list = [];
     }
     list.unshift(order);
-    // Cap log size
     list = list.slice(0, 500);
     return putSharedOrders(list);
   }
 
   /**
-   * Host: push this browser's preference log into the shared blob when local
-   * is richer (e.g. after a blob expiry wiped the remote list).
+   * Host: push this browser's preference log into the shared store when local
+   * is richer (explicit publish only — not on every report load).
    */
   async function publishLocalOrdersForLocation(loc) {
     if (!loc?.storageKey) return [];
@@ -112,8 +115,9 @@
     } catch (_) {
       local = [];
     }
-    // Also pull any legacy storage keys if present
     const legacyKeys = [
+      'kennedyschool_bbq_prefs_v5',
+      'kennedyschool_bbq_prefs_v4',
       'kennedyschool_bbq_prefs_v3',
       'kennedyschool_bbq_prefs_v2',
       'kennedyschool_bbq_prefs_v1'
@@ -142,7 +146,6 @@
     return merged;
   }
 
-  /** Email Johnny a plain report (FormSubmit). First use may require email confirm from FormSubmit. */
   async function emailHostReport(order, extra) {
     const to = reportEmail();
     const summary =
@@ -194,9 +197,6 @@
     return { ok: res.ok, body: text };
   }
 
-  /**
-   * Host helper: localStorage + remote shared log, then persist merged to localStorage.
-   */
   async function loadOrdersForLocation(loc) {
     const key = loc.storageKey;
     const local = JSON.parse(localStorage.getItem(key) || '[]');
@@ -220,14 +220,9 @@
     if (loc.slug === 'kennedy-school') ids.push('kennedy-school-bbq');
     if (loc.slug === 'kennedy-school-bbq') ids.push('kennedy-school');
     const oid = o.locationId || o.location || '';
-    // Require an explicit location match — never treat blank locationId as "all"
     return !!oid && ids.includes(oid);
   }
 
-  /**
-   * Remove seat assignments from preference rows (so release is not re-healed
-   * from the shared order log on next fetch).
-   */
   async function stripSeatsFromOrders(loc, seatIds) {
     const ids = new Set((seatIds || []).map(String));
     if (!ids.size || !loc?.storageKey) return [];
@@ -246,18 +241,6 @@
         if (!next.seats.length) {
           delete next.seats;
           delete next.seatLabel;
-        } else if (typeof next.seatLabel === 'string') {
-          ids.forEach((id) => {
-            next.seatLabel = next.seatLabel
-              .replace(new RegExp('\\b' + id + '\\b', 'gi'), '')
-              .replace(/\s*&\s*$/, '')
-              .replace(/^\s*&\s*/, '')
-              .replace(/\s{2,}/g, ' ')
-              .trim();
-          });
-          if (!next.seatLabel || /^Table\s+[A-D]\s*·?\s*Seats?\s*$/i.test(next.seatLabel)) {
-            delete next.seatLabel;
-          }
         }
         return next;
       });
@@ -273,6 +256,18 @@
       localStorage.setItem(loc.storageKey, JSON.stringify(local));
     } catch (_) {}
 
+    if (useDurableStore() && global.RESharedStore.storeAction) {
+      try {
+        await global.RESharedStore.storeAction('stripSeats', {
+          seatIds: [...ids],
+          locationIds: [loc.id, loc.slug, loc.guestSlug].filter(Boolean)
+        });
+        return await fetchSharedOrders(loc.id || loc.slug);
+      } catch (e) {
+        console.warn('[RE] stripSeats durable action failed, falling back', e);
+      }
+    }
+
     try {
       const all = await fetchSharedOrders();
       const next = all.map((o) => (matchesLocation(o, loc) ? scrub([o])[0] : o));
@@ -284,15 +279,10 @@
     }
   }
 
-  /**
-   * Clear preference log for one location (localStorage + shared blob rows).
-   * Leaves other locations' rows intact in the shared log.
-   */
   async function clearOrdersForLocation(loc) {
     if (!loc?.storageKey) return { local: 0, remoteRemoved: 0 };
 
     const keys = [loc.storageKey];
-    // Only BBQ-related locations touch legacy Kennedy preference keys
     if (
       loc.bbqMenuPick ||
       loc.slug === 'kennedy-school' ||
@@ -300,6 +290,8 @@
       /kennedyschool_bbq/i.test(loc.storageKey || '')
     ) {
       keys.push(
+        'kennedyschool_bbq_prefs_v5',
+        'kennedyschool_bbq_prefs_v4',
         'kennedyschool_bbq_prefs_v3',
         'kennedyschool_bbq_prefs_v2',
         'kennedyschool_bbq_prefs_v1'
@@ -319,10 +311,20 @@
     });
 
     let remoteRemoved = 0;
+    if (useDurableStore() && global.RESharedStore.storeAction) {
+      try {
+        const r = await global.RESharedStore.storeAction('clearOrders', {
+          locationIds: [loc.id, loc.slug, loc.guestSlug, 'kennedy-school', 'kennedy-school-bbq'].filter(Boolean)
+        });
+        remoteRemoved = r.removed || 0;
+        return { local: localCount, remoteRemoved };
+      } catch (e) {
+        console.warn('[RE] clearOrders durable action failed', e);
+      }
+    }
+
     try {
       const all = await fetchSharedOrders();
-      // Also drop rows with no locationId when clearing the primary BBQ event —
-      // those rows match every location filter and re-seed seats after clear.
       const isBbq =
         loc.bbqMenuPick ||
         loc.slug === 'kennedy-school' ||
@@ -350,6 +352,7 @@
     emailHostReport,
     loadOrdersForLocation,
     stripSeatsFromOrders,
-    clearOrdersForLocation
+    clearOrdersForLocation,
+    useDurableStore
   };
 })(typeof window !== 'undefined' ? window : globalThis);
