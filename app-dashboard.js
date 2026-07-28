@@ -290,6 +290,7 @@ function switchHostView(view) {
     view === 'overview' ? 'Series Overview'
     : view === 'venues' ? 'Venue CRM'
     : view === 'planner' ? 'Event Planner'
+    : view === 'contacts' ? 'Contacts'
     : view === 'outreach' ? 'Outreach & Integrations'
     : `${getLoc().shortName} · Report`;
 
@@ -297,5 +298,6 @@ function switchHostView(view) {
   if (view === 'venues') renderVenueCrm();
   if (view === 'planner') renderPlanner();
   if (view === 'location') renderReport();
+  if (view === 'contacts') renderContacts();
   if (view === 'outreach') renderOutreach();
 }

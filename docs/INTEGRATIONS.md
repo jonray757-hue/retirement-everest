@@ -115,6 +115,57 @@ Until GHL is connected for invites, use **Email them** / **Text them** — they 
 
 ---
 
+## Contacts tab (command center)
+
+**Contacts** merges three sources into one directory:
+
+| Source | How it appears |
+|--------|----------------|
+| Guest form submits | Status **registered** — name, email, phone, full food/seat preferences |
+| Invite queue / Send guest link | Status **invited** |
+| **+ Add contact** | Status **talking** — people you're emailing/texting about events (position, company, notes) |
+
+### Quick connect (Email / Text via GHL)
+
+Does **not** open Mac Mail or Messages. It POSTs to the same HAG inbound webhook:
+
+```json
+{
+  "event": "host_quick_connect",
+  "channel": "sms",
+  "sendSms": "yes",
+  "sendEmail": "no",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "email": "jane@example.com",
+  "phone": "5035550100",
+  "position": "Advisor",
+  "company": "Acme Wealth",
+  "subject": "Retirement Everest — Kennedy School",
+  "message": "Hi Jane, …",
+  "sms": "Hi Jane, …",
+  "location": "kennedy-school",
+  "locationName": "Kennedy School",
+  "preferencesSummary": "…",
+  "source": "retirement-everest-contacts"
+}
+```
+
+**GHL workflow (required for delivery):**
+
+1. Trigger: **Inbound Webhook** (same HAG hook URL)
+2. **Create/Update Contact** — map `firstName`, `lastName`, `email`, `phone`, optional `position` → title
+3. **If/Else** on `{{event}}` or a custom field you map from `event`:
+   - If `host_quick_connect` **and** `channel` = `sms` → **Send SMS** body = `{{message}}` or `{{sms}}`
+   - If `host_quick_connect` **and** `channel` = `email` → **Send Email** subject = `{{subject}}`, body = `{{message}}`
+4. Keep existing branches for `preference_submitted` and `invite_queued`
+
+Without the Send SMS / Send Email actions, contacts still update in GHL but nothing is delivered.
+
+Open: `host.html?view=contacts`
+
+---
+
 ## Marketing kit
 
 `marketing-kit.html` — browse flyers, mailers, and digital ad creatives per location. Selections save in your browser. Use **Print / PDF** to export.

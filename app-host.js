@@ -23,7 +23,7 @@ function initHost() {
   /* Show location selector in prominent topbar position */
   document.getElementById('loc-topbar').style.display = 'flex';
   const p = new URLSearchParams(location.search);
-  const startView = ['overview', 'venues', 'location', 'planner', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
+  const startView = ['overview', 'venues', 'location', 'planner', 'contacts', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
   currentSlug = p.get('location') || 'kennedy-school';
   // If someone deep-linked to guest-only BBQ page, show parent Kennedy School
   if (RETIREMENT_EVEREST.locations[currentSlug]?.guestOnly) {
@@ -737,6 +737,7 @@ function sendInviteEmail() {
   const body = encodeURIComponent(inv.message);
   window.location.href = `mailto:${inv.email}?subject=${subject}&body=${body}`;
   saveInvite({ ...inv, status: 'email-opened' });
+  if (window.REContacts?.recordInviteAsContact) REContacts.recordInviteAsContact({ ...inv, status: 'email-opened' });
 }
 
 function sendInviteSMS() {
@@ -746,6 +747,7 @@ function sendInviteSMS() {
   const smsBody = encodeURIComponent(inv.sms || inv.message);
   window.location.href = `sms:${digits}?&body=${smsBody}`;
   saveInvite({ ...inv, status: 'sms-opened' });
+  if (window.REContacts?.recordInviteAsContact) REContacts.recordInviteAsContact({ ...inv, status: 'sms-opened' });
 }
 
 function copyGuestLinkOnly() {
@@ -757,12 +759,14 @@ function copyInvite() {
   const inv = buildInviteRecord();
   copyText(inv.message).then(() => alert('Full invite message copied — paste into email or text.'));
   saveInvite({ ...inv, status: 'copied' });
+  if (window.REContacts?.recordInviteAsContact) REContacts.recordInviteAsContact({ ...inv, status: 'copied' });
 }
 
 async function queueInvite() {
   const inv = buildInviteRecord();
   if (!inv.firstName && !inv.email && !inv.phone) return alert('Enter at least a name, email, or phone.');
   saveInvite(inv);
+  if (window.REContacts?.recordInviteAsContact) REContacts.recordInviteAsContact(inv);
   try {
     await pushToGHL(inv);
     alert('Saved to queue and sent to HAG GHL webhook.\n\nFor a simple send, use Email them or Text them — opens Mail / Messages with the BBQ link ready.');
@@ -770,6 +774,7 @@ async function queueInvite() {
     alert('Saved to invite queue. GHL webhook failed or not mapped yet — use Email them or Text them to send now.');
   }
   if (document.getElementById('view-outreach').classList.contains('active')) renderOutreach();
+  if (document.getElementById('view-contacts')?.classList.contains('active')) renderContacts();
   closeInviteModal();
 }
 

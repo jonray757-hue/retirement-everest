@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Retirement Everest — Command Center</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<link rel="stylesheet" href="styles.css?v=20260727b">
+<link rel="stylesheet" href="styles.css?v=20260727c">
 </head>
 <body class="theme-hub">
 <div id="report" style="display:none">
@@ -21,6 +21,7 @@
         <button type="button" class="host-tab" data-view="venues">Venue CRM</button>
         <button type="button" class="host-tab" data-view="location">Location Report</button>
         <button type="button" class="host-tab" data-view="planner">Event Planner</button>
+        <button type="button" class="host-tab" data-view="contacts">Contacts</button>
         <button type="button" class="host-tab" data-view="outreach">Outreach</button>
       </nav>
     </div>
@@ -52,7 +53,53 @@
       <div id="report-body"></div>
     </div>
     <div id="view-planner" class="host-view"></div>
+    <div id="view-contacts" class="host-view"></div>
     <div id="view-outreach" class="host-view"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="contactEditModal">
+  <div class="modal-box">
+    <h2 id="contactEditTitle">Add contact</h2>
+    <p class="modal-sub">People you're talking to about events — name, phone, email, role/position.</p>
+    <input type="hidden" id="ctId">
+    <div class="modal-field"><span>First name</span><input type="text" id="ctFirst" autocomplete="given-name"></div>
+    <div class="modal-field"><span>Last name</span><input type="text" id="ctLast" autocomplete="family-name"></div>
+    <div class="modal-field"><span>Email</span><input type="email" id="ctEmail" autocomplete="email"></div>
+    <div class="modal-field"><span>Phone</span><input type="tel" id="ctPhone" autocomplete="tel"></div>
+    <div class="modal-field"><span>Position / title</span><input type="text" id="ctPosition" placeholder="e.g. Advisor, Office Manager"></div>
+    <div class="modal-field"><span>Company</span><input type="text" id="ctCompany" placeholder="Optional"></div>
+    <div class="modal-field"><span>Event</span><select id="ctLocation"></select></div>
+    <div class="modal-field"><span>Status</span>
+      <select id="ctStatus">
+        <option value="talking">Talking / pipeline</option>
+        <option value="invited">Invited</option>
+        <option value="registered">Registered</option>
+        <option value="prospect">Prospect</option>
+      </select>
+    </div>
+    <div class="modal-field"><span>Notes</span><textarea id="ctNotes" rows="3" placeholder="Conversation notes…"></textarea></div>
+    <div class="modal-actions">
+      <button type="button" class="lock-btn btn-accent" onclick="saveContactFromModal()">Save contact</button>
+      <button type="button" class="lock-btn" onclick="closeContactEditModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="connectModal">
+  <div class="modal-box">
+    <h2 id="connectModalTitle">Connect via GHL</h2>
+    <p class="modal-sub" id="connectModalSub">Message is sent through HAG GoHighLevel (SMS or email workflow).</p>
+    <div class="modal-field" id="connectSubjectWrap"><span>Email subject</span><input type="text" id="connectSubject"></div>
+    <div class="modal-field"><span>Message</span><textarea id="connectMessage" rows="8"></textarea></div>
+    <div class="modal-actions">
+      <button type="button" class="lock-btn btn-accent" id="connectSendBtn" onclick="submitConnectViaGHL()">Send via GHL</button>
+      <button type="button" class="lock-btn" onclick="closeConnectModal()">Cancel</button>
+    </div>
+    <p class="integration-note" style="margin-top:14px">
+      Does <strong>not</strong> open Mail or Messages on this Mac — GHL must send the SMS/email.
+      Workflow trigger: inbound webhook with <code>event = host_quick_connect</code>.
+    </p>
   </div>
 </div>
 
@@ -86,17 +133,19 @@
   </div>
 </div>
 
-<script src="locations.js?v=20260727b"></script>
-<script src="checklist-defaults.js?v=20260727b"></script>
-<script src="data/venue-crm.js?v=20260727b"></script>
-<script src="integrations.js?v=20260727b"></script>
-<script src="shared.js?v=20260727b"></script>
-<script src="shared-orders.js?v=20260727b"></script>
-<script src="seating.js?v=20260727b"></script>
-<script src="app-dashboard.js?v=20260727b"></script>
-<script src="app-venue-crm.js?v=20260727b"></script>
-<script src="app-host.js?v=20260727b"></script>
-<script src="host-auth.js?v=20260727b"></script>
+<script src="locations.js?v=20260727c"></script>
+<script src="checklist-defaults.js?v=20260727c"></script>
+<script src="data/venue-crm.js?v=20260727c"></script>
+<script src="integrations.js?v=20260727c"></script>
+<script src="shared.js?v=20260727c"></script>
+<script src="shared-orders.js?v=20260727c"></script>
+<script src="contacts.js?v=20260727c"></script>
+<script src="seating.js?v=20260727c"></script>
+<script src="app-dashboard.js?v=20260727c"></script>
+<script src="app-venue-crm.js?v=20260727c"></script>
+<script src="app-contacts.js?v=20260727c"></script>
+<script src="app-host.js?v=20260727c"></script>
+<script src="host-auth.js?v=20260727c"></script>
 <script>
 initHostLock({
   contentId: 'report',
