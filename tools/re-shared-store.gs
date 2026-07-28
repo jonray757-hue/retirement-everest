@@ -1,17 +1,17 @@
 /**
- * Retirement Everest — durable multi-device store (seats + preference log)
+ * Retirement Everest - durable multi-device store (seats + preference log)
  *
  * Survives weeks/months (Google Apps Script + Spreadsheet). Replaces jsonblob.
  *
  * SETUP (once, ~3 minutes):
- * 1. https://script.google.com → New project → name it "RE Shared Store"
+ * 1. https://script.google.com -> New project -> name it "RE Shared Store"
  * 2. Paste this entire file, save
- * 3. Run → setupOnce  (authorize when asked — open spreadsheet link in Logs)
- * 4. Deploy → New deployment → Web app
+ * 3. Run -> setupOnce  (authorize when asked - open spreadsheet link in Logs)
+ * 4. Deploy -> New deployment -> Web app
  *      Execute as: Me
  *      Who has access: Anyone
  * 5. Copy the /exec URL
- * 6. Command center → Outreach → paste into "Shared store URL" → Save
+ * 6. Command center -> Outreach -> paste into "Shared store URL" -> Save
  *    (or set RETIREMENT_EVEREST.sharedStoreUrl in locations.js and redeploy Pages)
  *
  * API (JSON, CORS-friendly via redirect mode from browser):
@@ -26,7 +26,7 @@ var STORE_SHEET = 'RE_STORE';
 var META_KEY = 're_shared_store_sheet_id';
 
 function setupOnce() {
-  var ss = SpreadsheetApp.create('Retirement Everest — Shared Store');
+  var ss = SpreadsheetApp.create('Retirement Everest - Shared Store');
   var sheet = ss.getSheets()[0];
   sheet.setName(STORE_SHEET);
   sheet.getRange(1, 1, 1, 3).setValues([['key', 'json', 'updatedAt']]);
@@ -37,7 +37,7 @@ function setupOnce() {
   PropertiesService.getScriptProperties().setProperty(META_KEY, ss.getId());
   Logger.log('Sheet created: ' + ss.getUrl());
   Logger.log('Spreadsheet ID: ' + ss.getId());
-  Logger.log('Next: Deploy → New deployment → Web app → Anyone → copy /exec URL');
+  Logger.log('Next: Deploy -> New deployment -> Web app -> Anyone -> copy /exec URL');
   return ss.getUrl();
 }
 
@@ -85,7 +85,7 @@ function writeKey_(key, data) {
   var values = sheet.getDataRange().getValues();
   var json = JSON.stringify(data);
   var now = new Date().toISOString();
-  // Sheet.getRange(row, column, numRows, numColumns) — NOT endRow/endColumn
+  // Sheet.getRange(row, column, numRows, numColumns) - NOT endRow/endColumn
   for (var i = 1; i < values.length; i++) {
     if (String(values[i][0]) === key) {
       sheet.getRange(i + 1, 2, 1, 2).setValues([[json, now]]);
@@ -117,13 +117,13 @@ function doGet(e) {
       return json_({
         ok: true,
         service: 'Retirement Everest Shared Store',
-        version: 2,
+        version: 3,
         durable: true,
         keys: ['seats', 'orders']
       });
     }
     if (key !== 'seats' && key !== 'orders') {
-      return json_({ ok: false, error: 'Unknown key' }, 400);
+      return json_({ ok: false, error: 'Unknown key' });
     }
     var data = readKey_(key);
     if (data === null && key === 'seats') {

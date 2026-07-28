@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RE — Deploy shared store + Sheets webhook</title>
+<title>RE - Deploy shared store + Sheets webhook</title>
 <style>
   :root { --bg:#0f0f10; --panel:#1a1a1c; --text:#eee; --muted:#999; --accent:#c9a44a; --ok:#5c5; --border:#333; }
   * { box-sizing: border-box; }
@@ -33,7 +33,7 @@
 </head>
 <body>
   <h1>Deploy shared store + Sheets webhook</h1>
-  <p>For Claude / Johnny: skip fighting the Apps Script editor with automation. <strong>Copy → paste → deploy</strong> is faster (~5 min total).</p>
+  <p>For Claude / Johnny: skip fighting the Apps Script editor with automation. <strong>Copy -> paste -> deploy</strong> is faster (~5 min total).</p>
   <div class="warn"><strong>After both /exec URLs exist:</strong> paste them in the boxes at the bottom (or reply in chat). Grok will put them in <code>locations.js</code>, commit as Johnny Harris, and push to GitHub Pages so guest phones use the durable store.</div>
 
   <div class="card">
@@ -43,17 +43,17 @@
       <a class="btn" href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>
       <a class="btn" href="https://raw.githubusercontent.com/jonray757-hue/retirement-everest/main/tools/re-shared-store.gs" target="_blank" rel="noopener">Raw: re-shared-store.gs</a>
       <a class="btn" href="https://raw.githubusercontent.com/jonray757-hue/retirement-everest/main/tools/google-sheets-webhook.gs" target="_blank" rel="noopener">Raw: google-sheets-webhook.gs</a>
-      <a class="btn" href="../host.html?view=outreach" target="_blank" rel="noopener">Command center → Outreach</a>
+      <a class="btn" href="../host.html?view=outreach" target="_blank" rel="noopener">Command center -> Outreach</a>
     </div>
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0">A · Shared store (seats + prefs) — required</h2>
+    <h2 style="margin-top:0">A · Shared store (seats + prefs) - required</h2>
     <ol class="steps">
       <li>Open <strong>New Apps Script project</strong> (button above). Name it <code>RE Shared Store</code>.</li>
-      <li>Click in the code editor → Cmd+A → Delete. Click <strong>Copy shared store code</strong> below → Cmd+V into the editor → Save (Cmd+S).</li>
-      <li>Function dropdown → <code>setupOnce</code> → <strong>Run</strong>. Authorize (Advanced → Go to RE Shared Store → Allow). Check <strong>Execution log</strong> for a spreadsheet URL.</li>
-      <li><strong>Deploy</strong> → New deployment → gear → <strong>Web app</strong> → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong> → Deploy.</li>
+      <li>Click in the code editor -> Cmd+A -> Delete. Click <strong>Copy shared store code</strong> below -> Cmd+V into the editor -> Save (Cmd+S).</li>
+      <li>Function dropdown -> <code>setupOnce</code> -> <strong>Run</strong>. Authorize (Advanced -> Go to RE Shared Store -> Allow). Check <strong>Execution log</strong> for a spreadsheet URL.</li>
+      <li><strong>Deploy</strong> -> New deployment -> gear -> <strong>Web app</strong> -> Execute as: <strong>Me</strong> -> Who has access: <strong>Anyone</strong> -> Deploy.</li>
       <li>Copy the <code>/exec</code> URL into box 1 below.</li>
     </ol>
     <div class="toolbar">
@@ -61,19 +61,19 @@
       <span class="status" id="st-store"></span>
     </div>
     <pre id="code-store">/**
- * Retirement Everest — durable multi-device store (seats + preference log)
+ * Retirement Everest - durable multi-device store (seats + preference log)
  *
  * Survives weeks/months (Google Apps Script + Spreadsheet). Replaces jsonblob.
  *
  * SETUP (once, ~3 minutes):
- * 1. https://script.google.com → New project → name it &quot;RE Shared Store&quot;
+ * 1. https://script.google.com -> New project -> name it &quot;RE Shared Store&quot;
  * 2. Paste this entire file, save
- * 3. Run → setupOnce  (authorize when asked — open spreadsheet link in Logs)
- * 4. Deploy → New deployment → Web app
+ * 3. Run -> setupOnce  (authorize when asked - open spreadsheet link in Logs)
+ * 4. Deploy -> New deployment -> Web app
  *      Execute as: Me
  *      Who has access: Anyone
  * 5. Copy the /exec URL
- * 6. Command center → Outreach → paste into &quot;Shared store URL&quot; → Save
+ * 6. Command center -> Outreach -> paste into &quot;Shared store URL&quot; -> Save
  *    (or set RETIREMENT_EVEREST.sharedStoreUrl in locations.js and redeploy Pages)
  *
  * API (JSON, CORS-friendly via redirect mode from browser):
@@ -88,7 +88,7 @@ var STORE_SHEET = &#x27;RE_STORE&#x27;;
 var META_KEY = &#x27;re_shared_store_sheet_id&#x27;;
 
 function setupOnce() {
-  var ss = SpreadsheetApp.create(&#x27;Retirement Everest — Shared Store&#x27;);
+  var ss = SpreadsheetApp.create(&#x27;Retirement Everest - Shared Store&#x27;);
   var sheet = ss.getSheets()[0];
   sheet.setName(STORE_SHEET);
   sheet.getRange(1, 1, 1, 3).setValues([[&#x27;key&#x27;, &#x27;json&#x27;, &#x27;updatedAt&#x27;]]);
@@ -99,7 +99,7 @@ function setupOnce() {
   PropertiesService.getScriptProperties().setProperty(META_KEY, ss.getId());
   Logger.log(&#x27;Sheet created: &#x27; + ss.getUrl());
   Logger.log(&#x27;Spreadsheet ID: &#x27; + ss.getId());
-  Logger.log(&#x27;Next: Deploy → New deployment → Web app → Anyone → copy /exec URL&#x27;);
+  Logger.log(&#x27;Next: Deploy -> New deployment -> Web app -> Anyone -> copy /exec URL&#x27;);
   return ss.getUrl();
 }
 
@@ -147,7 +147,7 @@ function writeKey_(key, data) {
   var values = sheet.getDataRange().getValues();
   var json = JSON.stringify(data);
   var now = new Date().toISOString();
-  // Sheet.getRange(row, column, numRows, numColumns) — NOT endRow/endColumn
+  // Sheet.getRange(row, column, numRows, numColumns) - NOT endRow/endColumn
   for (var i = 1; i &lt; values.length; i++) {
     if (String(values[i][0]) === key) {
       sheet.getRange(i + 1, 2, 1, 2).setValues([[json, now]]);
@@ -292,23 +292,23 @@ function json_(obj) {
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0">B · Google Sheets webhook — optional export</h2>
+    <h2 style="margin-top:0">B · Google Sheets webhook - optional export</h2>
     <ol class="steps">
       <li>Create a Google Sheet named <code>Retirement Everest Events</code> (any account). Copy the Sheet ID from the URL: <code>/d/<strong>SHEET_ID</strong>/edit</code>.</li>
-      <li>New Apps Script project → name <code>RE Sheets Webhook</code>.</li>
-      <li><strong>Copy Sheets webhook code</strong> → paste → Save.</li>
-      <li>Deploy → Web app → Me / <strong>Anyone</strong> → Deploy → copy <code>/exec</code> URL into box 2.</li>
-      <li>Command center → Outreach → paste webhook URL + Sheet ID → Save. (No need for locations.js unless you want defaults in repo.)</li>
+      <li>New Apps Script project -> name <code>RE Sheets Webhook</code>.</li>
+      <li><strong>Copy Sheets webhook code</strong> -> paste -> Save.</li>
+      <li>Deploy -> Web app -> Me / <strong>Anyone</strong> -> Deploy -> copy <code>/exec</code> URL into box 2.</li>
+      <li>Command center -> Outreach -> paste webhook URL + Sheet ID -> Save. (No need for locations.js unless you want defaults in repo.)</li>
     </ol>
     <div class="toolbar">
       <button type="button" class="primary" data-copy="code-sheets">Copy Sheets webhook code</button>
       <span class="status" id="st-sheets"></span>
     </div>
     <pre id="code-sheets">/**
- * Retirement Everest — Google Sheets webhook
+ * Retirement Everest - Google Sheets webhook
  *
  * Deploy as Web App (Execute as: Me, Access: Anyone)
- * Paste the /exec URL into host.html → Outreach → Google Sheets webhook URL
+ * Paste the /exec URL into host.html -> Outreach -> Google Sheets webhook URL
  */
 function doPost(e) {
   try {
@@ -381,7 +381,7 @@ function jsonResponse(obj) {
     <ul>
       <li>Automating Ace editor select-all/paste in script.google.com (flaky).</li>
       <li>clasp/gcloud (not installed on this Mac).</li>
-      <li>Renaming projects — optional.</li>
+      <li>Renaming projects - optional.</li>
     </ul>
     <p><strong>What Claude/Grok can do after URLs exist:</strong> edit <code>locations.js</code> (<code>sharedStoreUrl</code>), optionally defaults in <code>integrations.js</code>, commit author Johnny Harris, push <code>main</code>, verify health GET returns <code>ok: true</code>.</p>
   </div>
@@ -403,7 +403,7 @@ function copyFrom(id, statusId) {
     const s = window.getSelection();
     s.removeAllRanges();
     s.addRange(r);
-    document.getElementById(statusId).textContent = 'Selected — press Cmd+C';
+    document.getElementById(statusId).textContent = 'Selected - press Cmd+C';
   });
 }
 document.querySelectorAll('[data-copy]').forEach(btn => {
@@ -421,7 +421,7 @@ document.getElementById('btnTestStore').addEventListener('click', async () => {
     const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'key=health&t=' + Date.now(), { mode: 'cors', cache: 'no-store' });
     const data = await res.json();
     if (data && data.ok) {
-      st.textContent = 'OK — durable store is live'; st.style.color = '#5c5';
+      st.textContent = 'OK - durable store is live'; st.style.color = '#5c5';
     } else {
       st.textContent = 'Responded but not ok: ' + JSON.stringify(data); st.style.color = '#e88';
     }
@@ -437,7 +437,7 @@ document.getElementById('btnCopyHandoff').addEventListener('click', () => {
     'Wire durable store into retirement-everest and push as Johnny Harris.',
     '',
     'sharedStoreUrl:',
-    store || '(missing — deploy re-shared-store.gs first)',
+    store || '(missing - deploy re-shared-store.gs first)',
     '',
     'googleSheetsWebhookUrl:',
     sheets || '(optional)',
