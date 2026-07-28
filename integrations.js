@@ -11,7 +11,7 @@ const DEFAULT_INTEGRATIONS = {
   googleSheetId: '',
   defaultSheetTab: 'Orders',
   /* Durable multi-device seats + prefs — Google Apps Script web app /exec URL */
-  sharedStoreUrl: '',
+  sharedStoreUrl: 'https://script.google.com/macros/s/AKfycbxrlFuH-he19CfpJOlOJL1fKCg3ud5VDx58ZsarHLwEcrArxTyxznPi2nomkyN7sytN/exec',
   organizerName: 'Johnny Harris',
   organizerEmail: 'johnny@blacksandcapitalgroup.com',
   organizerPhone: '9715702438'
