@@ -355,6 +355,24 @@ async function pushQuickConnectToGHL({ contact, channel, message, subject }) {
   const lastName = contact.lastName || splitContactName(contact.name).lastName;
   const ch = channel === 'sms' ? 'sms' : 'email';
   const prefs = contact.preferences || {};
+  const locFields =
+    typeof buildGhlLocationFields === 'function'
+      ? buildGhlLocationFields(contact.locationSlug, {
+          locationName: contact.locationName,
+          locationShort: contact.locationName
+        })
+      : {
+          location: contact.locationSlug || '',
+          locationSlug: contact.locationSlug || '',
+          locationName: contact.locationName || '',
+          locationShort: contact.locationName || '',
+          eventLocation: contact.locationName || '',
+          reEventLocation: contact.locationName || '',
+          re_event_location: contact.locationName || '',
+          reEventLocationSlug: contact.locationSlug || '',
+          re_event_location_slug: contact.locationSlug || ''
+        };
+  const eventLabel = locFields.re_event_location || locFields.eventLocation || contact.locationName || 'update';
 
   const payload = {
     event: 'host_quick_connect',
@@ -369,17 +387,11 @@ async function pushQuickConnectToGHL({ contact, channel, message, subject }) {
     position: contact.position || '',
     company: contact.company || '',
     title: contact.position || '',
-    subject: subject || `Retirement Everest — ${contact.locationName || 'update'}`,
+    subject: subject || `Retirement Everest — ${eventLabel}`,
     message: message || '',
     sms: ch === 'sms' ? message || '' : '',
     emailBody: ch === 'email' ? message || '' : '',
-    location: contact.locationSlug || '',
-    locationSlug: contact.locationSlug || '',
-    locationName: contact.locationName || '',
-    locationShort: contact.locationName || '',
-    eventLocation: contact.locationName || '',
-    reEventLocation: contact.locationName || '',
-    reEventLocationSlug: contact.locationSlug || '',
+    ...locFields,
     status: contact.status || '',
     contactSource: (contact.sources || []).join(','),
     preferencesSummary: prefs.preferencesSummary || '',

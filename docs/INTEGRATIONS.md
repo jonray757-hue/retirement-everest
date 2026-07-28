@@ -63,11 +63,13 @@ Do **not** hardcode “Kennedy School” in SMS/email. Map the webhook into cont
 
 | Custom field | Field key | Webhook keys to map |
 |--------------|-----------|---------------------|
-| **RE Event Location** | `contact.re_event_location` | `eventLocation` or `reEventLocation` or `locationShort` |
-| **RE Event Location Slug** | `contact.re_event_location_slug` | `location` or `locationSlug` or `reEventLocationSlug` |
-| **RE Venue Name** | `contact.re_venue_name` | `venue` or `reVenueName` |
-| **RE Venue City** | `contact.re_venue_city` | `city` or `reVenueCity` |
-| **RE Event Date** | `contact.re_event_date` | `eventDate` or `reEventDate` |
+| **RE Event Location** | `contact.re_event_location` | **`re_event_location`** (preferred) · also `reEventLocation`, `eventLocation`, `locationShort` |
+| **RE Event Location Slug** | `contact.re_event_location_slug` | **`re_event_location_slug`** · also `location`, `locationSlug`, `reEventLocationSlug` |
+| **RE Venue Name** | `contact.re_venue_name` | **`re_venue_name`** · also `venue`, `reVenueName` |
+| **RE Venue City** | `contact.re_venue_city` | **`re_venue_city`** · also `city`, `reVenueCity` |
+| **RE Event Date** | `contact.re_event_date` | **`re_event_date`** · also `eventDate`, `reEventDate` |
+
+**Important:** Inbound webhook → Create/Update Contact should map the custom field **RE Event Location** from webhook key **`re_event_location`** (snake_case, same as the merge tag). Payloads now send both snake_case and camelCase. Example values: `Kennedy School BBQ`, `Jake's`, `Edgefield`.
 
 **Guest preference submit** also sends: `firstName`, `lastName`, `email`, `phone`, food prefs (`buffet`, `sides`, `entree`, …), seating, `preferencesSummary`.
 

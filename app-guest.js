@@ -888,22 +888,34 @@ async function pushGuestOrderToGHL(order) {
   }
   const { firstName, lastName } = splitName(order.name);
   const locSlug = order.locationId || LOC.id || LOC.slug || '';
-  const locShort = LOC.shortName || LOC.name || locSlug;
-  const locName = LOC.name || locShort;
-  const locVenue = LOC.venue || '';
-  const locCity = LOC.city || '';
-  /* Friendly line for SMS: "Kennedy School BBQ" / "Jake's Grill" */
-  const eventLocationLabel = locShort;
-  /* Event date: host planner stores in localStorage (not on guest devices).
-     Fall back to location defaultEvent if declared in locations.js. */
-  let eventDate = '';
-  try {
-    if (typeof getLocationEvent === 'function') {
-      const ev = getLocationEvent(LOC.slug || locSlug) || getLocationEvent(locSlug);
-      eventDate = ev?.eventDate || '';
-    }
-  } catch (_) {}
-  if (!eventDate && LOC.defaultEvent?.eventDate) eventDate = LOC.defaultEvent.eventDate;
+  /* Full RE location block: camelCase + snake_case for {{contact.re_event_location}} */
+  const locFields =
+    typeof buildGhlLocationFields === 'function'
+      ? buildGhlLocationFields(LOC.slug || locSlug || LOC)
+      : {
+          location: locSlug,
+          locationSlug: locSlug,
+          locationName: LOC.name || LOC.shortName || locSlug,
+          locationShort: LOC.shortName || LOC.name || locSlug,
+          eventLocation: LOC.shortName || LOC.name || locSlug,
+          reEventLocation: LOC.shortName || LOC.name || locSlug,
+          re_event_location: LOC.shortName || LOC.name || locSlug,
+          reEventLocationSlug: locSlug,
+          re_event_location_slug: locSlug,
+          venue: LOC.venue || '',
+          reVenueName: LOC.venue || '',
+          re_venue_name: LOC.venue || '',
+          city: LOC.city || '',
+          reVenueCity: LOC.city || '',
+          re_venue_city: LOC.city || '',
+          eventDate: LOC.defaultEvent?.eventDate || '',
+          reEventDate: LOC.defaultEvent?.eventDate || '',
+          re_event_date: LOC.defaultEvent?.eventDate || ''
+        };
+  const eventLocationLabel = locFields.re_event_location || locFields.eventLocation || LOC.shortName || '';
+  const locVenue = locFields.venue || LOC.venue || '';
+  const locCity = locFields.city || LOC.city || '';
+  const eventDate = locFields.eventDate || '';
 
   const payload = {
     // Contact (map these in GHL inbound webhook)
@@ -917,25 +929,10 @@ async function pushGuestOrderToGHL(order) {
     source: 'retirement-everest-guest',
     brand: RETIREMENT_EVEREST.ghlBrand || 'HAG',
     ghlLocationId: RETIREMENT_EVEREST.ghlLocationId || '',
-    // --- Map these to RE location custom fields (one workflow, all venues) ---
-    // RE Event Location        ← eventLocation / locationShort / reEventLocation
-    // RE Event Location Slug   ← location / locationSlug / reEventLocationSlug
-    // RE Venue Name            ← venue / reVenueName
-    // RE Venue City            ← city / reVenueCity
-    // RE Event Date            ← eventDate / reEventDate
-    location: locSlug,
-    locationSlug: locSlug,
-    locationName: locName,
-    locationShort: locShort,
-    eventLocation: eventLocationLabel,
-    reEventLocation: eventLocationLabel,
-    reEventLocationSlug: locSlug,
-    venue: locVenue,
-    reVenueName: locVenue,
-    city: locCity,
-    reVenueCity: locCity,
-    eventDate: eventDate,
-    reEventDate: eventDate,
+    // --- RE location custom fields (all aliases) ---
+    // Map ANY of: re_event_location | reEventLocation | eventLocation | locationShort
+    // → custom field RE Event Location ({{contact.re_event_location}})
+    ...locFields,
     // BBQ / food prefs
     buffet: order.buffet || '',
     sides: Array.isArray(order.sides) ? order.sides.join(' · ') : (order.sides || order.starter || ''),

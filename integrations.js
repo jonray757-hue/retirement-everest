@@ -188,13 +188,29 @@ async function pushToGoogleSheets(rows, meta) {
 async function pushToGHL(invite) {
   const cfg = getIntegrations();
   if (!cfg.ghlWebhookUrl) throw new Error('HAG GHL webhook URL not configured.');
+  const locFields =
+    typeof buildGhlLocationFields === 'function'
+      ? buildGhlLocationFields(invite.locationSlug, {
+          locationName: invite.locationName,
+          locationShort: invite.locationName
+        })
+      : {
+          location: invite.locationSlug,
+          locationSlug: invite.locationSlug,
+          locationName: invite.locationName,
+          locationShort: invite.locationName,
+          eventLocation: invite.locationName,
+          reEventLocation: invite.locationName,
+          re_event_location: invite.locationName,
+          reEventLocationSlug: invite.locationSlug,
+          re_event_location_slug: invite.locationSlug
+        };
   const payload = {
     firstName: invite.firstName,
     lastName: invite.lastName,
     email: invite.email,
     phone: invite.phone,
-    location: invite.locationSlug,
-    locationName: invite.locationName,
+    ...locFields,
     guestLink: invite.guestLink,
     message: invite.message,
     sms: invite.sms || invite.message,

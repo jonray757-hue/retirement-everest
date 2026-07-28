@@ -655,7 +655,7 @@ window.RETIREMENT_EVEREST = {
       hideFromPlanner: true,
       theme: 'gold',
       name: 'McMenamins Kennedy School — Backyard BBQ',
-      shortName: 'Kennedy BBQ',
+      shortName: 'Kennedy School BBQ',
       city: 'Portland, OR',
       venue: 'Martha Jordan Room',
       storageKey: 'kennedyschool_bbq_prefs_v4',
@@ -1455,3 +1455,127 @@ window.RETIREMENT_EVEREST = {
     }
   }
 };
+
+/**
+ * Resolve a location config from slug/id/object.
+ * BBQ guest page and parent planner venue both resolve cleanly.
+ */
+function resolveLocationConfig(slugOrLoc) {
+  const locs = (typeof RETIREMENT_EVEREST !== 'undefined' && RETIREMENT_EVEREST.locations) || {};
+  if (slugOrLoc && typeof slugOrLoc === 'object') {
+    if (slugOrLoc.slug || slugOrLoc.id || slugOrLoc.shortName) return slugOrLoc;
+  }
+  const key = String(slugOrLoc || '').trim();
+  if (!key) return null;
+  if (locs[key]) return locs[key];
+  return (
+    Object.values(locs).find((l) => l.id === key || l.slug === key || l.guestSlug === key) || null
+  );
+}
+
+/**
+ * Friendly line for SMS/email merge tags ({{contact.re_event_location}}).
+ * Prefer BBQ package name when the venue is locked to BBQ prefs.
+ */
+function formatReEventLocation(loc) {
+  if (!loc) return '';
+  const locs = (typeof RETIREMENT_EVEREST !== 'undefined' && RETIREMENT_EVEREST.locations) || {};
+  // Planner parent that invites to BBQ guest page
+  if (loc.guestSlug && locs[loc.guestSlug]) {
+    const guest = locs[loc.guestSlug];
+    if (guest.bbqMenuPick || guest.lockedBuffetId) {
+      return guest.shortName || guest.name || loc.shortName || loc.name || loc.slug;
+    }
+  }
+  if (loc.bbqMenuPick || loc.lockedBuffetId) {
+    return loc.shortName || loc.name || loc.slug;
+  }
+  return loc.shortName || loc.name || loc.slug || '';
+}
+
+/**
+ * Location fields for every HAG GHL webhook (guest, invite, contacts).
+ * Sends camelCase + snake_case so Create/Update Contact mapping works whether
+ * the workflow mapped reEventLocation or re_event_location (GHL field key).
+ */
+function buildGhlLocationFields(slugOrLoc, overrides) {
+  const o = overrides || {};
+  const loc = resolveLocationConfig(slugOrLoc) || resolveLocationConfig(o.locationSlug) || null;
+  const locs = (typeof RETIREMENT_EVEREST !== 'undefined' && RETIREMENT_EVEREST.locations) || {};
+
+  let slug = loc?.slug || loc?.id || o.locationSlug || (typeof slugOrLoc === 'string' ? slugOrLoc : '') || '';
+  // Prefer guest/BBQ slug when parent has guestSlug (actual event package)
+  if (loc?.guestSlug && locs[loc.guestSlug]) {
+    slug = loc.guestSlug;
+  }
+
+  const packageLoc = locs[slug] || loc;
+  const eventLocation =
+    o.eventLocation ||
+    formatReEventLocation(loc) ||
+    formatReEventLocation(packageLoc) ||
+    o.locationName ||
+    packageLoc?.shortName ||
+    packageLoc?.name ||
+    loc?.shortName ||
+    loc?.name ||
+    slug;
+
+  const venue = o.venue || packageLoc?.venue || loc?.venue || '';
+  const city = o.city || packageLoc?.city || loc?.city || '';
+  const locationName = o.locationName || packageLoc?.name || loc?.name || eventLocation;
+  const locationShort = o.locationShort || packageLoc?.shortName || loc?.shortName || eventLocation;
+
+  let eventDate = o.eventDate || '';
+  const tryDate = (s) => {
+    if (!s || eventDate) return;
+    try {
+      if (typeof getLocationEvent === 'function') {
+        const ev = getLocationEvent(s);
+        if (ev?.eventDate) eventDate = ev.eventDate;
+      }
+    } catch (_) {}
+  };
+  tryDate(loc?.slug);
+  tryDate(packageLoc?.slug);
+  tryDate(slug);
+  // BBQ guest-only page: date is on parent (kennedy-school)
+  if (!eventDate && packageLoc?.guestOnly) {
+    const parent = Object.values(locs).find((l) => l.guestSlug === packageLoc.slug || l.guestSlug === slug);
+    tryDate(parent?.slug);
+    if (!eventDate && parent?.defaultEvent?.eventDate) eventDate = parent.defaultEvent.eventDate;
+  }
+  if (!eventDate && loc?.defaultEvent?.eventDate) eventDate = loc.defaultEvent.eventDate;
+  if (!eventDate && packageLoc?.defaultEvent?.eventDate) eventDate = packageLoc.defaultEvent.eventDate;
+
+  return {
+    // Common / legacy keys
+    location: slug,
+    locationSlug: slug,
+    locationName,
+    locationShort,
+    eventLocation,
+    venue,
+    city,
+    eventDate,
+    // camelCase (older docs)
+    reEventLocation: eventLocation,
+    reEventLocationSlug: slug,
+    reVenueName: venue,
+    reVenueCity: city,
+    reEventDate: eventDate,
+    // snake_case = GHL custom field keys ({{contact.re_event_location}})
+    re_event_location: eventLocation,
+    re_event_location_slug: slug,
+    re_venue_name: venue,
+    re_venue_city: city,
+    re_event_date: eventDate
+  };
+}
+
+// Expose for guest + host pages
+if (typeof window !== 'undefined') {
+  window.resolveLocationConfig = resolveLocationConfig;
+  window.formatReEventLocation = formatReEventLocation;
+  window.buildGhlLocationFields = buildGhlLocationFields;
+}
