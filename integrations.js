@@ -7,8 +7,9 @@ const DEFAULT_INTEGRATIONS = {
   ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d',
   ghlLocationId: '24UgqDfh5TcJs5IPnA25',
   ghlBrand: 'HAG',
-  googleSheetsWebhookUrl: '',
-  googleSheetId: '',
+  /* Same Apps Script as shared store (v4+) also accepts Sheets export payloads */
+  googleSheetsWebhookUrl: 'https://script.google.com/macros/s/AKfycbxrlFuH-he19CfpJOlOJL1fKCg3ud5VDx58ZsarHLwEcrArxTyxznPi2nomkyN7sytN/exec',
+  googleSheetId: '1GRhsaSpJzYpYMtatuWtWKDQOSTvB1-5LUZLVGtFQH98',
   defaultSheetTab: 'Orders',
   /* Durable multi-device seats + prefs — Google Apps Script web app /exec URL */
   sharedStoreUrl: 'https://script.google.com/macros/s/AKfycbxrlFuH-he19CfpJOlOJL1fKCg3ud5VDx58ZsarHLwEcrArxTyxznPi2nomkyN7sytN/exec',

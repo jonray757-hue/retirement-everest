@@ -20,6 +20,7 @@
  *   POST { action: "appendOrder", order: {...} }
  *   POST { action: "clearOrders", locationIds: ["kennedy-school-bbq", ...] }
  *   POST { action: "stripSeats", locationIds: [...], seatIds: ["A1",...] }
+ *   POST { sheetId?, sheetName|location, rows: [[...], ...] }  // Sheets export
  */
 
 var STORE_SHEET = 'RE_STORE';
@@ -117,9 +118,10 @@ function doGet(e) {
       return json_({
         ok: true,
         service: 'Retirement Everest Shared Store',
-        version: 3,
+        version: 4,
         durable: true,
-        keys: ['seats', 'orders']
+        keys: ['seats', 'orders'],
+        sheetsExport: true
       });
     }
     if (key !== 'seats' && key !== 'orders') {
@@ -154,6 +156,11 @@ function doPost(e) {
     }
 
     var action = body.action || '';
+
+    // Sheets export path (same payload as tools/google-sheets-webhook.gs)
+    if (body.rows || action === 'sheetsAppend' || action === 'exportRows') {
+      return appendSheetRows_(body);
+    }
 
     if (action === 'appendOrder') {
       var list = readKey_('orders') || [];
@@ -220,6 +227,43 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
   }
+}
+
+/**
+ * Append export rows to a Google Sheet.
+ * sheetId optional — defaults to the shared-store spreadsheet.
+ */
+function appendSheetRows_(body) {
+  var rows = body.rows || [];
+  if (!rows.length) {
+    return json_({ ok: true, message: 'No rows' });
+  }
+  var sheetId = body.sheetId || PropertiesService.getScriptProperties().getProperty(META_KEY);
+  if (!sheetId) throw new Error('Missing sheetId (and no shared store sheet configured)');
+
+  var ss = SpreadsheetApp.openById(sheetId);
+  var tabName = body.sheetName || body.location || 'Orders';
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(tabName);
+  }
+
+  var lastRow = sheet.getLastRow();
+  var needsHeader = lastRow === 0;
+  var hasTitleRow = rows[0][0] === '#' || rows[0][0] === 'Location' || rows[0][0] === 'Field';
+  var dataRows = needsHeader ? rows : (hasTitleRow ? rows.slice(1) : rows);
+  var startRow = needsHeader ? 1 : lastRow + 1;
+
+  if (needsHeader) {
+    sheet.getRange(1, 1, 1, rows[0].length).setValues([rows[0]]);
+    if (rows.length > 1) {
+      sheet.getRange(2, 1, rows.length - 1, rows[0].length).setValues(rows.slice(1));
+    }
+  } else if (dataRows.length) {
+    sheet.getRange(startRow, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
+  }
+
+  return json_({ ok: true, tab: tabName, rows: rows.length, sheetId: sheetId });
 }
 
 function json_(obj) {
