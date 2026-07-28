@@ -211,6 +211,133 @@
     return merged;
   }
 
+  function matchesLocation(o, loc) {
+    if (!o || !loc) return false;
+    const ids = [loc.id, loc.slug].filter(Boolean);
+    if (loc.guestSlug) ids.push(loc.guestSlug);
+    if (loc.slug === 'kennedy-school') ids.push('kennedy-school-bbq');
+    if (loc.slug === 'kennedy-school-bbq') ids.push('kennedy-school');
+    const oid = o.locationId || o.location || '';
+    // Require an explicit location match — never treat blank locationId as "all"
+    return !!oid && ids.includes(oid);
+  }
+
+  /**
+   * Remove seat assignments from preference rows (so release is not re-healed
+   * from the shared order log on next fetch).
+   */
+  async function stripSeatsFromOrders(loc, seatIds) {
+    const ids = new Set((seatIds || []).map(String));
+    if (!ids.size || !loc?.storageKey) return [];
+
+    const scrub = (list) =>
+      (list || []).map((o) => {
+        if (!o || typeof o !== 'object') return o;
+        const seats = Array.isArray(o.seats) ? o.seats.map(String) : [];
+        const hasMatch = seats.some((s) => ids.has(s));
+        const labelMatch =
+          o.seatLabel &&
+          [...ids].some((id) => String(o.seatLabel).includes(id));
+        if (!hasMatch && !labelMatch) return o;
+        const next = { ...o };
+        next.seats = seats.filter((s) => !ids.has(s));
+        if (!next.seats.length) {
+          delete next.seats;
+          delete next.seatLabel;
+        } else if (typeof next.seatLabel === 'string') {
+          ids.forEach((id) => {
+            next.seatLabel = next.seatLabel
+              .replace(new RegExp('\\b' + id + '\\b', 'gi'), '')
+              .replace(/\s*&\s*$/, '')
+              .replace(/^\s*&\s*/, '')
+              .replace(/\s{2,}/g, ' ')
+              .trim();
+          });
+          if (!next.seatLabel || /^Table\s+[A-D]\s*·?\s*Seats?\s*$/i.test(next.seatLabel)) {
+            delete next.seatLabel;
+          }
+        }
+        return next;
+      });
+
+    let local = [];
+    try {
+      local = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
+    } catch (_) {
+      local = [];
+    }
+    local = scrub(local);
+    try {
+      localStorage.setItem(loc.storageKey, JSON.stringify(local));
+    } catch (_) {}
+
+    try {
+      const all = await fetchSharedOrders();
+      const next = all.map((o) => (matchesLocation(o, loc) ? scrub([o])[0] : o));
+      await putSharedOrders(next);
+      return next.filter((o) => matchesLocation(o, loc));
+    } catch (e) {
+      console.warn('[RE] stripSeatsFromOrders remote failed', e);
+      return local;
+    }
+  }
+
+  /**
+   * Clear preference log for one location (localStorage + shared blob rows).
+   * Leaves other locations' rows intact in the shared log.
+   */
+  async function clearOrdersForLocation(loc) {
+    if (!loc?.storageKey) return { local: 0, remoteRemoved: 0 };
+
+    const keys = [loc.storageKey];
+    // Only BBQ-related locations touch legacy Kennedy preference keys
+    if (
+      loc.bbqMenuPick ||
+      loc.slug === 'kennedy-school' ||
+      loc.slug === 'kennedy-school-bbq' ||
+      /kennedyschool_bbq/i.test(loc.storageKey || '')
+    ) {
+      keys.push(
+        'kennedyschool_bbq_prefs_v3',
+        'kennedyschool_bbq_prefs_v2',
+        'kennedyschool_bbq_prefs_v1'
+      );
+    }
+    let localCount = 0;
+    keys.forEach((k) => {
+      try {
+        const arr = JSON.parse(localStorage.getItem(k) || '[]');
+        if (Array.isArray(arr)) localCount = Math.max(localCount, arr.length);
+        localStorage.removeItem(k);
+      } catch (_) {
+        try {
+          localStorage.removeItem(k);
+        } catch (__) {}
+      }
+    });
+
+    let remoteRemoved = 0;
+    try {
+      const all = await fetchSharedOrders();
+      // Also drop rows with no locationId when clearing the primary BBQ event —
+      // those rows match every location filter and re-seed seats after clear.
+      const isBbq =
+        loc.bbqMenuPick ||
+        loc.slug === 'kennedy-school' ||
+        loc.slug === 'kennedy-school-bbq';
+      const kept = (all || []).filter((o) => {
+        if (matchesLocation(o, loc)) return false;
+        if (isBbq && !(o.locationId || o.location)) return false;
+        return true;
+      });
+      remoteRemoved = (all || []).length - kept.length;
+      await putSharedOrders(kept);
+    } catch (e) {
+      console.warn('[RE] clearOrdersForLocation remote failed', e);
+    }
+    return { local: localCount, remoteRemoved };
+  }
+
   global.RESharedOrders = {
     blobUrl,
     mergeOrders,
@@ -219,6 +346,8 @@
     appendSharedOrder,
     publishLocalOrdersForLocation,
     emailHostReport,
-    loadOrdersForLocation
+    loadOrdersForLocation,
+    stripSeatsFromOrders,
+    clearOrdersForLocation
   };
 })(typeof window !== 'undefined' ? window : globalThis);

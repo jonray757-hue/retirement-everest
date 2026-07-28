@@ -4,6 +4,7 @@
  * Quick Email / Text runs through HAG GHL webhook (not device Mail/Messages).
  */
 const RE_CONTACTS_KEY = 're_contacts_v1';
+const RE_CONTACTS_REMOVED_KEY = 're_contacts_removed_v1';
 
 function normalizePhone(p) {
   return String(p || '').replace(/\D/g, '');
@@ -45,6 +46,160 @@ function getManualContacts() {
 function saveManualContacts(list) {
   localStorage.setItem(RE_CONTACTS_KEY, JSON.stringify((list || []).slice(0, 1000)));
   return list;
+}
+
+function getRemovedContactKeys() {
+  try {
+    const list = JSON.parse(localStorage.getItem(RE_CONTACTS_REMOVED_KEY) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRemovedContactKeys(list) {
+  localStorage.setItem(RE_CONTACTS_REMOVED_KEY, JSON.stringify((list || []).slice(0, 2000)));
+  return list;
+}
+
+function markContactRemoved(key) {
+  if (!key) return;
+  const list = getRemovedContactKeys();
+  if (!list.includes(key)) {
+    list.unshift(key);
+    saveRemovedContactKeys(list);
+  }
+}
+
+function isContactRemoved(rec) {
+  if (!rec) return false;
+  const keys = getRemovedContactKeys();
+  if (!keys.length) return false;
+  const k = contactMatchKey(rec);
+  if (keys.includes(k)) return true;
+  if (rec.id && keys.includes('id:' + rec.id)) return true;
+  // Also match email/phone keys alone
+  const email = normalizeEmail(rec.email);
+  if (email && keys.includes('e:' + email)) return true;
+  const phone = normalizePhone(rec.phone);
+  if (phone.length >= 10 && keys.includes('p:' + phone.slice(-10))) return true;
+  return false;
+}
+
+/**
+ * Remove a contact from the directory.
+ * - Manual rows deleted from re_contacts_v1
+ * - Matching invites dropped from invite queue
+ * - Matching preference rows removed from local (+ shared when possible)
+ * - Match keys suppressed so rebuild does not resurrect the person
+ */
+async function deleteContact(contact, opts = {}) {
+  if (!contact) return { ok: false, reason: 'No contact' };
+  const hard = opts.hard !== false; // default hard-remove local data
+  const key = contactMatchKey(contact);
+  const keys = new Set([key]);
+  if (contact.id) keys.add('id:' + contact.id);
+  const email = normalizeEmail(contact.email);
+  if (email) keys.add('e:' + email);
+  const phone = normalizePhone(contact.phone);
+  if (phone.length >= 10) keys.add('p:' + phone.slice(-10));
+  keys.forEach((k) => markContactRemoved(k));
+
+  // Manual directory
+  const manual = getManualContacts().filter((c) => {
+    if (contact.id && c.id === contact.id) return false;
+    return !keys.has(contactMatchKey(c));
+  });
+  saveManualContacts(manual);
+
+  // Invite queue
+  if (typeof getInviteQueue === 'function') {
+    try {
+      const queue = getInviteQueue().filter((inv) => {
+        const rec = contactFromInvite(inv);
+        if (contact.inviteId && inv.id === contact.inviteId) return false;
+        return !keys.has(contactMatchKey(rec));
+      });
+      localStorage.setItem(
+        typeof RE_INVITES_KEY !== 'undefined' ? RE_INVITES_KEY : 're_invites_v1',
+        JSON.stringify(queue.slice(0, 500))
+      );
+    } catch (e) {
+      console.warn('[RE] deleteContact invite cleanup', e);
+    }
+  }
+
+  if (hard) {
+    // Local preference logs across locations
+    const locs = typeof getAllLocations === 'function' ? getAllLocations() : [];
+    locs.forEach((loc) => {
+      if (!loc?.storageKey) return;
+      try {
+        const list = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
+        const next = list.filter((o) => {
+          const rec = contactFromOrder(o);
+          if (contact.orderId && o.id === contact.orderId) return false;
+          return !keys.has(contactMatchKey(rec));
+        });
+        if (next.length !== list.length) {
+          localStorage.setItem(loc.storageKey, JSON.stringify(next));
+        }
+      } catch (_) {}
+    });
+
+    // Shared multi-device preference log
+    if (window.RESharedOrders?.fetchSharedOrders && window.RESharedOrders?.putSharedOrders) {
+      try {
+        const all = await RESharedOrders.fetchSharedOrders();
+        const next = (all || []).filter((o) => {
+          const rec = contactFromOrder(o);
+          if (contact.orderId && o.id === contact.orderId) return false;
+          return !keys.has(contactMatchKey(rec));
+        });
+        if (next.length !== (all || []).length) {
+          await RESharedOrders.putSharedOrders(next);
+        }
+      } catch (e) {
+        console.warn('[RE] deleteContact shared orders', e);
+      }
+    }
+
+    // Release any seats claimed by this person
+    if (window.RESeating?.fetchState && window.RESeating?.releaseSeats) {
+      try {
+        const st = await RESeating.fetchState({ healRemote: false, orders: [] });
+        const seatIds = Object.values(st.seats || {})
+          .filter((c) => {
+            if (!c) return false;
+            const emailMatch = email && normalizeEmail(c.email) === email;
+            const phoneMatch =
+              phone.length >= 10 && normalizePhone(c.phone).slice(-10) === phone.slice(-10);
+            const nameMatch =
+              (c.name || '').toLowerCase().trim() ===
+              (contact.name || '').toLowerCase().trim();
+            return emailMatch || phoneMatch || (!email && !phone && nameMatch);
+          })
+          .map((c) => c.seatId)
+          .filter(Boolean);
+        if (seatIds.length) {
+          const loc =
+            (contact.locationSlug &&
+              typeof RETIREMENT_EVEREST !== 'undefined' &&
+              RETIREMENT_EVEREST.locations?.[contact.locationSlug]) ||
+            (typeof RETIREMENT_EVEREST !== 'undefined' &&
+              RETIREMENT_EVEREST.locations?.['kennedy-school-bbq']);
+          if (loc && window.RESharedOrders?.stripSeatsFromOrders) {
+            await RESharedOrders.stripSeatsFromOrders(loc, seatIds);
+          }
+          await RESeating.releaseSeats(seatIds);
+        }
+      } catch (e) {
+        console.warn('[RE] deleteContact seat release', e);
+      }
+    }
+  }
+
+  return { ok: true, key, keys: [...keys] };
 }
 
 /** Upsert a host-owned contact record (manual fields, notes, position). */
@@ -270,6 +425,7 @@ function buildContactDirectory() {
   const add = (rec) => {
     if (!rec) return;
     if (!rec.name && !rec.email && !rec.phone) return;
+    if (isContactRemoved(rec)) return;
     const k = contactMatchKey(rec);
     if (map.has(k)) map.set(k, mergeContactRecords(map.get(k), rec));
     else map.set(k, rec);
@@ -454,6 +610,10 @@ window.REContacts = {
   refreshContactsFromShared,
   upsertManualContact,
   getManualContacts,
+  deleteContact,
+  markContactRemoved,
+  isContactRemoved,
+  getRemovedContactKeys,
   pushQuickConnectToGHL,
   recordInviteAsContact,
   contactMatchKey,

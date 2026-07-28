@@ -187,15 +187,31 @@
     }
   }
 
-  function writeLocalCache(state) {
+  function writeLocalCache(state, opts = {}) {
     try {
       if (typeof localStorage === 'undefined') return;
       const clean = normalize(state);
       delete clean.offline;
-      // Never shrink a richer local cache with an empty snapshot
+      // Never accidentally wipe a richer local cache with an empty fetch snapshot.
+      // Intentional empties (release last seat / clearAll) pass force: true via putState.
       const prev = readLocalCache();
-      if (prev && seatCount(clean) === 0 && seatCount(prev) > 0) return;
+      if (
+        !opts.force &&
+        prev &&
+        seatCount(clean) === 0 &&
+        seatCount(prev) > 0
+      ) {
+        return;
+      }
       localStorage.setItem(LOCAL_KEY, JSON.stringify(clean));
+    } catch (_) {}
+  }
+
+  /** Wipe local seat cache entirely (used by clear / full reset). */
+  function clearLocalCache() {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.removeItem(LOCAL_KEY);
     } catch (_) {}
   }
 
@@ -252,7 +268,8 @@
   async function putState(state) {
     const clean = normalize(state);
     delete clean.offline;
-    writeLocalCache(clean);
+    // Always persist intentional writes — including empty seat maps after release/clear
+    writeLocalCache(clean, { force: true });
     const res = await fetch(apiUrl(), {
       method: 'PUT',
       mode: 'cors',
@@ -322,11 +339,51 @@
     }
   }
 
+  /**
+   * Free seat(s) on the live map.
+   * healRemote:false + no order re-merge so a released seat is not immediately
+   * re-healed from preference logs (host must strip seats from orders separately).
+   */
   async function releaseSeats(seatIds) {
-    const st = await fetchState();
-    seatIds.forEach((id) => { delete st.seats[id]; });
-    await putState(st);
-    return st;
+    const ids = (seatIds || []).map(String).filter((id) => SEAT_ID_RE.test(id));
+    if (!ids.length) return emptyState();
+
+    // Read remote + local only (do not re-seed from orders here)
+    const st = await fetchState({ healRemote: false, orders: [] });
+    ids.forEach((id) => {
+      delete st.seats[id];
+    });
+    // Drop couple rows that only referenced released seats
+    if (Array.isArray(st.couples)) {
+      st.couples = st.couples.filter((cp) => {
+        const seats = Array.isArray(cp.seats) ? cp.seats.map(String) : [];
+        if (!seats.length) return true;
+        return !seats.every((s) => ids.includes(s));
+      });
+    }
+    const written = await putState(st);
+    // Verify remote accepted the release (last-seat bug was local cache refusing empty)
+    try {
+      const verify = await fetchState({ healRemote: false, orders: [] });
+      const stillThere = ids.filter((id) => verify.seats[id]);
+      if (stillThere.length) {
+        stillThere.forEach((id) => {
+          delete verify.seats[id];
+        });
+        return await putState(verify);
+      }
+      return verify;
+    } catch (_) {
+      return written;
+    }
+  }
+
+  /** Full seat-map reset (preferences clear / event wipe). */
+  async function clearAllSeats() {
+    const blank = emptyState();
+    clearLocalCache();
+    const written = await putState(blank);
+    return written;
   }
 
   async function addAccommodation(req) {
@@ -856,6 +913,8 @@
     putState,
     claimSeats,
     releaseSeats,
+    clearAllSeats,
+    clearLocalCache,
     addAccommodation,
     addCoupleLink,
     listJoinablePartners,

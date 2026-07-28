@@ -131,6 +131,7 @@ function paintContactsView() {
             <button type="button" class="btn-sm btn-accent" data-connect="sms" data-idx="${idx}" ${c.phone ? '' : 'disabled title="No phone"'}>Text via GHL</button>
             <button type="button" class="btn-sm" data-edit="${idx}">Edit</button>
             <button type="button" class="btn-sm" data-detail="${idx}">Details</button>
+            <button type="button" class="btn-sm btn-danger" data-delete="${idx}" title="Remove from directory">Remove</button>
           </div>
         </div>`;
         })
@@ -219,6 +220,42 @@ function paintContactsView() {
       showContactDetail(contactsCache[idx]);
     });
   });
+  root.querySelectorAll('[data-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-delete'), 10);
+      removeContactAt(idx, btn);
+    });
+  });
+}
+
+async function removeContactAt(idx, btn) {
+  const c = contactsCache[idx];
+  if (!c) return;
+  const label = c.name || c.email || c.phone || 'this contact';
+  if (
+    !confirm(
+      `Remove ${label} from Contacts?\n\nThis deletes them from this browser's directory, invite queue, and preference log. Reserved seats they hold are released. GHL is not changed.`
+    )
+  ) {
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '…';
+  }
+  try {
+    if (!window.REContacts?.deleteContact) throw new Error('deleteContact missing — hard-refresh host page');
+    await REContacts.deleteContact(c, { hard: true });
+    contactsCache = REContacts.buildContactDirectory();
+    paintContactsView();
+  } catch (e) {
+    console.error(e);
+    alert('Remove failed: ' + (e.message || e));
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Remove';
+    }
+  }
 }
 
 function exportContactsCsv() {

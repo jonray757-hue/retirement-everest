@@ -458,19 +458,25 @@ async function renderReport() {
 
 let seatLinkPicks = [];
 
-async function loadSeatingPanel(loc, orders) {
+async function loadSeatingPanel(loc, orders, opts = {}) {
   const panel = document.getElementById('seating-panel');
   if (!panel || !window.RESeating) return;
-  // Merge preference submissions into seat map so host + guest never disagree after a blob wipe
+  // Merge preference submissions into seat map so host + guest never disagree after a blob wipe.
+  // skipSharedReload: after host release/clear, use the stripped local list only.
   let orderList = orders || getOrders();
-  try {
-    if (window.RESharedOrders?.loadOrdersForLocation) {
-      orderList = await RESharedOrders.loadOrdersForLocation(loc);
-    }
-  } catch (_) {}
+  if (!opts.skipSharedReload) {
+    try {
+      if (window.RESharedOrders?.loadOrdersForLocation) {
+        orderList = await RESharedOrders.loadOrdersForLocation(loc);
+      }
+    } catch (_) {}
+  }
   let st;
   try {
-    st = await RESeating.fetchState({ orders: orderList, healRemote: true });
+    st = await RESeating.fetchState({
+      orders: orderList,
+      healRemote: opts.healRemote !== false
+    });
   } catch (e) {
     const fromOrders = RESeating.claimsFromOrders
       ? { seats: RESeating.claimsFromOrders(orderList) }
@@ -572,8 +578,40 @@ async function loadSeatingPanel(loc, orders) {
       const id = btn.dataset.releaseSeat;
       if (!confirm(`Release seat ${id}? It becomes open for guests to pick again.`)) return;
       btn.disabled = true; btn.textContent = '…';
-      try { await RESeating.releaseSeats([id]); } catch (e) { alert('Release failed: ' + e); }
-      loadSeatingPanel(loc, orders);
+      try {
+        // Strip seat from preference logs first so fetchState cannot re-heal it
+        if (window.RESharedOrders?.stripSeatsFromOrders) {
+          await RESharedOrders.stripSeatsFromOrders(loc, [id]);
+        } else {
+          // Local-only fallback
+          const key = loc.storageKey;
+          try {
+            const list = JSON.parse(localStorage.getItem(key) || '[]').map((o) => {
+              if (!o || !Array.isArray(o.seats)) return o;
+              if (!o.seats.map(String).includes(id)) return o;
+              const seats = o.seats.map(String).filter((s) => s !== id);
+              const next = { ...o, seats };
+              if (!seats.length) {
+                delete next.seats;
+                delete next.seatLabel;
+              }
+              return next;
+            });
+            localStorage.setItem(key, JSON.stringify(list));
+          } catch (_) {}
+        }
+        await RESeating.releaseSeats([id]);
+      } catch (e) {
+        alert('Release failed: ' + e);
+      }
+      // Reload with stripped local orders; don't re-pull remote mid-release
+      let fresh = [];
+      try {
+        fresh = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
+      } catch (_) {
+        fresh = [];
+      }
+      loadSeatingPanel(loc, fresh, { skipSharedReload: true, healRemote: false });
     });
   });
   panel.querySelectorAll('[data-link-pick]').forEach(btn => {
@@ -614,12 +652,164 @@ function adjustRate() {
   }
 }
 
-function clearAll() {
+/**
+ * Snapshot current prefs + seat layout as downloadable CSV/JSON before wipe.
+ */
+function downloadLayoutBackup(loc, reportLoc, orders, seatState) {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, (c) => (c === 'T' ? '_' : '-'));
+  const base = `${reportLoc.slug || loc.slug}_layout_${stamp}`;
+
+  // Prefs / guest layout CSV (full export when helpers exist)
+  try {
+    const rows =
+      typeof buildExportRows === 'function'
+        ? buildExportRows(reportLoc, orders || [], 'orders')
+        : [['Name', 'Email', 'Phone', 'Seats', 'Notes', 'Time']].concat(
+            (orders || []).map((o) => [
+              o.name,
+              o.email,
+              o.phone,
+              o.seatLabel || (Array.isArray(o.seats) ? o.seats.join(' ') : ''),
+              o.notes || '',
+              o.ts || ''
+            ])
+          );
+    // Enrich with seat / contact columns for BBQ
+    if (reportLoc.bbqMenuPick && rows.length) {
+      const header = rows[0].slice();
+      if (!header.includes('Email')) header.push('Email', 'Phone', 'Seats', 'Party', 'Spouse');
+      const enriched = [header];
+      (orders || []).forEach((o, i) => {
+        const row = (rows[i + 1] || []).slice();
+        while (row.length < header.length - 5) row.push('');
+        if (!rows[0].includes('Email')) {
+          row.push(
+            o.email || '',
+            o.phone || '',
+            o.seatLabel || (Array.isArray(o.seats) ? o.seats.join(' ') : ''),
+            o.partyType || '',
+            o.spouse || ''
+          );
+        }
+        enriched.push(row);
+      });
+      if (typeof downloadText === 'function' && typeof rowsToCSV === 'function') {
+        downloadText(`${base}_prefs.csv`, rowsToCSV(enriched.length > 1 ? enriched : rows), 'text/csv;charset=utf-8');
+      }
+    } else if (typeof downloadText === 'function' && typeof rowsToCSV === 'function') {
+      downloadText(`${base}_prefs.csv`, rowsToCSV(rows), 'text/csv;charset=utf-8');
+    }
+  } catch (e) {
+    console.warn('[RE] layout prefs export failed', e);
+  }
+
+  // Seat map + couples JSON
+  try {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      location: reportLoc.slug || loc.slug,
+      locationName: loc.shortName,
+      preferences: orders || [],
+      seats: seatState?.seats || {},
+      couples: seatState?.couples || [],
+      accommodations: seatState?.accommodations || []
+    };
+    if (typeof downloadText === 'function') {
+      downloadText(
+        `${base}_full.json`,
+        JSON.stringify(payload, null, 2),
+        'application/json;charset=utf-8'
+      );
+    }
+  } catch (e) {
+    console.warn('[RE] layout JSON export failed', e);
+  }
+}
+
+async function clearAll() {
   const loc = getLoc();
   const reportLoc = getReportLoc();
-  if (!confirm(`Delete all ${loc.shortName} reservations?`)) return;
-  localStorage.removeItem(reportLoc.storageKey);
-  if (reportLoc.storageKey !== loc.storageKey) localStorage.removeItem(loc.storageKey);
+  if (!confirm(`Delete all ${loc.shortName} preferences / reservations?\n\nThis clears the shared preference log and (for BBQ) all reserved seats.`)) {
+    return;
+  }
+
+  // Offer backup of current layout before wipe
+  let orders = [];
+  try {
+    orders = await refreshOrdersFromShared();
+  } catch (_) {
+    try {
+      orders = JSON.parse(localStorage.getItem(reportLoc.storageKey) || '[]');
+    } catch (__) {
+      orders = [];
+    }
+  }
+  let seatState = null;
+  if (reportLoc.bbqMenuPick && window.RESeating?.fetchState) {
+    try {
+      seatState = await RESeating.fetchState({ orders, healRemote: false });
+    } catch (_) {
+      seatState = null;
+    }
+  }
+
+  const hasAnything =
+    (orders && orders.length) ||
+    (seatState && Object.keys(seatState.seats || {}).length);
+  if (hasAnything && confirm('Download a copy of the current layout before clearing?\n\n(CSV of preferences + JSON with seats/couples)')) {
+    downloadLayoutBackup(loc, reportLoc, orders, seatState);
+  }
+
+  const body = document.getElementById('report-body');
+  if (body) body.innerHTML = `<div class="empty">Clearing ${esc(loc.shortName)}…</div>`;
+
+  const errors = [];
+
+  // 1) Local storage (parent + report package keys)
+  try {
+    localStorage.removeItem(reportLoc.storageKey);
+    if (reportLoc.storageKey !== loc.storageKey) localStorage.removeItem(loc.storageKey);
+    // BBQ legacy keys
+    if (reportLoc.bbqMenuPick || loc.slug === 'kennedy-school') {
+      ['kennedyschool_bbq_prefs_v3', 'kennedyschool_bbq_prefs_v2', 'kennedyschool_bbq_prefs_v1'].forEach((k) => {
+        try { localStorage.removeItem(k); } catch (_) {}
+      });
+    }
+  } catch (e) {
+    errors.push('local prefs: ' + e);
+  }
+
+  // 2) Shared multi-device preference log
+  try {
+    if (window.RESharedOrders?.clearOrdersForLocation) {
+      await RESharedOrders.clearOrdersForLocation(reportLoc);
+      if (loc.storageKey !== reportLoc.storageKey) {
+        await RESharedOrders.clearOrdersForLocation(loc);
+      }
+    }
+  } catch (e) {
+    errors.push('shared prefs: ' + e);
+  }
+
+  // 3) Live seats (Kennedy BBQ) — full wipe so nothing re-heals
+  if (reportLoc.bbqMenuPick || loc.slug === 'kennedy-school') {
+    try {
+      if (window.RESeating?.clearAllSeats) {
+        await RESeating.clearAllSeats();
+      } else if (window.RESeating?.putState) {
+        RESeating.clearLocalCache?.();
+        await RESeating.putState(RESeating.emptyState());
+      }
+    } catch (e) {
+      errors.push('seats: ' + e);
+    }
+  }
+
+  if (errors.length) {
+    alert('Cleared with some errors:\n\n' + errors.join('\n') + '\n\nTry Refresh shared log / hard-refresh if seats reappear.');
+  } else {
+    alert(`Cleared ${loc.shortName}.\n\nPreferences + reserved seats are empty. Hard-refresh guest form (Cmd+Shift+R) if needed.`);
+  }
   renderReport();
 }
 
