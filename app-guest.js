@@ -309,7 +309,12 @@ function renderSeatSection() {
 async function loadSeatMap() {
   const box = document.getElementById('seatmap-container');
   if (!box || !window.RESeating) return;
-  // Preference log is a backup source of seat claims (blocks double-booking if seats blob was wiped)
+  // Drop legacy seat cache keys so old per-browser ghosts cannot reappear
+  try {
+    localStorage.removeItem('re_seats_cache_v1');
+  } catch (_) {}
+
+  // Shared preference log — only used if live seats store is unreachable
   let orderBackup = [];
   try {
     if (window.RESharedOrders?.fetchSharedOrders) {
@@ -326,15 +331,15 @@ async function loadSeatMap() {
   } catch (_) {}
 
   try {
-    seatState = await RESeating.fetchState({ orders: orderBackup, healRemote: true });
+    // Online: shared seats blob is the only source of blackouts (no auto-heal from orders)
+    seatState = await RESeating.fetchState({
+      orders: orderBackup,
+      healRemote: false,
+      offlineOrders: true
+    });
   } catch (e) {
     console.warn('[RE] seat map load failed', e);
-    const fromOrders = RESeating.claimsFromOrders
-      ? { seats: RESeating.claimsFromOrders(orderBackup) }
-      : { seats: {} };
-    seatState = RESeating.mergeStates
-      ? RESeating.mergeStates(RESeating.emptyState(), fromOrders)
-      : { seats: fromOrders.seats || {}, couples: [], accommodations: [], offline: true };
+    seatState = RESeating.emptyState ? RESeating.emptyState() : { seats: {}, couples: [], accommodations: [] };
     seatState.offline = true;
   }
   // Always paint the floor plan — never blank the section if the shared store is down

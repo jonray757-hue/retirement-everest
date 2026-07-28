@@ -6,7 +6,7 @@
 (function (global) {
   const DEFAULT_BLOB =
     (global.RETIREMENT_EVEREST && global.RETIREMENT_EVEREST.sharedOrdersBlobId) ||
-    '019fa4b4-b774-7ad4-b4f0-b0b7760e95ff';
+    '019faaca-6d9a-7cda-8085-3cd63ebda2bf';
 
   function blobUrl(id) {
     return `https://jsonblob.com/api/jsonBlob/${id || DEFAULT_BLOB}`;
@@ -44,7 +44,9 @@
     });
     if (!res.ok) throw new Error('Shared log HTTP ' + res.status);
     let data = await res.json();
+    if (data && data.error) throw new Error(String(data.error));
     if (!Array.isArray(data)) data = data?.orders || [];
+    if (!Array.isArray(data)) data = [];
     if (locationId) {
       data = data.filter(
         (o) =>

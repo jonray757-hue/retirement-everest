@@ -8,9 +8,10 @@ window.RETIREMENT_EVEREST = {
   ghlBrand: 'HAG',
   /* Shared multi-device order log (command center + guest). jsonblob.com CORS store.
      Free blobs expire if idle — if host/guest stop syncing, recreate and update these IDs. */
-  sharedOrdersBlobId: '019fa4b4-b774-7ad4-b4f0-b0b7760e95ff',
+  /* Shared multi-device preference log (jsonblob). Recreate if GET returns 404. */
+  sharedOrdersBlobId: '019faaca-6d9a-7cda-8085-3cd63ebda2bf',
   /* Live seat reservations (Kennedy BBQ) — jsonblob shared across devices */
-  seatsBlobId: '019fa4b4-b8dc-7ea3-b000-30f2b703796c',
+  seatsBlobId: '019faaca-6bf5-7f2b-a3d5-1b92f1c0387d',
   /* Email Johnny a preference report on every guest submit */
   reportEmail: 'johnny@blacksandcapitalgroup.com',
   hero: {
@@ -658,7 +659,7 @@ window.RETIREMENT_EVEREST = {
       shortName: 'Kennedy School BBQ',
       city: 'Portland, OR',
       venue: 'Martha Jordan Room',
-      storageKey: 'kennedyschool_bbq_prefs_v4',
+      storageKey: 'kennedyschool_bbq_prefs_v5',
       attachments: [
         { name: 'Kennedy School Catering Menus (June 2026)', path: 'data/venue-attachments/Kennedy-School-Catering-Menus.pdf', kind: 'menu' }
       ],

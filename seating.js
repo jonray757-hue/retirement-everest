@@ -8,7 +8,7 @@
 (function (global) {
   const SEATS_BLOB =
     (global.RETIREMENT_EVEREST && global.RETIREMENT_EVEREST.seatsBlobId) ||
-    '019fa4b4-b8dc-7ea3-b000-30f2b703796c';
+    '019faaca-6bf5-7f2b-a3d5-1b92f1c0387d';
   const apiUrl = (id) => `https://jsonblob.com/api/jsonBlob/${id || SEATS_BLOB}`;
 
   /* ---------------- Layout ---------------- */
@@ -75,7 +75,8 @@
   }
 
   /* ---------------- Shared state ---------------- */
-  const LOCAL_KEY = 're_seats_cache_v1';
+  /* Bump version when shared blob is reset so ghost caches on phones die. */
+  const LOCAL_KEY = 're_seats_cache_v2';
   const SEAT_ID_RE = /^[A-D][1-8]$/;
 
   function emptyState() {
@@ -216,10 +217,17 @@
   }
 
   /**
-   * Always returns a usable state so the floor plan can paint.
-   * Merges remote + local cache + optional preference orders, then heals a
-   * thinner remote blob so guest devices see the same blackouts as host.
-   * opts: { orders?: array, healRemote?: boolean }
+   * Live seat map.
+   *
+   * When the shared store is reachable it is the ONLY source of truth.
+   * We used to merge localStorage + preference orders back into an empty remote
+   * ("heal"), which caused different browsers to show different blackouts and
+   * resurrect seats after Clear.
+   *
+   * opts:
+   *   orders?: array       — preference rows (used only when offline / healRemote)
+   *   healRemote?: boolean — host explicit publish: push order-derived seats up
+   *   offlineOrders?: boolean — when offline, seed display from order seats
    */
   async function fetchState(opts = {}) {
     const local = readLocalCache();
@@ -235,33 +243,40 @@
         cache: 'no-store'
       });
       if (!res.ok) throw new Error('Seats HTTP ' + res.status);
-      remote = normalize(await res.json());
+      const data = await res.json();
+      if (data && data.error) throw new Error(String(data.error));
+      remote = normalize(data);
     } catch (e) {
-      console.warn('[RE] seat fetch failed — merging local/orders', e);
+      console.warn('[RE] seat fetch failed — offline mode', e);
       offline = true;
     }
 
-    const merged = mergeStates(remote, local, fromOrders);
-    merged.offline = offline;
+    // ── Online: remote wins (including empty after Clear) ──
+    if (!offline && remote) {
+      let st = normalize(remote);
 
-    // Heal empty/thin remote so other devices see blocked seats
-    const shouldHeal =
-      opts.healRemote !== false &&
-      remote &&
-      seatCount(merged) > seatCount(remote);
-    if (shouldHeal) {
-      try {
-        await putState(merged);
-        merged.offline = false;
-      } catch (e) {
-        console.warn('[RE] seat remote heal failed', e);
+      // Host-only explicit heal (Publish seats button), never automatic on load
+      if (opts.healRemote === true && seatCount(fromOrders) > seatCount(st)) {
+        st = mergeStates(st, fromOrders);
+        try {
+          st = await putState(st);
+        } catch (e) {
+          console.warn('[RE] seat remote heal failed', e);
+        }
+      } else {
+        // Force local cache to match remote so old ghost seats die on this device
+        writeLocalCache(st, { force: true });
       }
-    } else if (!offline) {
-      writeLocalCache(merged);
-    } else if (seatCount(merged)) {
-      writeLocalCache(merged);
+      st.offline = false;
+      return st;
     }
 
+    // ── Offline: best-effort local chart (never write back to remote) ──
+    const parts = [emptyState()];
+    if (local) parts.push(local);
+    if (opts.offlineOrders !== false) parts.push(fromOrders);
+    const merged = mergeStates(...parts);
+    merged.offline = true;
     return merged;
   }
 
@@ -276,7 +291,10 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(clean)
     });
-    if (!res.ok) throw new Error('Seats write HTTP ' + res.status);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error('Seats write HTTP ' + res.status + (text ? ': ' + text : ''));
+    }
     return clean;
   }
 

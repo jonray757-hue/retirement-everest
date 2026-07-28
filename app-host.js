@@ -365,6 +365,10 @@ function renderShareBar(loc) {
  * Push this browser's Kennedy prefs + seat blackouts into the shared jsonblobs
  * so the guest selection page shows the same reserved seats (prevents double-book).
  */
+/**
+ * Explicit host action only: push THIS browser's local prefs + seat claims
+ * into the shared stores. Not called automatically on report load.
+ */
 async function publishHostStateToGuestMap(reportLoc, orders) {
   if (!reportLoc?.bbqMenuPick) return { orders: orders || [], seats: null };
   let mergedOrders = orders || [];
@@ -378,10 +382,9 @@ async function publishHostStateToGuestMap(reportLoc, orders) {
   let st = null;
   try {
     if (window.RESeating?.fetchState) {
-      // Merge remote + this browser's seat cache + every preference that has seats
+      // healRemote true ONLY here — intentional push of order-derived seats
       st = await RESeating.fetchState({ orders: mergedOrders, healRemote: true });
-      // Force a write when we have any claims (heals guest map even if counts matched)
-      if (st && Object.keys(st.seats || {}).length && RESeating.putState) {
+      if (st && RESeating.putState) {
         await RESeating.putState(st);
       }
     }
@@ -401,24 +404,38 @@ async function renderReport() {
   const body = document.getElementById('report-body');
   body.innerHTML = `${renderShareBar(loc)}<div class="empty">Loading preferences (this browser + shared log)…</div>`;
 
-  // Pull multi-device submissions so command center shows real guest fills, not only localStorage
+  // Pull multi-device submissions. Do NOT auto-push this browser's old local
+  // prefs/seats into an empty shared store — that re-ghosted clears across devices.
   let orders = await refreshOrdersFromShared();
-  // If this browser has more prefs/seats than the shared store, push them out to the guest map
-  let publishedSeats = null;
-  if (reportLoc.bbqMenuPick) {
-    const pub = await publishHostStateToGuestMap(reportLoc, orders);
-    orders = pub.orders?.length ? pub.orders : orders;
-    publishedSeats = pub.seats;
+  let liveSeats = null;
+  let seatsOnline = false;
+  if (reportLoc.bbqMenuPick && window.RESeating?.fetchState) {
+    try {
+      localStorage.removeItem('re_seats_cache_v1');
+    } catch (_) {}
+    try {
+      liveSeats = await RESeating.fetchState({ healRemote: false, orders: [], offlineOrders: false });
+      seatsOnline = !liveSeats.offline;
+    } catch (e) {
+      console.warn('[RE] seat status', e);
+    }
   }
-  const seatClaimN = publishedSeats ? Object.keys(publishedSeats.seats || {}).length : 0;
+  const seatClaimN = liveSeats ? Object.keys(liveSeats.seats || {}).length : 0;
   const share = renderShareBar(loc);
+  const syncBadge = reportLoc.bbqMenuPick
+    ? seatsOnline
+      ? `<span style="color:#6d6;font-weight:600">● Seats sync online</span> · <strong style="color:var(--text)">${seatClaimN}</strong> reserved`
+      : `<span style="color:#e88;font-weight:600">● Seats sync offline</span> — guest phones may show different charts until the shared store is back`
+    : '';
   const syncNote = `<div class="card-box" style="margin-bottom:16px;font-size:0.85rem;color:var(--muted)">
-    <strong style="color:var(--text)">Preference log</strong> ·
-    Showing <strong style="color:var(--text)">${orders.length}</strong> submission(s) from this browser + shared multi-device log.
-    Guest submits also go to HAG GHL and email <strong style="color:var(--text)">${esc(RETIREMENT_EVEREST.reportEmail || 'johnny@blacksandcapitalgroup.com')}</strong>.
-    <button type="button" class="btn-sm" style="margin-left:8px" id="btnRefreshShared">Refresh shared log</button>
-    ${reportLoc.bbqMenuPick ? `<button type="button" class="btn-sm btn-accent" style="margin-left:8px" id="btnPublishSeats">Publish seats to guest map${seatClaimN ? ` (${seatClaimN})` : ''}</button>` : ''}
-    ${seatClaimN ? `<div style="margin-top:8px;color:var(--text)">Guest map blackouts synced: <strong>${seatClaimN}</strong> seat(s) reserved (from this report + shared log).</div>` : ''}
+    <strong style="color:var(--text)">Shared state</strong> ·
+    Showing <strong style="color:var(--text)">${orders.length}</strong> preference submission(s) from the shared log (+ this browser).
+    ${syncBadge ? `<div style="margin-top:8px">${syncBadge}</div>` : ''}
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn-sm" id="btnRefreshShared">Refresh shared log</button>
+      ${reportLoc.bbqMenuPick ? `<button type="button" class="btn-sm btn-accent" id="btnPublishSeats">Publish this browser → guest map</button>` : ''}
+    </div>
+    <p style="margin:10px 0 0;font-size:0.78rem">Guest submits write to the shared log automatically. Use <strong>Publish</strong> only if you need to push test data from this browser up.</p>
   </div>`;
 
   if (!orders.length) {
@@ -461,8 +478,10 @@ let seatLinkPicks = [];
 async function loadSeatingPanel(loc, orders, opts = {}) {
   const panel = document.getElementById('seating-panel');
   if (!panel || !window.RESeating) return;
-  // Merge preference submissions into seat map so host + guest never disagree after a blob wipe.
-  // skipSharedReload: after host release/clear, use the stripped local list only.
+  try {
+    localStorage.removeItem('re_seats_cache_v1');
+  } catch (_) {}
+  // Live seats blob is authoritative when online. Orders only matter offline.
   let orderList = orders || getOrders();
   if (!opts.skipSharedReload) {
     try {
@@ -475,15 +494,11 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
   try {
     st = await RESeating.fetchState({
       orders: orderList,
-      healRemote: opts.healRemote !== false
+      healRemote: false,
+      offlineOrders: true
     });
   } catch (e) {
-    const fromOrders = RESeating.claimsFromOrders
-      ? { seats: RESeating.claimsFromOrders(orderList) }
-      : { seats: {} };
-    st = RESeating.mergeStates
-      ? RESeating.mergeStates(RESeating.emptyState(), fromOrders)
-      : { seats: fromOrders.seats || {}, couples: [], accommodations: [], offline: true };
+    st = RESeating.emptyState ? RESeating.emptyState() : { seats: {}, couples: [], accommodations: [] };
     st.offline = true;
   }
   const claims = Object.values(st.seats || {}).sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)));
