@@ -484,6 +484,10 @@ select {
 .sc-label { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
 .sc-val { font-size: 0.86rem; }
 footer { border-top: 1px solid var(--border); padding: 26px 24px; text-align: center; font-size: 0.66rem; color: var(--muted); }
+/* Subtle host escape hatch — not a guest hub link */
+.guest-admin { margin-top: 14px; }
+.guest-admin a { color: var(--muted); font-size: 0.72rem; text-decoration: none; opacity: 0.75; }
+.guest-admin a:hover { color: var(--accent); opacity: 1; }
 
 /* ── HOST ── */
 #lock-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; text-align: center; }

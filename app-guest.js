@@ -191,7 +191,12 @@ function renderPage() {
       <p>We look forward to hosting you at ${LOC.shortName}. A reminder with details will follow closer to the date.</p>
       <div class="success-card" id="success-card"></div>
     </div>
-    <footer>${LOC.footer}</footer>
+    <footer>
+      ${LOC.footer}
+      <div class="guest-admin">
+        <a href="host.html?location=${encodeURIComponent(LOC.slug)}">Command center</a>
+      </div>
+    </footer>
   `;
   renderFormFields();
 }
