@@ -540,23 +540,23 @@ window.RETIREMENT_EVEREST = {
             ]
           }
         ],
-        /* Two buckets only — host tallies adult vs soft */
+        /* Soft/N-A included — poll adult-drink interest only */
         drinks: [
           {
-            id: 'd-soft',
-            name: 'Coffee, tea & sodas',
-            blurb: 'Non-alcoholic',
-            desc: 'Coffee, tea, soda, sparkling water, or juice',
-            price: 4.25,
-            cat: 'Soft'
-          },
-          {
             id: 'd-adult',
-            name: 'Adult beverage',
+            name: 'Yes — adult beverage',
             blurb: 'Beer, cider, wine, or cocktail',
-            desc: 'Beer, hard cider, wine, or cocktail for the evening',
+            desc: 'I’d enjoy a beer, hard cider, wine, or cocktail',
             price: 8,
             cat: 'Adult'
+          },
+          {
+            id: 'd-soft',
+            name: 'No adult drink for me',
+            blurb: 'Coffee, tea & soda included',
+            desc: 'Coffee, tea, soda, and water are already covered — no adult drink needed',
+            price: 0,
+            cat: 'Soft'
           }
         ]
       },
@@ -649,7 +649,8 @@ window.RETIREMENT_EVEREST = {
 
     /**
      * Locked package: Backyard BBQ decided.
-     * Guest picks: 2 sides & salads · 1 entrée · 1 dessert · beverage.
+     * Guest picks: 2 sides & salads · 1 entrée · 1 dessert · adult-drink yes/no.
+     * Soft drinks (coffee/tea/soda) are included — only poll who wants alcohol.
      * Menu items ONLY from the Backyard BBQ buffet (no other packages).
      * Original multi-buffet poll remains at location=kennedy-school (not used for invites).
      */
@@ -687,7 +688,7 @@ window.RETIREMENT_EVEREST = {
       expect: [
         { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime. Historic school setting, private room.' },
         { title: 'Watch the Film', desc: 'Retirement Everest screens for our group — real stories, real clarity.' },
-        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert. Pick two sides you prefer, one entrée, one dessert, and your beverage.' }
+        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert. Pick two sides you prefer, one entrée, one dessert, and whether you’d like an adult beverage.' }
       ],
       formTitle: 'Tell Us What You Prefer',
       formLabel: 'Backyard BBQ Preferences',
@@ -713,22 +714,23 @@ window.RETIREMENT_EVEREST = {
           { id: 'des-brownies', name: 'Black & Tan brownies', desc: 'Rich chocolate brownies with a stout beer swirl' },
           { id: 'des-berry', name: 'Northwest berry bars', desc: 'Buttery crust with tart marionberry and blackberry filling' }
         ],
+        /* Soft/N-A drinks are included with the package — only poll adult interest */
         drinks: [
           {
-            id: 'd-soft',
-            name: 'Coffee, tea & sodas',
-            blurb: 'Non-alcoholic',
-            desc: 'Coffee, tea, soda, sparkling water, or juice',
-            price: 4.25,
-            cat: 'Soft'
-          },
-          {
             id: 'd-adult',
-            name: 'Adult beverage',
+            name: 'Yes — adult beverage',
             blurb: 'Beer, cider, wine, or cocktail',
-            desc: 'Beer, hard cider, wine, or cocktail for the evening',
+            desc: 'I’d enjoy a beer, hard cider, wine, or cocktail',
             price: 8,
             cat: 'Adult'
+          },
+          {
+            id: 'd-soft',
+            name: 'No adult drink for me',
+            blurb: 'Coffee, tea & soda included',
+            desc: 'Coffee, tea, soda, and water are already covered — no adult drink needed',
+            price: 0,
+            cat: 'Soft'
           }
         ]
       },
@@ -745,7 +747,7 @@ window.RETIREMENT_EVEREST = {
         drinkSoftPp: 4.25,
         drinkAdultPp: 8,
         roomName: 'Classroom (Martha Jordan / Mina Parsons) · max ~40',
-        note: 'Backyard BBQ locked. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service.',
+        note: 'Backyard BBQ locked. Soft drinks included. Poll adult-drink interest only to decide bar package vs guests order from the bar. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service.',
         scenarios: [
           { guests: 30, median: 2523, p10: 2459, p90: 2595, perGuest: 84 },
           { guests: 35, median: 2943, p10: 2869, p90: 3028, perGuest: 84 },

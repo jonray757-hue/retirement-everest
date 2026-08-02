@@ -76,9 +76,10 @@ function accordionItemHTML(kind, item) {
 
 function bevCardHTML(item) {
   const soft = item.cat === 'Soft' || item.id === 'd-soft';
+  const icon = soft ? '✓' : '🥂';
   return `
     <button type="button" class="bev-card" id="card-drink-${item.id}" data-pick="drink" data-id="${item.id}">
-      <span class="bev-icon">${soft ? '☕' : '🥂'}</span>
+      <span class="bev-icon">${icon}</span>
       <span class="bev-name">${esc(item.name)}</span>
       <span class="bev-desc">${esc(item.desc || item.blurb || '')}</span>
     </button>`;
@@ -143,7 +144,7 @@ function renderPage() {
   const aboutHTML = LOC.about.map(p => `<p>${p}</p>`).join('');
 
   const hero = RETIREMENT_EVEREST.hero;
-  const heroBust = '20260802d';
+  const heroBust = '20260802e';
   const heroImgHTML = hero?.image ? `
       <picture>
         ${hero.imageMobile ? `<source media="(max-width: 768px)" srcset="${hero.imageMobile}?v=${heroBust}">` : ''}
@@ -241,12 +242,14 @@ function renderBbqMenuPickForm() {
     </div>
     <div class="err-msg" id="err-dessert">Please choose one dessert.</div>
     <div class="section-gap"></div>
-    <div class="pick-head"><span class="pick-title">Beverage</span><span class="pick-req">Adult vs coffee / tea / soda</span></div>
-    <p class="order-intro" style="margin-top:0;font-size:0.9rem">Which will you prefer that evening?</p>
+    <div class="pick-head"><span class="pick-title">Adult beverage?</span><span class="pick-req">Yes or no</span></div>
+    <p class="order-intro" style="margin-top:0;font-size:0.9rem">
+      Coffee, tea, soda, and water are <strong>already included</strong>. We only need to know if you’d like an adult drink (beer, cider, wine, or cocktail) so we can plan the bar — or let you order from the bar on your own.
+    </p>
     <div class="bev-row" id="drink-cards">
       ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
     </div>
-    <div class="err-msg" id="err-drink">Please choose adult beverage or coffee / tea / soda.</div>
+    <div class="err-msg" id="err-drink">Please tell us whether you’d like an adult beverage.</div>
     <div class="section-gap"></div>
     <div class="field-wrap" style="margin-bottom:0">
       <label class="field-label" for="guestNotes">Dietary notes or allergies (optional)</label>
@@ -537,12 +540,12 @@ function renderFormFields() {
       <div class="vote-status" id="starter-vote-status">No appetizer vote yet</div>
       <div class="err-msg" id="err-starter">Please vote for an appetizer option (or no appetizers).</div>
       <div class="section-gap"></div>
-      <div class="pick-head"><span class="pick-title">Beverage</span><span class="pick-req">Adult vs coffee / tea / soda</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Simple tally for the bar — which will you prefer that evening?</p>
+      <div class="pick-head"><span class="pick-title">Adult beverage?</span><span class="pick-req">Yes or no</span></div>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Coffee, tea, soda, and water are <strong>already included</strong>. Tell us only if you’d like an adult drink so we can plan the bar.</p>
       <div class="bev-row" id="drink-cards">
         ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
       </div>
-      <div class="err-msg" id="err-drink">Please choose adult beverage or coffee / tea / soda.</div>`;
+      <div class="err-msg" id="err-drink">Please tell us whether you’d like an adult beverage.</div>`;
   } else if (LOC.type === 'preorder') {
     el.innerHTML = `
       <div class="pick-head"><span class="pick-title">Arrival Bite</span><span class="pick-req">Optional · select one or skip</span></div>
@@ -1205,7 +1208,7 @@ async function submitOrder() {
       <div class="sc-row"><div class="sc-label">Sides &amp; salads (2)</div><div class="sc-val">${esc(sideItems.map(s => s.name).join(' · '))}</div></div>
       <div class="sc-row"><div class="sc-label">Entrée</div><div class="sc-val">${esc(entree.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Dessert</div><div class="sc-val">${esc(dessert.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>
+      <div class="sc-row"><div class="sc-label">Adult drink</div><div class="sc-val">${drinkBucket === 'Adult' ? 'Yes — interested' : 'No — included coffee / tea / soda is fine'}</div></div>
       ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}
       ${order.joinedPartner
         ? `<div class="sc-row"><div class="sc-label">Joined partner</div><div class="sc-val">${esc(order.linkedPartnerName)} — your seats stay with them</div></div>`

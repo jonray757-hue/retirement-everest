@@ -118,18 +118,19 @@ function renderBbqMenuPickReport(orders, loc) {
     <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
       <div class="card-box"><div class="stat-label">Preferences</div><div class="stat-val">${orders.length} <span style="font-size:0.75rem;color:var(--muted)">(${guests} guest${guests === 1 ? '' : 's'})</span></div></div>
       <div class="card-box"><div class="stat-label">Dinner package</div><div class="stat-val" style="font-size:0.95rem">${esc(buffetName)}</div></div>
-      <div class="card-box"><div class="stat-label">Adult beverages</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
-      <div class="card-box"><div class="stat-label">Coffee / tea / soda</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
+      <div class="card-box"><div class="stat-label">Want adult drinks</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
+      <div class="card-box"><div class="stat-label">No adult drink</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
     </div>
     <div class="card-box" style="margin-bottom:16px">
-      <h3>Beverage split</h3>
+      <h3>Adult drink interest</h3>
       <div style="display:flex;height:14px;border-radius:8px;overflow:hidden;background:var(--border);margin:8px 0 10px">
-        <div style="width:${adultPct}%;background:var(--accent)" title="Adult"></div>
-        <div style="width:${softPct}%;background:color-mix(in srgb, var(--muted) 50%, var(--panel))" title="Soft"></div>
+        <div style="width:${adultPct}%;background:var(--accent)" title="Want adult drink"></div>
+        <div style="width:${softPct}%;background:color-mix(in srgb, var(--muted) 50%, var(--panel))" title="No adult drink"></div>
       </div>
       <p style="font-size:0.85rem;color:var(--muted);margin:0">
-        <strong style="color:var(--text)">${adult}</strong> adult ·
-        <strong style="color:var(--text)">${soft}</strong> coffee / tea / soda
+        <strong style="color:var(--text)">${adult}</strong> want adult drinks ·
+        <strong style="color:var(--text)">${soft}</strong> fine without (coffee / tea / soda included).
+        Use the adult count to decide whether to provide a bar package or have guests order from the bar.
       </p>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
@@ -140,7 +141,7 @@ function renderBbqMenuPickReport(orders, loc) {
     <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Tallies are preference votes for planning quantities — full BBQ package still served for the group.</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Beverage</th><th>Notes</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Adult drink?</th><th>Notes</th><th>Time</th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
           let party = 'Solo';
@@ -155,7 +156,7 @@ function renderBbqMenuPickReport(orders, loc) {
             party = `Couple${o.spouse ? ` · ${esc(o.spouse)}` : ''}${partnerIn ? ' ✓ linked' : ' · awaiting partner form'}`;
           }
           const seatCol = o.seatLabel ? `<strong style="color:var(--accent)">${esc(o.seatLabel)}</strong>` : (o.seatAccommodation ? '<span style="color:var(--red,#e05252)">Needs arranging</span>' : '—');
-          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${party}</td><td>${seatCol}</td><td>${esc((o.sides || []).join(' · ') || '—')}</td><td>${esc(o.entree || '—')}</td><td>${esc(o.dessert || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${party}</td><td>${seatCol}</td><td>${esc((o.sides || []).join(' · ') || '—')}</td><td>${esc(o.entree || '—')}</td><td>${esc(o.dessert || '—')}</td><td>${esc(cat === 'Adult' ? 'Yes — adult drink' : 'No adult drink')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
