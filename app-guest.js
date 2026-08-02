@@ -143,7 +143,7 @@ function renderPage() {
   const aboutHTML = LOC.about.map(p => `<p>${p}</p>`).join('');
 
   const hero = RETIREMENT_EVEREST.hero;
-  const heroBust = '20260802b';
+  const heroBust = '20260802c';
   const heroImgHTML = hero?.image ? `
       <picture>
         ${hero.imageMobile ? `<source media="(max-width: 768px)" srcset="${hero.imageMobile}?v=${heroBust}">` : ''}
@@ -159,7 +159,6 @@ function renderPage() {
         <h1>Retirement<em>Everest</em></h1>
         <p class="hero-sub">${LOC.heroSub}</p>
         <div class="event-meta">${metaHTML}</div>
-        <a href="#order" class="hero-cta">${LOC.cta}</a>
       </div>
     </div>
     <div class="about"><div class="section-label">${LOC.aboutLabel}</div><h2>${LOC.aboutHeadline}</h2>${aboutHTML}</div>

@@ -99,8 +99,8 @@ body { background: var(--bg); color: var(--text); }
 .hero-content { position: relative; z-index: 2; max-width: 680px; width: 100%; }
 
 /* ── DESKTOP HERO (poster art) ──
-   Full poster asset (title baked in). Cover + top-anchor keeps RETIREMENT EVEREST
-   readable; content sits in a dark lower band — same idea as mobile, wider frame. */
+   Full poster (title + producer line baked in). Pin image to top so the top
+   credit line is never cropped. Content sits in a dark lower band. */
 @media (min-width: 769px) {
   .hero.hero--has-poster {
     min-height: 92vh;
@@ -110,16 +110,17 @@ body { background: var(--bg); color: var(--text); }
   }
   .hero.hero--has-poster .hero-bg img {
     object-fit: cover;
-    /* Bias slightly below absolute top so peak + full title frame well on wide screens */
-    object-position: center 12%;
+    /* Absolute top — producer line must stay fully visible */
+    object-position: center top;
     opacity: 1;
     filter: none;
   }
   .hero.hero--has-poster .hero-bg.has-image .hero-overlay {
+    /* Clear top (poster credits readable) · dark bottom (UI readable) */
     background: linear-gradient(180deg,
-      rgba(0,0,0,0.18) 0%,
-      rgba(0,0,0,0.06) 26%,
-      rgba(0,0,0,0.2) 48%,
+      rgba(0,0,0,0.02) 0%,
+      rgba(0,0,0,0.04) 22%,
+      rgba(0,0,0,0.18) 48%,
       rgba(0,0,0,0.72) 74%,
       rgba(0,0,0,0.94) 100%);
   }
@@ -128,24 +129,23 @@ body { background: var(--bg); color: var(--text); }
     max-width: 720px;
     text-shadow: 0 2px 20px rgba(0,0,0,0.7);
   }
-  /* Poster already has the big title — hide HTML duplicate */
+  /* Poster already has title + producer line — hide HTML duplicates */
   .hero.hero--has-poster .hero-content h1 {
     display: none;
   }
   .hero.hero--has-poster .eyebrow {
-    margin-bottom: 12px;
-    opacity: 0.95;
+    display: none;
   }
   .hero.hero--has-poster .hero-sub {
     font-size: 1.02rem;
     line-height: 1.7;
-    margin: 10px 0 26px;
+    margin: 0 0 26px;
     color: rgba(255,255,255,0.92);
   }
   .hero.hero--has-poster .event-meta {
     background: rgba(0,0,0,0.52);
     backdrop-filter: blur(8px);
-    margin-bottom: 30px;
+    margin-bottom: 0;
     border-color: rgba(255,255,255,0.18);
   }
   .hero.hero--has-poster .meta-item {
@@ -155,10 +155,6 @@ body { background: var(--bg); color: var(--text); }
     color: #fff;
     font-size: 0.92rem;
   }
-  .hero.hero--has-poster .hero-cta {
-    padding: 17px 48px;
-    letter-spacing: 3.5px;
-  }
   /* Hub desktop */
   .hero--hub.hero--has-poster {
     min-height: 88vh;
@@ -166,7 +162,7 @@ body { background: var(--bg); color: var(--text); }
     padding-bottom: 44px;
   }
   .hero--hub.hero--has-poster .hero-bg img {
-    object-position: center 10%;
+    object-position: center top;
     opacity: 1;
     filter: none;
   }
@@ -174,6 +170,9 @@ body { background: var(--bg); color: var(--text); }
     padding-top: min(48vh, 560px);
   }
   .hero--hub.hero--has-poster .hero-content h1 {
+    display: none;
+  }
+  .hero--hub.hero--has-poster .eyebrow {
     display: none;
   }
   .hero--hub.hero--has-poster .hero-content p {
@@ -187,16 +186,13 @@ body { background: var(--bg); color: var(--text); }
   }
 }
 
-/* Large desktop: keep poster title larger in frame, content not too low */
+/* Large desktop: more breathing room under the poster title block */
 @media (min-width: 1200px) {
-  .hero.hero--has-poster .hero-bg img {
-    object-position: center 8%;
-  }
   .hero.hero--has-poster .hero-content {
-    padding-top: min(40vh, 480px);
+    padding-top: min(42vh, 500px);
   }
   .hero--hub.hero--has-poster .hero-content {
-    padding-top: min(44vh, 520px);
+    padding-top: min(46vh, 540px);
   }
 }
 .eyebrow { font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; justify-content: center; }
@@ -229,7 +225,7 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
     padding: 0 16px calc(20px + env(safe-area-inset-bottom, 0px));
   }
   .hero.hero--has-poster .hero-bg img {
-    /* Portrait mobile asset — lock to cover, never stretch */
+    /* Portrait mobile asset — lock to cover, pin top (producer line fully visible) */
     object-fit: cover;
     object-position: center top;
     width: 100%;
@@ -238,11 +234,11 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
     filter: none;
   }
   .hero.hero--has-poster .hero-bg.has-image .hero-overlay {
-    /* Light top (poster title stays sharp) · dark bottom (UI text readable) */
+    /* Clear top (poster credits) · dark bottom (UI text readable) */
     background: linear-gradient(180deg,
-      rgba(0,0,0,0.08) 0%,
-      rgba(0,0,0,0.05) 28%,
-      rgba(0,0,0,0.35) 52%,
+      rgba(0,0,0,0.02) 0%,
+      rgba(0,0,0,0.04) 26%,
+      rgba(0,0,0,0.32) 52%,
       rgba(0,0,0,0.78) 72%,
       rgba(0,0,0,0.94) 100%);
   }
@@ -252,29 +248,17 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
     max-width: 100%;
     text-shadow: 0 2px 16px rgba(0,0,0,0.75);
   }
-  /* Poster already has the big title — hide HTML duplicate on guest pages */
+  /* Poster already has title + producer line — hide HTML duplicates */
   .hero.hero--has-poster .hero-content h1 {
     display: none;
   }
   .hero.hero--has-poster .eyebrow {
-    flex-wrap: wrap;
-    font-size: 0.58rem;
-    letter-spacing: 2px;
-    line-height: 1.55;
-    gap: 6px;
-    margin-bottom: 10px;
-    padding: 0 4px;
-    color: var(--accent);
-    opacity: 0.95;
-  }
-  .hero.hero--has-poster .eyebrow::before,
-  .hero.hero--has-poster .eyebrow::after {
     display: none;
   }
   .hero.hero--has-poster .hero-sub {
     font-size: 0.9rem;
     line-height: 1.65;
-    margin: 8px 0 20px;
+    margin: 0 0 20px;
     padding: 0 6px;
     color: rgba(255,255,255,0.92);
   }
