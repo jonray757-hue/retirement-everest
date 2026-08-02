@@ -2,12 +2,16 @@
 
 Multi-location guest reservations, host command center, and event planning for private Retirement Everest screenings and retreats.
 
-## Live demo
+## Live site
 
-Deploy to **GitHub Pages** (see below), then share:
+**Custom domain (production):**
 
-- `https://YOUR-USERNAME.github.io/retirement-everest/` — location hub
-- `https://YOUR-USERNAME.github.io/retirement-everest/guest.html?location=chapel` — guest RSVP
+- **Hub:** https://everest.harrisassurancegroup.com/
+- **Command center:** https://everest.harrisassurancegroup.com/host.html
+- **Guest RSVP (Kennedy BBQ):** https://everest.harrisassurancegroup.com/guest.html?location=kennedy-school-bbq
+- **Guest RSVP (any location):** `https://everest.harrisassurancegroup.com/guest.html?location={slug}`
+
+GitHub Pages also serves the same site (legacy): `https://jonray757-hue.github.io/retirement-everest/`
 
 ## Local use
 
@@ -61,10 +65,21 @@ git push -u origin main
 
 1. Repo → **Settings → Pages**
 2. **Build and deployment → Source:** choose **GitHub Actions** (recommended)
-3. After the deploy workflow runs, the site is live at:
-   `https://jonray757-hue.github.io/retirement-everest/`
+3. After the deploy workflow runs, the site is live at the custom domain:
+   `https://everest.harrisassurancegroup.com/`
+   (legacy: `https://jonray757-hue.github.io/retirement-everest/`)
 
-Alternative: Source **Deploy from branch** → `main` / `/ (root)` also works.
+### Custom domain (Cloudflare)
+
+Domain DNS is on Cloudflare for `harrisassurancegroup.com`.
+
+1. Repo has a `CNAME` file: `everest.harrisassurancegroup.com`
+2. In Cloudflare → DNS → Records, add:
+   - **Type:** CNAME  
+   - **Name:** `everest`  
+   - **Target:** `jonray757-hue.github.io`  
+   - **Proxy:** DNS only (gray cloud) while GitHub issues the SSL cert  
+3. GitHub → Settings → Pages → Custom domain: `everest.harrisassurancegroup.com` → Enforce HTTPS once verified
 
 If you see 404, Pages simply isn't enabled yet — the code is fine.
 
