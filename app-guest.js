@@ -143,7 +143,7 @@ function renderPage() {
   const aboutHTML = LOC.about.map(p => `<p>${p}</p>`).join('');
 
   const hero = RETIREMENT_EVEREST.hero;
-  const heroBust = '20260728c';
+  const heroBust = '20260802b';
   const heroImgHTML = hero?.image ? `
       <picture>
         ${hero.imageMobile ? `<source media="(max-width: 768px)" srcset="${hero.imageMobile}?v=${heroBust}">` : ''}
