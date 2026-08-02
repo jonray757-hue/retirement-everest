@@ -99,35 +99,38 @@ body { background: var(--bg); color: var(--text); }
 .hero-content { position: relative; z-index: 2; max-width: 680px; width: 100%; }
 
 /* ── DESKTOP HERO (poster art) ──
-   Full poster (title + producer line baked in). Pin image to top so the top
-   credit line is never cropped. Content sits in a dark lower band. */
+   Full poster (title + producer line baked in). Keep top credits, but leave
+   the mid frame bright so Everest / snow mist stay vivid. Meta sits on its
+   own dark chip so we don't need a heavy full-bleed blackout. */
 @media (min-width: 769px) {
   .hero.hero--has-poster {
-    min-height: 92vh;
-    min-height: 92svh;
+    min-height: 88vh;
+    min-height: 88svh;
     justify-content: flex-end;
-    padding: 0 32px 52px;
+    padding: 0 32px 40px;
   }
   .hero.hero--has-poster .hero-bg img {
     object-fit: cover;
-    /* Absolute top — producer line must stay fully visible */
-    object-position: center top;
+    /* Slight nudge below absolute top — still keeps producer line, shows more peak */
+    object-position: center 4%;
     opacity: 1;
-    filter: none;
+    /* Poster is bright — restore snow / mist clarity lost under old wash */
+    filter: brightness(1.1) contrast(1.08) saturate(1.12);
   }
   .hero.hero--has-poster .hero-bg.has-image .hero-overlay {
-    /* Clear top (poster credits readable) · dark bottom (UI readable) */
+    /* Clear through title + mountain; only soft fade at very bottom for meta */
     background: linear-gradient(180deg,
-      rgba(0,0,0,0.02) 0%,
-      rgba(0,0,0,0.04) 22%,
-      rgba(0,0,0,0.18) 48%,
-      rgba(0,0,0,0.72) 74%,
-      rgba(0,0,0,0.94) 100%);
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0) 42%,
+      rgba(0,0,0,0.06) 62%,
+      rgba(0,0,0,0.38) 82%,
+      rgba(0,0,0,0.72) 100%);
   }
   .hero.hero--has-poster .hero-content {
-    padding-top: min(44vh, 520px);
+    /* Pull UI up — less empty dark band above the venue words */
+    padding-top: min(34vh, 400px);
     max-width: 720px;
-    text-shadow: 0 2px 20px rgba(0,0,0,0.7);
+    text-shadow: 0 2px 18px rgba(0,0,0,0.65);
   }
   /* Poster already has title + producer line — hide HTML duplicates */
   .hero.hero--has-poster .hero-content h1 {
@@ -139,14 +142,14 @@ body { background: var(--bg); color: var(--text); }
   .hero.hero--has-poster .hero-sub {
     font-size: 1.02rem;
     line-height: 1.7;
-    margin: 0 0 26px;
-    color: rgba(255,255,255,0.92);
+    margin: 0 0 20px;
+    color: rgba(255,255,255,0.95);
   }
   .hero.hero--has-poster .event-meta {
-    background: rgba(0,0,0,0.52);
-    backdrop-filter: blur(8px);
+    background: rgba(0,0,0,0.58);
+    backdrop-filter: blur(10px);
     margin-bottom: 0;
-    border-color: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.2);
   }
   .hero.hero--has-poster .meta-item {
     padding: 14px 22px;
@@ -157,17 +160,17 @@ body { background: var(--bg); color: var(--text); }
   }
   /* Hub desktop */
   .hero--hub.hero--has-poster {
-    min-height: 88vh;
-    min-height: 88svh;
-    padding-bottom: 44px;
+    min-height: 84vh;
+    min-height: 84svh;
+    padding-bottom: 36px;
   }
   .hero--hub.hero--has-poster .hero-bg img {
-    object-position: center top;
+    object-position: center 4%;
     opacity: 1;
-    filter: none;
+    filter: brightness(1.1) contrast(1.08) saturate(1.12);
   }
   .hero--hub.hero--has-poster .hero-content {
-    padding-top: min(48vh, 560px);
+    padding-top: min(38vh, 440px);
   }
   .hero--hub.hero--has-poster .hero-content h1 {
     display: none;
@@ -182,17 +185,21 @@ body { background: var(--bg); color: var(--text); }
     margin-left: auto;
     margin-right: auto;
     margin-bottom: 0;
-    color: rgba(255,255,255,0.92);
+    color: rgba(255,255,255,0.95);
   }
 }
 
-/* Large desktop: more breathing room under the poster title block */
+/* Large desktop: frame more of the peak under the title */
 @media (min-width: 1200px) {
+  .hero.hero--has-poster .hero-bg img,
+  .hero--hub.hero--has-poster .hero-bg img {
+    object-position: center 6%;
+  }
   .hero.hero--has-poster .hero-content {
-    padding-top: min(42vh, 500px);
+    padding-top: min(32vh, 380px);
   }
   .hero--hub.hero--has-poster .hero-content {
-    padding-top: min(46vh, 540px);
+    padding-top: min(36vh, 420px);
   }
 }
 .eyebrow { font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; justify-content: center; }
@@ -225,26 +232,26 @@ body.theme-navy .about h2 { text-transform: uppercase; letter-spacing: 0.5px; fo
     padding: 0 16px calc(20px + env(safe-area-inset-bottom, 0px));
   }
   .hero.hero--has-poster .hero-bg img {
-    /* Portrait mobile asset — lock to cover, pin top (producer line fully visible) */
+    /* Portrait mobile asset — cover, slight peak bias, bright snow/mist */
     object-fit: cover;
-    object-position: center top;
+    object-position: center 3%;
     width: 100%;
     height: 100%;
     opacity: 1;
-    filter: none;
+    filter: brightness(1.08) contrast(1.06) saturate(1.1);
   }
   .hero.hero--has-poster .hero-bg.has-image .hero-overlay {
-    /* Clear top (poster credits) · dark bottom (UI text readable) */
+    /* Keep mountain mid-frame bright; soft bottom only for UI chips */
     background: linear-gradient(180deg,
-      rgba(0,0,0,0.02) 0%,
-      rgba(0,0,0,0.04) 26%,
-      rgba(0,0,0,0.32) 52%,
-      rgba(0,0,0,0.78) 72%,
-      rgba(0,0,0,0.94) 100%);
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0) 40%,
+      rgba(0,0,0,0.08) 58%,
+      rgba(0,0,0,0.42) 78%,
+      rgba(0,0,0,0.82) 100%);
   }
   .hero.hero--has-poster .hero-content {
-    /* Sit in the dark gradient band under the poster title */
-    padding-top: min(48vh, 420px);
+    /* Sit under title block without eating the mountain */
+    padding-top: min(40vh, 360px);
     max-width: 100%;
     text-shadow: 0 2px 16px rgba(0,0,0,0.75);
   }
