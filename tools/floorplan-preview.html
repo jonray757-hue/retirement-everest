@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Floor plan preview — Kennedy School</title>
+<style>
+  body { margin:0; background:#141416; color:#e8e8ec; font-family:system-ui,sans-serif; }
+  .wrap { max-width:720px; margin:20px auto; padding:16px; }
+  h1 { font-size:1.1rem; color:#c9a44a; }
+  .meta { color:#8a8a94; font-size:0.85rem; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Martha Jordan Room — 5×60″ 6-tops</h1>
+  <div class="meta" id="meta">Loading…</div>
+  <div id="map" style="background:#1a1a1e;border:1px solid #2a2a30;border-radius:8px;padding:8px"></div>
+</div>
+<script src="../seating.js"></script>
+<script>
+  const st = RESeating.emptyState();
+  const seats = RESeating.allSeats();
+  document.getElementById('meta').textContent =
+    `Tables ${RESeating.TABLES.join(', ')} · ${RESeating.SEATS_PER_TABLE}/table · ${seats.length} total · ${seats.join(' ')}`;
+  document.getElementById('map').innerHTML =
+    RESeating.renderMapSVG(st, { mode: 'host' }) + RESeating.legendHTML('host');
+</script>
+</body>
+</html>

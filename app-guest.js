@@ -261,7 +261,7 @@ function renderBbqMenuPickForm() {
 function renderSeatSection() {
   return `
     <div class="section-gap"></div>
-    <div class="pick-head"><span class="pick-title">Reserve Your Seats</span><span class="pick-req">Tables A–D · facing the screen</span></div>
+    <div class="pick-head"><span class="pick-title">Reserve Your Seats</span><span class="pick-req">Tables A–E · 6-tops · facing the screen</span></div>
     <p class="order-intro" style="margin-top:0;font-size:0.9rem">
       Round tables of eight, arranged so <strong>no one's back is to the screen</strong>.
       Pick your seat now and it's yours — reserved seats are blacked out for everyone else.

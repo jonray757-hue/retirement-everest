@@ -562,7 +562,7 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
     <div class="section-gap"></div>
     <h3 style="font-family:var(--heading-font);color:var(--accent);margin-bottom:4px">Seating Chart — Martha Jordan Room</h3>
     <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">
-      Arch layout facing the screen · round 10-tops seating 8 (2 screen-side chairs removed) ·
+      Arch layout facing the screen · five 60″ rounds as 6-tops (2 screen-side chairs removed) ·
       <strong style="color:var(--text)">${seatsTaken}/${totalSeats}</strong> seats reserved
       <button class="btn-sm" style="margin-left:8px" id="btnRefreshSeats">↻ Refresh</button>
     </div>

@@ -1,7 +1,8 @@
 /**
  * Seat reservations — Kennedy School BBQ (Martha Jordan Room).
- * Round 10-top tables seating 8 (the 2 screen-side chairs are removed so no
- * one's back faces the screen). Tables A–D in an arch facing the screen.
+ * Five 60" round tables (true 5 ft tops). Each is an 8-chair ring with the
+ * 2 screen-side chairs removed so no one's back faces the screen → 6 tops.
+ * Tables A–E in an arch facing the screen (30 seats total).
  *
  * Live shared state: durable Google Apps Script store (RESharedStore) preferred.
  * jsonblob fallback only if sharedStoreUrl is not configured (expires ~24h).
@@ -51,32 +52,40 @@
   }
 
   /* ---------------- Layout ---------------- */
-  const TABLES = ['A', 'B', 'C', 'D'];
-  const SEATS_PER_TABLE = 8;
+  const TABLES = ['A', 'B', 'C', 'D', 'E'];
+  const SEATS_PER_TABLE = 6;
   /* Martha Jordan Room, drawn to scale: 23 ft wide × 31 ft deep (713 sq ft), 34 px/ft.
-     The screen is mounted on the short wall; the BBQ buffet sits on the
-     OPPOSITE short wall. Tables are true 6 ft round 10-tops (≈9 ft footprint
-     with chairs), arched so the opening faces the screen. */
+     Screen on the short wall; BBQ buffet on the opposite short wall.
+     Tables are true 60" (5 ft) rounds — venue 8-tops with 2 screen-side chairs
+     removed so every guest faces the screen (6 tops). Footprint ≈ 8 ft with chairs. */
   const PXFT = 34, M = 13;
   const VIEW = { w: 23 * PXFT + 2 * M, h: 31 * PXFT + 2 * M }; // 808 × 1080
   const ROOM = { x: M, y: M, w: 23 * PXFT, h: 31 * PXFT };
   const SCREEN = { x: 254, y: 20, w: 300, h: 30, cx: 404, cy: 35 };
   const BUFFET = { x: M + Math.round(4.5 * PXFT), y: M + Math.round(28.5 * PXFT), w: 14 * PXFT, h: 2 * PXFT };
-  /* Arch: A & B forward near the screen at the sides, C & D set back toward the buffet */
+  /*
+   * Arch of 5 (opening toward screen / top of room):
+   *   A ............... E   (front flanks, nearer screen)
+   *     B ........... D     (mid)
+   *          C              (apex toward buffet)
+   * Centers in feet from room origin — min ~6.5–7 ft between centers so
+   * chair rings clear; true 5 ft tops leave room for walkways.
+   */
   const TABLE_POS = {
-    A: { x: M + 6 * PXFT, y: M + 9 * PXFT },
-    B: { x: M + 17 * PXFT, y: M + 9 * PXFT },
-    C: { x: M + Math.round(6.8 * PXFT), y: M + Math.round(18.5 * PXFT) },
-    D: { x: M + Math.round(16.2 * PXFT), y: M + Math.round(18.5 * PXFT) }
+    A: { x: M + Math.round(4.8 * PXFT), y: M + 8 * PXFT },
+    E: { x: M + Math.round(18.2 * PXFT), y: M + 8 * PXFT },
+    B: { x: M + Math.round(5.8 * PXFT), y: M + 16 * PXFT },
+    D: { x: M + Math.round(17.2 * PXFT), y: M + 16 * PXFT },
+    C: { x: M + Math.round(11.5 * PXFT), y: M + 23 * PXFT }
   };
-  const TABLE_R = Math.round(3 * PXFT);      // 6 ft round top
-  const SEAT_RING = Math.round(3.75 * PXFT); // chairs pushed in
-  const SEAT_R = 26;
-  /* Physical 10-top: chairs every 36°. The 2 chairs nearest the screen are
-     removed, leaving a wide 108° opening that faces the screen. */
-  const SEAT_STEP = 36;
-  const FIRST_SEAT_DEG = 54;      // first kept chair, measured from screen direction
-  const REMOVED_DEG = [18, -18];  // the two removed screen-side chairs
+  const TABLE_R = Math.round(2.5 * PXFT);      // 60" / 5 ft round top
+  const SEAT_RING = Math.round(3.2 * PXFT);     // chairs outside top
+  const SEAT_R = 24;
+  /* Physical 8-top on 60": chairs every 45°. The 2 nearest the screen are
+     removed, leaving a 90° opening that faces the screen (6 seats kept). */
+  const SEAT_STEP = 45;
+  const FIRST_SEAT_DEG = 67.5;      // first kept chair from screen direction
+  const REMOVED_DEG = [22.5, -22.5]; // the two removed screen-side chairs
 
   function seatKey(t, n) { return `${t}${n}`; }
 
@@ -93,10 +102,10 @@
     return Math.atan2(SCREEN.cy - c.y, SCREEN.cx - c.x); // toward screen
   }
 
-  /** Seat position: real 10-top spacing (36°), 108° opening faces the screen. */
+  /** Seat position: real 8-top spacing (45°), 90° opening faces the screen. */
   function seatXY(t, n) {
     const c = TABLE_POS[t];
-    const deg = FIRST_SEAT_DEG + (n - 1) * SEAT_STEP; // 54°..306° clockwise from screen
+    const deg = FIRST_SEAT_DEG + (n - 1) * SEAT_STEP; // 67.5°..292.5°
     const a = screenAngle(t) + (deg * Math.PI) / 180;
     return {
       x: c.x + SEAT_RING * Math.cos(a),
@@ -114,9 +123,9 @@
   }
 
   /* ---------------- Shared state ---------------- */
-  /* Bump version when shared blob is reset so ghost caches on phones die. */
-  const LOCAL_KEY = 're_seats_cache_v2';
-  const SEAT_ID_RE = /^[A-D][1-8]$/;
+  /* Bump version when layout / seat IDs change so ghost caches on phones die. */
+  const LOCAL_KEY = 're_seats_cache_v3';
+  const SEAT_ID_RE = /^[A-E][1-6]$/;
 
   function emptyState() {
     return {
@@ -151,7 +160,7 @@
   /** "Table C · Seats 3 & 4" → ["C3","C4"] */
   function parseSeatLabel(label) {
     if (!label) return [];
-    const m = String(label).match(/Table\s+([A-D]).*?Seat[s]?\s+([0-9]+(?:\s*&\s*[0-9]+)*)/i);
+    const m = String(label).match(/Table\s+([A-E]).*?Seat[s]?\s+([0-9]+(?:\s*&\s*[0-9]+)*)/i);
     if (!m) return [];
     const t = m[1].toUpperCase();
     return m[2].split(/\s*&\s*/).map((n) => t + String(n).trim()).filter((id) => SEAT_ID_RE.test(id));
@@ -879,7 +888,7 @@
       return `<g>
         <circle cx="${c.x}" cy="${c.y}" r="${TABLE_R}" fill="rgba(201,164,74,0.07)" stroke="var(--accent, #c9a44a)" stroke-width="1.5" stroke-opacity="0.5"></circle>
         <text x="${c.x}" y="${c.y + 2}" text-anchor="middle" font-size="40" font-weight="800" fill="var(--accent, #c9a44a)" fill-opacity="0.9">${t}</text>
-        <text x="${c.x}" y="${c.y + 26}" text-anchor="middle" font-size="12" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.55">SEATS 8</text>
+        <text x="${c.x}" y="${c.y + 26}" text-anchor="middle" font-size="12" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.55">SEATS 6</text>
         ${ghosts}
       </g>`;
     }).join('');

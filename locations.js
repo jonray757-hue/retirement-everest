@@ -376,7 +376,7 @@ window.RETIREMENT_EVEREST = {
         doorsTime: '',
         showTime: '',
         guestGoal: 30,
-        notes: 'Martha Jordan Room · Backyard BBQ · ~30 guests · arch seating A–D'
+        notes: 'Martha Jordan Room · Backyard BBQ · ~30 guests · arch seating A–E (5×60″ 6-tops)'
       },
       /* Preferences save on BBQ page storage (via guestSlug) */
       storageKey: 'kennedyschool_buffet_orders_v1',
