@@ -1,5 +1,5 @@
 /**
- * Seat reservations — Kennedy School BBQ (Martha Jordan Room).
+ * Seat reservations — Kennedy School BBQ (Jordan Room).
  * Five 60" round tables (true 5 ft tops). Each is an 8-chair ring with the
  * 2 screen-side chairs removed so no one's back faces the screen → 6 tops.
  * Tables A–E in an arch facing the screen (30 seats total).
@@ -54,7 +54,7 @@
   /* ---------------- Layout ---------------- */
   const TABLES = ['A', 'B', 'C', 'D', 'E'];
   const SEATS_PER_TABLE = 6;
-  /* Martha Jordan Room, drawn to scale: 23 ft wide × 31 ft deep (713 sq ft), 34 px/ft.
+  /* Jordan Room, drawn to scale: 23 ft wide × 31 ft deep (713 sq ft), 34 px/ft.
      Screen on the short wall; BBQ buffet on the opposite short wall.
      Tables are true 60" (5 ft) rounds — venue 8-tops with 2 screen-side chairs
      removed so every guest faces the screen (6 tops). Footprint ≈ 8 ft with chairs. */
@@ -897,7 +897,7 @@
       <rect x="${ROOM.x}" y="${ROOM.y}" width="${ROOM.w}" height="${ROOM.h}" rx="4" fill="rgba(255,255,255,0.015)" stroke="#3c3c44" stroke-width="2"></rect>
       <rect x="${SCREEN.x}" y="${SCREEN.y}" width="${SCREEN.w}" height="${SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
       <text x="${SCREEN.cx}" y="${SCREEN.cy + 5}" text-anchor="middle" font-size="15" letter-spacing="6" fill="#9a9aa4">SCREEN</text>
-      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">Martha Jordan Room · 23 × 31 ft — ✕ chairs removed so every seat faces the screen</text>
+      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">Jordan Room · 23 × 31 ft — ✕ chairs removed so every seat faces the screen</text>
       <rect x="${BUFFET.x}" y="${BUFFET.y}" width="${BUFFET.w}" height="${BUFFET.h}" rx="5" fill="rgba(201,164,74,0.05)" stroke="#4a4a52" stroke-dasharray="6 4"></rect>
       <text x="${BUFFET.x + BUFFET.w / 2}" y="${BUFFET.y + BUFFET.h / 2 + 5}" text-anchor="middle" font-size="14" letter-spacing="5" fill="#8a8a94">BBQ BUFFET</text>
       ${tables}

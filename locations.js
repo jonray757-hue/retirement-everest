@@ -369,14 +369,14 @@ window.RETIREMENT_EVEREST = {
       name: 'McMenamins Kennedy School',
       shortName: 'Kennedy School',
       city: 'Portland, OR',
-      venue: 'Martha Jordan Room',
+      venue: 'Jordan Room',
       /* Seeded into localStorage by ensureEventDefaults() so Overview/Planner always show the event */
       defaultEvent: {
         eventDate: '2026-08-27',
         doorsTime: '',
         showTime: '',
         guestGoal: 30,
-        notes: 'Martha Jordan Room · Backyard BBQ · ~30 guests · arch seating A–E (5×60″ 6-tops)'
+        notes: 'Jordan Room · Backyard BBQ · ~30 guests · arch seating A–E (5×60″ 6-tops)'
       },
       /* Preferences save on BBQ page storage (via guestSlug) */
       storageKey: 'kennedyschool_buffet_orders_v1',
@@ -573,7 +573,7 @@ window.RETIREMENT_EVEREST = {
         drinkPp: 6,
         drinkSoftPp: 4.25,
         drinkAdultPp: 8,
-        roomName: 'Classroom (Martha Jordan / Mina Parsons) · max ~40',
+        roomName: 'Classroom (Jordan Room / Mina Parsons) · max ~40',
         note: 'Each buffet package is modeled separately. Formula: max(buffet$/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service. Range p10 = all soft drinks ($4.25), median = blend ($6), p90 = all adult ($8). Apps are NOT in the base numbers — add separately if the poll majority wants them (e.g. Althea $31/pp ≈ +$1.1k–$1.5k at 30–40 guests after service).',
         /* Series compare uses Luau (lowest) @ 35 */
         scenarios: [
@@ -667,7 +667,7 @@ window.RETIREMENT_EVEREST = {
       name: 'McMenamins Kennedy School — Backyard BBQ',
       shortName: 'Kennedy School BBQ',
       city: 'Portland, OR',
-      venue: 'Martha Jordan Room',
+      venue: 'Jordan Room',
       storageKey: 'kennedyschool_bbq_prefs_v5',
       attachments: [
         { name: 'Kennedy School Catering Menus (June 2026)', path: 'data/venue-attachments/Kennedy-School-Catering-Menus.pdf', kind: 'menu' }
@@ -746,7 +746,7 @@ window.RETIREMENT_EVEREST = {
         drinkPp: 6,
         drinkSoftPp: 4.25,
         drinkAdultPp: 8,
-        roomName: 'Classroom (Martha Jordan / Mina Parsons) · max ~40',
+        roomName: 'Classroom (Jordan Room / Mina Parsons) · max ~40',
         note: 'Backyard BBQ locked. Soft drinks included. Poll adult-drink interest only to decide bar package vs guests order from the bar. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service.',
         scenarios: [
           { guests: 30, median: 2523, p10: 2459, p90: 2595, perGuest: 84 },
