@@ -433,10 +433,20 @@ function paintContactsView() {
       btn.textContent = 'Importing…';
     }
     try {
+      // Clear accidental bare-email bans from older delete bug
+      if (REContacts.getRemovedContactKeys) {
+        const banned = REContacts.getRemovedContactKeys() || [];
+        const cleaned = banned.filter((k) => !/^e:[^|]+$/.test(k) && !/^p:\d+$/.test(k));
+        if (cleaned.length !== banned.length && REContacts.unmarkContactRemoved) {
+          // wipe and re-add only person-level bans
+          REContacts.unmarkContactRemoved(null);
+          cleaned.forEach((k) => REContacts.markContactRemoved(k));
+        }
+      }
       const r = await REContacts.importEventCrmSeed({ force: true });
       alert(
         r?.ok
-          ? `Imported ${r.imported} guest(s) from HAG GHL + seat/preference store into Contacts.`
+          ? `Restored/imported ${r.imported} guest(s) from HAG + seat store.\n\nCouples who share an email are separate contacts again.`
           : `Import failed: ${r?.error || 'unknown'}`
       );
     } catch (e) {
@@ -498,7 +508,7 @@ async function removeContactAt(idx, btn) {
   const label = c.name || c.email || c.phone || 'this contact';
   if (
     !confirm(
-      `Remove ${label} from Event CRM?\n\nDeletes them from this browser's directory, invite queue, and preference log. Reserved seats they hold are released. GHL is not changed.`
+      `Remove ${label} only?\n\nThis removes that person from Contacts — not a spouse who shares the same email.\n\nTheir preference row / seats with their name may also clear. GHL is not changed.\n\nTo bring someone back: Re-import GHL / seats.`
     )
   ) {
     return;

@@ -75,54 +75,76 @@ function markContactRemoved(key) {
   }
 }
 
+/** Un-suppress one person (or clear all) so re-import can bring them back. */
+function unmarkContactRemoved(recOrKey) {
+  const list = getRemovedContactKeys();
+  if (!list.length) return [];
+  if (recOrKey == null) {
+    saveRemovedContactKeys([]);
+    return [];
+  }
+  const drop = new Set();
+  if (typeof recOrKey === 'string') drop.add(recOrKey);
+  else if (recOrKey && typeof recOrKey === 'object') {
+    drop.add(contactMatchKey(recOrKey));
+    if (recOrKey.id) drop.add('id:' + recOrKey.id);
+  }
+  const next = list.filter((k) => !drop.has(k));
+  saveRemovedContactKeys(next);
+  return next;
+}
+
 function isContactRemoved(rec) {
   if (!rec) return false;
   const keys = getRemovedContactKeys();
   if (!keys.length) return false;
+  // ONLY exact person key (email+name) or record id — never bare email/phone
+  // (that used to delete a spouse who shares the inbox).
   const k = contactMatchKey(rec);
   if (keys.includes(k)) return true;
   if (rec.id && keys.includes('id:' + rec.id)) return true;
-  // Also match email/phone keys alone
-  const email = normalizeEmail(rec.email);
-  if (email && keys.includes('e:' + email)) return true;
-  const phone = normalizePhone(rec.phone);
-  if (phone.length >= 10 && keys.includes('p:' + phone.slice(-10))) return true;
   return false;
 }
 
 /**
- * Remove a contact from the directory.
- * - Manual rows deleted from re_contacts_v1
- * - Matching invites dropped from invite queue
- * - Matching preference rows removed from local (+ shared when possible)
- * - Match keys suppressed so rebuild does not resurrect the person
+ * Same person? Prefer exact match key; never treat "same email" alone as a match
+ * when names differ (couples sharing one email).
+ */
+function isSameContact(a, b) {
+  if (!a || !b) return false;
+  if (a.id && b.id && a.id === b.id) return true;
+  if (a.orderId != null && b.orderId != null && String(a.orderId) === String(b.orderId)) return true;
+  if (a.ghlId && b.ghlId && a.ghlId === b.ghlId) {
+    // GHL id is unique per contact record
+    return true;
+  }
+  return contactMatchKey(a) === contactMatchKey(b);
+}
+
+/**
+ * Remove ONE contact from the directory.
+ * - Manual row for that person only
+ * - Does NOT ban the whole email/phone (spouses stay)
+ * - Hard mode only removes that person's preference row / seats they uniquely own
  */
 async function deleteContact(contact, opts = {}) {
   if (!contact) return { ok: false, reason: 'No contact' };
-  const hard = opts.hard !== false; // default hard-remove local data
+  const hard = opts.hard !== false;
   const key = contactMatchKey(contact);
-  const keys = new Set([key]);
-  if (contact.id) keys.add('id:' + contact.id);
-  const email = normalizeEmail(contact.email);
-  if (email) keys.add('e:' + email);
-  const phone = normalizePhone(contact.phone);
-  if (phone.length >= 10) keys.add('p:' + phone.slice(-10));
-  keys.forEach((k) => markContactRemoved(k));
+  // Suppress ONLY this person — never bare e:email / p:phone
+  markContactRemoved(key);
+  if (contact.id) markContactRemoved('id:' + contact.id);
 
-  // Manual directory
-  const manual = getManualContacts().filter((c) => {
-    if (contact.id && c.id === contact.id) return false;
-    return !keys.has(contactMatchKey(c));
-  });
+  // Manual directory — exact person only
+  const manual = getManualContacts().filter((c) => !isSameContact(c, contact));
   saveManualContacts(manual);
 
-  // Invite queue
+  // Invite queue — exact person only
   if (typeof getInviteQueue === 'function') {
     try {
       const queue = getInviteQueue().filter((inv) => {
-        const rec = contactFromInvite(inv);
         if (contact.inviteId && inv.id === contact.inviteId) return false;
-        return !keys.has(contactMatchKey(rec));
+        return !isSameContact(contactFromInvite(inv), contact);
       });
       localStorage.setItem(
         typeof RE_INVITES_KEY !== 'undefined' ? RE_INVITES_KEY : 're_invites_v1',
@@ -134,16 +156,18 @@ async function deleteContact(contact, opts = {}) {
   }
 
   if (hard) {
-    // Local preference logs across locations
+    const targetName = String(contact.name || '').toLowerCase().trim();
+    const targetEmail = normalizeEmail(contact.email);
+
+    // Local preference logs — only rows for this name (not every order on the email)
     const locs = typeof getAllLocations === 'function' ? getAllLocations() : [];
     locs.forEach((loc) => {
       if (!loc?.storageKey) return;
       try {
         const list = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
         const next = list.filter((o) => {
-          const rec = contactFromOrder(o);
-          if (contact.orderId && o.id === contact.orderId) return false;
-          return !keys.has(contactMatchKey(rec));
+          if (contact.orderId != null && String(o.id) === String(contact.orderId)) return false;
+          return !isSameContact(contactFromOrder(o), contact);
         });
         if (next.length !== list.length) {
           localStorage.setItem(loc.storageKey, JSON.stringify(next));
@@ -151,14 +175,13 @@ async function deleteContact(contact, opts = {}) {
       } catch (_) {}
     });
 
-    // Shared multi-device preference log
+    // Shared preference log — same person only
     if (window.RESharedOrders?.fetchSharedOrders && window.RESharedOrders?.putSharedOrders) {
       try {
         const all = await RESharedOrders.fetchSharedOrders();
         const next = (all || []).filter((o) => {
-          const rec = contactFromOrder(o);
-          if (contact.orderId && o.id === contact.orderId) return false;
-          return !keys.has(contactMatchKey(rec));
+          if (contact.orderId != null && String(o.id) === String(contact.orderId)) return false;
+          return !isSameContact(contactFromOrder(o), contact);
         });
         if (next.length !== (all || []).length) {
           await RESharedOrders.putSharedOrders(next);
@@ -168,20 +191,21 @@ async function deleteContact(contact, opts = {}) {
       }
     }
 
-    // Release any seats claimed by this person
+    // Seats: only release seats whose claim person/name matches THIS guest
+    // (not every seat on a shared household email)
     if (window.RESeating?.fetchState && window.RESeating?.releaseSeats) {
       try {
         const st = await RESeating.fetchState({ healRemote: false, orders: [] });
         const seatIds = Object.values(st.seats || {})
           .filter((c) => {
             if (!c) return false;
-            const emailMatch = email && normalizeEmail(c.email) === email;
-            const phoneMatch =
-              phone.length >= 10 && normalizePhone(c.phone).slice(-10) === phone.slice(-10);
-            const nameMatch =
-              (c.name || '').toLowerCase().trim() ===
-              (contact.name || '').toLowerCase().trim();
-            return emailMatch || phoneMatch || (!email && !phone && nameMatch);
+            const claimName = String(c.person || c.name || '')
+              .toLowerCase()
+              .trim();
+            if (targetName && claimName && claimName === targetName) return true;
+            // Prefer person name; only fall back to email if names empty
+            if (!targetName && targetEmail && normalizeEmail(c.email) === targetEmail) return true;
+            return false;
           })
           .map((c) => c.seatId)
           .filter(Boolean);
@@ -203,7 +227,7 @@ async function deleteContact(contact, opts = {}) {
     }
   }
 
-  return { ok: true, key, keys: [...keys] };
+  return { ok: true, key, keys: [key] };
 }
 
 /** Upsert a host-owned contact record (manual fields, notes, position). */
@@ -683,9 +707,54 @@ async function importEventCrmSeed(opts = {}) {
   }
   if (!Array.isArray(seed) || !seed.length) return { ok: true, imported: 0 };
 
+  // Re-import must un-suppress seed people (delete used to ban whole emails)
+  if (force) {
+    seed.forEach((row) => {
+      if (!row) return;
+      unmarkContactRemoved(row);
+      if (row.ghlId) unmarkContactRemoved('id:' + row.ghlId);
+      if (row.name || row.email) {
+        unmarkContactRemoved({
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          firstName: row.firstName,
+          lastName: row.lastName
+        });
+      }
+      // Clear legacy bare-email bans that wiped spouses
+      const email = normalizeEmail(row.email);
+      if (email) {
+        const banned = getRemovedContactKeys().filter(
+          (k) => k === 'e:' + email || k.startsWith('e:' + email + '|')
+        );
+        // Only remove bare e:email ban keys (not intentional person bans with different names)
+        const bare = 'e:' + email;
+        if (getRemovedContactKeys().includes(bare)) {
+          saveRemovedContactKeys(getRemovedContactKeys().filter((k) => k !== bare));
+        }
+        const phone = normalizePhone(row.phone);
+        if (phone.length >= 10) {
+          const pb = 'p:' + phone.slice(-10);
+          if (getRemovedContactKeys().includes(pb)) {
+            saveRemovedContactKeys(getRemovedContactKeys().filter((k) => k !== pb));
+          }
+        }
+      }
+    });
+  }
+
   let imported = 0;
   seed.forEach((row) => {
     if (!row || (!row.name && !row.email && !row.phone)) return;
+    // Always unsuppress this seed row so couples can return after a bad delete
+    unmarkContactRemoved({
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      firstName: row.firstName,
+      lastName: row.lastName
+    });
     const prefsSummary = row.preferencesSummary || '';
     const seats = Array.isArray(row.seats) ? row.seats : [];
     const seatLabel = row.seatLabel || '';
@@ -750,7 +819,9 @@ window.REContacts = {
   getManualContacts,
   deleteContact,
   markContactRemoved,
+  unmarkContactRemoved,
   isContactRemoved,
+  isSameContact,
   getRemovedContactKeys,
   pushQuickConnectToGHL,
   recordInviteAsContact,
