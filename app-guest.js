@@ -953,6 +953,9 @@ async function pushGuestOrderToGHL(order) {
   const locVenue = locFields.venue || LOC.venue || '';
   const locCity = locFields.city || LOC.city || '';
   const eventDate = locFields.eventDate || '';
+  const isBbq = !!(LOC.bbqMenuPick || order.form === 'bbq-menu-pick');
+  const hasSeats = !!(order.seatLabel || (Array.isArray(order.seats) && order.seats.length));
+  const pipelineStage = hasSeats ? 'Seated' : 'Preferences Received';
 
   const payload = {
     // Contact (map these in GHL inbound webhook)
@@ -963,6 +966,12 @@ async function pushGuestOrderToGHL(order) {
     phone: order.phone || '',
     // Event type
     event: 'preference_submitted',
+    pipeline: '08/27/26 - RE Premiere Event',
+    pipelineName: '08/27/26 - RE Premiere Event',
+    pipelineStage,
+    pipelineStageName: pipelineStage,
+    status: hasSeats ? 'seated' : 'registered',
+    tag: hasSeats ? 're-seated' : 're-prefs-received',
     source: 'retirement-everest-guest',
     brand: RETIREMENT_EVEREST.ghlBrand || 'HAG',
     ghlLocationId: RETIREMENT_EVEREST.ghlLocationId || '',
@@ -972,7 +981,7 @@ async function pushGuestOrderToGHL(order) {
     ...locFields,
     // BBQ / food prefs
     buffet: order.buffet || '',
-    sides: Array.isArray(order.sides) ? order.sides.join(' · ') : (order.sides || order.starter || ''),
+    sides: Array.isArray(order.sides) ? order.sides.join(' · ') : (order.sides || ''),
     side1: Array.isArray(order.sides) ? (order.sides[0] || '') : '',
     side2: Array.isArray(order.sides) ? (order.sides[1] || '') : '',
     entree: order.entree || order.main || '',
@@ -993,21 +1002,21 @@ async function pushGuestOrderToGHL(order) {
     seatAccommodation: order.seatAccommodation ? 'yes' : '',
     // Full blob for custom field / notes
     preferencesSummary: [
-      `Event location: ${eventLocationLabel}${locVenue ? ` · ${locVenue}` : ''}${locCity ? ` · ${locCity}` : ''}`,
-      locSlug ? `Location slug: ${locSlug}` : '',
-      eventDate ? `Event date: ${eventDate}` : '',
+      `${eventLocationLabel}${locVenue ? ` · ${locVenue}` : ''}${eventDate ? ` · ${eventDate}` : ''}`,
+      `Stage: ${pipelineStage}`,
+      isBbq ? 'Form: BBQ menu + seats' : 'Form: old buffet poll — not the live BBQ menu',
       order.buffet ? `Dinner: ${order.buffet}` : '',
-      order.sides?.length ? `Sides: ${order.sides.join(' · ')}` : (order.starter ? `Starter: ${order.starter}` : ''),
+      order.sides?.length ? `Sides: ${order.sides.join(' · ')}` : '',
       order.entree ? `Entrée: ${order.entree}` : '',
       order.dessert ? `Dessert: ${order.dessert}` : '',
-      order.drink ? `Drink: ${order.drink}${order.drinkCat ? ` (${order.drinkCat})` : ''}` : '',
+      !isBbq && order.starter ? `Poll appetizer (ignore): ${order.starter}` : '',
+      order.drink ? `Drink: ${order.drinkCat === 'Adult' ? 'Yes — adult beverage' : 'No — soft drinks included'}` : '',
       order.notes ? `Notes: ${order.notes}` : '',
       order.joinedPartner
-        ? `Party: Joined partner seats — with ${order.linkedPartnerName || order.spouse || ''}`
-        : (order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : '')),
-      order.seatLabel ? `Seats: ${order.seatLabel}` : '',
-      order.seatAccommodation ? 'SEATING: needs personal arrangement (couldn\'t find open seats that work)' : '',
-      order.joinedPartner ? 'CRM: link this contact to partner record (couple_linked / partner-join)' : ''
+        ? `Party: joined ${order.linkedPartnerName || order.spouse || 'partner'}`
+        : (order.partyType === 'couple' ? `Party: couple${order.spouse ? ` with ${order.spouse}` : ''}` : (order.partyType ? 'Party: solo' : '')),
+      order.seatLabel ? `Seats: ${order.seatLabel}` : 'Seats: not picked yet',
+      order.seatAccommodation ? 'Seating: host will arrange' : ''
     ].filter(Boolean).join('\n'),
     submittedAt: order.ts || new Date().toISOString()
   };

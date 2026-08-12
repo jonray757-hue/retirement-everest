@@ -10,15 +10,15 @@ let contactsFilter = {
   location: 'all',
   board: true,
   priority: 'all',
-  viewMode: 'call' // call | board | list
+  viewMode: 'board' // board | call | list
 };
 let connectDraft = null; // { contact, channel, purpose }
 
 const CRM_STAGES = [
-  { id: 'talking', label: 'Talking', hint: 'Manual / pipeline' },
-  { id: 'invited', label: 'Registered · invited', hint: 'In CRM — send prefs link' },
-  { id: 'registered', label: 'Preferences in', hint: 'Food prefs submitted' },
-  { id: 'seated', label: 'Prefs + seat', hint: 'Seats reserved' }
+  { id: 'invited', label: 'Registered', hint: 'On the list — still needs prefs' },
+  { id: 'registered', label: 'Preferences received', hint: 'Menu in — seat still open' },
+  { id: 'seated', label: 'Seated', hint: 'Prefs + chair reserved' },
+  { id: 'talking', label: 'Talking', hint: 'Manual follow-up' }
 ];
 
 function stageLabel(status) {
@@ -162,10 +162,11 @@ function contactCardHTML(c, opts = {}) {
   const status = REContacts?.contactPipelineStatus?.(c) || c.status || 'prospect';
   const prefs = c.preferences;
   const rank = opts.rank != null ? opts.rank : null;
+  const compact = !!opts.compact;
   const seatBit = prefs?.seatLabel
     ? `<span class="crm-chip crm-chip-seat">${esc(prefs.seatLabel)}</span>`
     : status === 'registered'
-      ? `<span class="crm-chip">Prefs only · no seat yet</span>`
+      ? `<span class="crm-chip">Prefs in · no seat</span>`
       : '';
   const pri =
     c.priorityLabel ||
@@ -174,11 +175,16 @@ function contactCardHTML(c, opts = {}) {
       : '');
   const priTag = c.priorityTag || '';
   const score = c.callScore != null ? c.callScore : '—';
-  const prefsLine = prefs?.preferencesSummary
-    ? esc(prefs.preferencesSummary.replace(/\n/g, ' · ').slice(0, 120))
-    : status === 'invited' || status === 'talking'
-      ? '<span style="color:var(--muted)">Waiting on prefs form</span>'
-      : '<span style="color:var(--muted)">No prefs yet</span>';
+  const foodBits = [prefs?.entree, Array.isArray(prefs?.sides) ? prefs.sides.join(', ') : '', prefs?.drinkCat === 'Adult' ? 'adult drink' : '']
+    .filter(Boolean)
+    .join(' · ');
+  const prefsLine = foodBits
+    ? esc(foodBits)
+    : prefs?.preferencesSummary
+      ? esc(prefs.preferencesSummary.replace(/\n/g, ' · ').slice(0, compact ? 80 : 120))
+      : status === 'invited' || status === 'talking'
+        ? '<span style="color:var(--muted)">Waiting on prefs form</span>'
+        : '<span style="color:var(--muted)">No prefs yet</span>';
   const last = c.lastContactAt
     ? `${c.lastConnectChannel || 'touch'} · ${new Date(c.lastContactAt).toLocaleString()}`
     : c.lastLinkSentAt
@@ -189,6 +195,25 @@ function contactCardHTML(c, opts = {}) {
   const household = c.household === 'couple' ? 'Couple' : c.household === 'single' ? 'Single' : 'HH?';
   const gender =
     c.gender === 'female' ? 'F' : c.gender === 'male' ? 'M' : c.genderGuess === 'female' ? 'F?' : c.genderGuess === 'male' ? 'M?' : '?';
+
+  if (compact) {
+    return `<div class="contact-card crm-card crm-card-compact" data-idx="${idx}" data-status="${esc(status)}">
+      <div class="contact-card-main">
+        <div class="contact-card-top">
+          <strong class="contact-name">${esc(c.name || '—')}</strong>
+          <span class="contact-status status-${esc(status)}">${esc(stageLabel(status))}</span>
+        </div>
+        <div class="contact-channels"><span>${esc(c.phone || c.email || '—')}</span></div>
+        <div class="contact-prefs">${prefsLine}</div>
+        ${seatBit ? `<div style="margin-top:6px">${seatBit}</div>` : ''}
+      </div>
+      <div class="contact-actions">
+        ${needsLink
+          ? `<button type="button" class="btn-sm btn-accent" data-prefs-link="sms" data-idx="${idx}" ${c.phone ? '' : 'disabled'}>Text link</button>`
+          : `<button type="button" class="btn-sm" data-detail="${idx}">Details</button>`}
+      </div>
+    </div>`;
+  }
 
   return `<div class="contact-card crm-card" data-idx="${idx}" data-status="${esc(status)}" data-priority="${esc(c.priorityCategory || '')}">
     <div class="contact-card-main">
@@ -276,10 +301,10 @@ function paintContactsView() {
 
   const statusOpts = [
     ['all', 'All stages'],
-    ['talking', 'Talking'],
-    ['invited', 'Registered · invited'],
-    ['registered', 'Preferences in'],
-    ['seated', 'Prefs + seat']
+    ['invited', 'Registered'],
+    ['registered', 'Preferences received'],
+    ['seated', 'Seated'],
+    ['talking', 'Talking']
   ]
     .map(
       ([v, lab]) =>
@@ -311,7 +336,7 @@ function paintContactsView() {
         <span class="crm-col-count">${col.length}</span>
       </div>
       <div class="crm-col-body">
-        ${col.length ? col.map((c) => contactCardHTML(c)).join('') : `<p class="crm-col-empty">None yet</p>`}
+        ${col.length ? col.map((c) => contactCardHTML(c, { compact: true })).join('') : `<p class="crm-col-empty">None yet</p>`}
       </div>
     </div>`;
   }).join('');
@@ -330,12 +355,11 @@ function paintContactsView() {
     <div class="card-box" style="margin-bottom:18px;border:2px solid var(--accent)">
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between">
         <div>
-          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">CONTACTS · CALL PRIORITY · KENNEDY</div>
-          <h3 style="margin:0 0 6px">Who to call first</h3>
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">EVENT CRM · AUG 27 BBQ</div>
+          <h3 style="margin:0 0 6px">Kennedy School pipeline</h3>
           <p class="integration-note" style="margin:0;max-width:680px">
-            Pulls everyone registered via Producer Autopilot → HAG for this event, plus seat/preference submits.
-            Call order: <strong>1. Couples</strong> · <strong>2. Single women</strong> · <strong>3. Single men</strong>.
-            Tags: <code>call-priority-couple</code>, <code>call-priority-single-woman</code>, <code>call-priority-single-man</code>.
+            Same stages as Producer Autopilot: <strong>Registered</strong> → <strong>Preferences received</strong> → <strong>Seated</strong>.
+            Guest form submits move the card. Call order is still here if you need it.
           </p>
           <p id="crmSyncBanner" style="margin:8px 0 0;font-size:0.8rem;color:var(--accent)"></p>
         </div>
@@ -345,18 +369,17 @@ function paintContactsView() {
           <button type="button" class="btn-sm" id="btnRefreshContacts">Refresh from cloud</button>
           <button type="button" class="btn-sm" id="btnImportGhlSeed">Re-import GHL / seats</button>
           <button type="button" class="btn-sm" id="btnExportContacts">Export CSV</button>
-          <button type="button" class="btn-sm" id="btnViewCall" ${mode === 'call' ? 'disabled' : ''}>Call order</button>
           <button type="button" class="btn-sm" id="btnViewBoard" ${mode === 'board' ? 'disabled' : ''}>Pipeline</button>
+          <button type="button" class="btn-sm" id="btnViewCall" ${mode === 'call' ? 'disabled' : ''}>Call order</button>
           <button type="button" class="btn-sm" id="btnViewList" ${mode === 'list' ? 'disabled' : ''}>List</button>
         </div>
       </div>
       <div class="contact-stats" style="margin-top:16px">
         <div class="card-box contact-stat"><div class="stat-label">All</div><div class="stat-val">${counts.all}</div></div>
-        <div class="card-box contact-stat"><div class="stat-label">★ Couples</div><div class="stat-val accent">${counts.couple}</div></div>
-        <div class="card-box contact-stat"><div class="stat-label">Single ♀</div><div class="stat-val">${counts.singleWoman}</div></div>
-        <div class="card-box contact-stat"><div class="stat-label">Single ♂</div><div class="stat-val">${counts.singleMan}</div></div>
-        <div class="card-box contact-stat"><div class="stat-label">Review</div><div class="stat-val">${counts.unknown}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Registered</div><div class="stat-val">${counts.invited}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Prefs in</div><div class="stat-val accent">${counts.registered}</div></div>
         <div class="card-box contact-stat"><div class="stat-label">Seated</div><div class="stat-val">${counts.seated}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Couples</div><div class="stat-val">${counts.couple}</div></div>
       </div>
     </div>
 
@@ -372,8 +395,8 @@ function paintContactsView() {
           <select id="contactLocFilter"><option value="all">All events</option>${locOpts}</select></label>
       </div>
       <p style="font-size:0.78rem;color:var(--muted);margin-top:10px">
-        Showing <strong style="color:var(--text)">${list.length}</strong> in call order (highest score first).
-        Score = category base (couple 100 / single woman 60 / single man 30) + seat/prefs/phone bonuses.
+        Showing <strong style="color:var(--text)">${list.length}</strong>.
+        Pipeline matches GHL. Call order still ranks couples first if you switch views.
       </p>
     </div>
 
