@@ -82,24 +82,38 @@ async function renderContacts() {
     console.warn('[RE] contacts shared refresh', e);
   }
 
-  // Pull HAG GHL + live seat/order seed so CRM is never blank for Kennedy guests
+  // Always merge latest HAG/seed guests (full list — 30–40+ Producer Autopilot registrants)
+  let importMsg = '';
   try {
     if (window.REContacts?.importEventCrmSeed) {
-      const r = await REContacts.importEventCrmSeed();
-      if (r?.imported) console.info('[RE] Event CRM seed imported', r.imported, 'of', r.total);
+      const r = await REContacts.importEventCrmSeed({ force: true });
+      if (r?.ok) {
+        importMsg = `Synced ${r.imported} from HAG / seat store (of ${r.total} in seed).`;
+        console.info('[RE] Event CRM seed imported', r);
+      } else {
+        importMsg = 'Seed sync failed: ' + (r?.error || 'unknown');
+      }
     }
   } catch (e) {
     console.warn('[RE] event CRM seed import', e);
+    importMsg = 'Seed sync error: ' + (e.message || e);
   }
 
-  // Default filter to active event (Kennedy) unless user already chose
-  if (contactsFilter.location === 'all' && typeof getActiveEventSlug === 'function') {
-    const active = getActiveEventSlug();
-    if (active) contactsFilter.location = active;
+  // Default filter: Kennedy event (still show contacts tagged for this event)
+  if (!contactsFilter._locTouched && typeof getActiveEventSlug === 'function') {
+    contactsFilter.location = getActiveEventSlug() || 'kennedy-school';
   }
 
   contactsCache = window.REContacts?.buildContactDirectory?.() || [];
+  // Score immediately so call order works out of the box
+  if (typeof REContactScore !== 'undefined' && REContactScore.sortByCallPriority) {
+    contactsCache = REContactScore.sortByCallPriority(contactsCache);
+  }
   paintContactsView();
+  if (importMsg) {
+    const bar = document.getElementById('crmSyncBanner');
+    if (bar) bar.textContent = importMsg;
+  }
 }
 
 function filterContactsList() {
@@ -319,12 +333,11 @@ function paintContactsView() {
           <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">CONTACTS · CALL PRIORITY · KENNEDY</div>
           <h3 style="margin:0 0 6px">Who to call first</h3>
           <p class="integration-note" style="margin:0;max-width:680px">
-            <strong>1. Couples / married</strong> (party=couple, spouse, 2 seats) ·
-            <strong>2. Single women</strong> ·
-            <strong>3. Single men</strong>.
-            Enrichment uses registration data + first-name gender guess; override on Edit if wrong.
+            Pulls everyone registered via Producer Autopilot → HAG for this event, plus seat/preference submits.
+            Call order: <strong>1. Couples</strong> · <strong>2. Single women</strong> · <strong>3. Single men</strong>.
             Tags: <code>call-priority-couple</code>, <code>call-priority-single-woman</code>, <code>call-priority-single-man</code>.
           </p>
+          <p id="crmSyncBanner" style="margin:8px 0 0;font-size:0.8rem;color:var(--accent)"></p>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           <button type="button" class="lock-btn btn-accent" id="btnEnrichScore" style="max-width:none;width:auto;padding:12px 18px">Enrich &amp; score all</button>
@@ -393,6 +406,7 @@ function paintContactsView() {
   });
   root.querySelector('#contactLocFilter')?.addEventListener('change', (e) => {
     contactsFilter.location = e.target.value;
+    contactsFilter._locTouched = true;
     paintContactsView();
   });
   root.querySelector('#btnAddContact')?.addEventListener('click', () => openContactEditModal(null));

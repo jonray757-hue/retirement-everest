@@ -705,6 +705,20 @@ async function importEventCrmSeed(opts = {}) {
             submittedAt: row.dateAdded || row.ts || ''
           }
         : null;
+    // Merge party/spouse into preferences for scoring
+    if (prefs) {
+      if (row.partyType) prefs.partyType = row.partyType;
+      if (row.spouse) prefs.spouse = row.spouse;
+      if (row.joinedPartner) prefs.joinedPartner = true;
+    } else if (row.partyType || row.spouse) {
+      prefs = {
+        preferencesSummary: row.preferencesSummary || '',
+        partyType: row.partyType || '',
+        spouse: row.spouse || '',
+        seats: seats,
+        seatLabel: seatLabel
+      };
+    }
     upsertManualContact({
       firstName: row.firstName || splitContactName(row.name).firstName,
       lastName: row.lastName || splitContactName(row.name).lastName,
@@ -716,9 +730,12 @@ async function importEventCrmSeed(opts = {}) {
       status,
       sources: uniqueSources([...(row.sources || []), 'ghl-import', row.ghlId ? 'ghl' : '']),
       preferences: prefs,
+      partyType: row.partyType || '',
+      spouse: row.spouse || '',
       notes: row.ghlId ? `GHL contact id: ${row.ghlId}` : row.notes || '',
       ghlId: row.ghlId || '',
-      orderId: row.orderId || undefined
+      orderId: row.orderId || undefined,
+      dateAdded: row.dateAdded || undefined
     });
     imported += 1;
   });
