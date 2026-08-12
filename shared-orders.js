@@ -23,14 +23,18 @@
     );
   }
 
+  function keyOf(o) {
+    if (!o || typeof o !== 'object') return '';
+    if (o.id != null && String(o.id)) return 'id:' + String(o.id);
+    return (
+      'k:' +
+      `${String(o.email || '').toLowerCase()}|${o.phone || ''}|${o.ts || ''}|${String(o.name || '').toLowerCase()}`
+    );
+  }
+
   function mergeOrders(local, remote) {
     const byKey = new Map();
-    const keyOf = (o) =>
-      String(o.id || '') ||
-      `${o.email || ''}|${o.phone || ''}|${o.ts || ''}|${o.name || ''}`;
-    // Remote first: shared store is source of truth after host Release/Clear.
-    // Local-first used to resurrect stripped seats (e.g. Jon Ray still blacked
-    // out on a phone after desktop release).
+    // Remote first: shared store is source of truth after host Release/Clear/Remove.
     [...(remote || []), ...(local || [])].forEach((o) => {
       if (!o || typeof o !== 'object') return;
       const k = keyOf(o);
@@ -47,6 +51,27 @@
     return [...byKey.values()].sort((a, b) =>
       String(b.ts || '').localeCompare(String(a.ts || ''))
     );
+  }
+
+  /**
+   * When cloud is reachable, cloud IS the guest list.
+   * Local-only rows used to stay forever (phone shows "4 guests" after host
+   * removed people on desktop). Only keep ultra-recent local submits not yet
+   * visible on remote (in-flight guest form, last 2 minutes).
+   */
+  function reconcileWithRemote(local, remote) {
+    const remoteList = Array.isArray(remote) ? remote : [];
+    const remoteKeys = new Set(remoteList.map(keyOf).filter(Boolean));
+    const now = Date.now();
+    const pending = (local || []).filter((o) => {
+      if (!o || typeof o !== 'object') return false;
+      const k = keyOf(o);
+      if (!k || remoteKeys.has(k)) return false;
+      const ts = Date.parse(o.ts || '');
+      if (!Number.isFinite(ts)) return false;
+      return now - ts < 120000; // 2 minutes
+    });
+    return mergeOrders(pending, remoteList);
   }
 
   async function fetchSharedOrders(locationId) {
@@ -120,39 +145,45 @@
    */
   async function publishLocalOrdersForLocation(loc) {
     if (!loc?.storageKey) return [];
+    // Never bulk-upload local ghosts over a cleaner cloud list.
+    // Only append local rows that are missing from remote (by key) and recent.
     let local = [];
     try {
       local = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
     } catch (_) {
       local = [];
     }
-    const legacyKeys = [
-      'kennedyschool_bbq_prefs_v5',
-      'kennedyschool_bbq_prefs_v4',
-      'kennedyschool_bbq_prefs_v3',
-      'kennedyschool_bbq_prefs_v2',
-      'kennedyschool_bbq_prefs_v1'
-    ];
-    legacyKeys.forEach((k) => {
-      try {
-        const arr = JSON.parse(localStorage.getItem(k) || '[]');
-        if (Array.isArray(arr) && arr.length) local = mergeOrders(local, arr);
-      } catch (_) {}
-    });
     let remote = [];
     try {
       remote = await fetchSharedOrders(loc.id || loc.slug);
-    } catch (_) {}
-    const merged = mergeOrders(local, remote);
-    if (merged.length > remote.length) {
+    } catch (_) {
+      remote = [];
+    }
+    const remoteKeys = new Set((remote || []).map(keyOf).filter(Boolean));
+    const now = Date.now();
+    const toAdd = (local || []).filter((o) => {
+      const k = keyOf(o);
+      if (!k || remoteKeys.has(k)) return false;
+      const ts = Date.parse(o.ts || '');
+      // Only push intentional recent local submits (not ancient test ghosts)
+      return Number.isFinite(ts) && now - ts < 7 * 24 * 3600 * 1000;
+    });
+    if (!toAdd.length) {
+      const cleaned = reconcileWithRemote(local, remote);
       try {
-        await putSharedOrders(merged);
-        try {
-          localStorage.setItem(loc.storageKey, JSON.stringify(merged));
-        } catch (_) {}
-      } catch (e) {
-        console.warn('[RE] publish local orders failed', e);
-      }
+        localStorage.setItem(loc.storageKey, JSON.stringify(cleaned));
+      } catch (_) {}
+      return cleaned;
+    }
+    // Full list put: remote + only the missing local rows
+    const merged = mergeOrders(toAdd, remote);
+    try {
+      await putSharedOrders(merged);
+      try {
+        localStorage.setItem(loc.storageKey, JSON.stringify(merged));
+      } catch (_) {}
+    } catch (e) {
+      console.warn('[RE] publish local orders failed', e);
     }
     return merged;
   }
@@ -208,20 +239,78 @@
     return { ok: res.ok, body: text };
   }
 
-  async function loadOrdersForLocation(loc) {
+  async function loadOrdersForLocation(loc, opts = {}) {
     const key = loc.storageKey;
-    const local = JSON.parse(localStorage.getItem(key) || '[]');
-    let remote = [];
+    let local = [];
+    try {
+      local = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch (_) {
+      local = [];
+    }
+    // Also scrub legacy BBQ keys into local once so ghosts can be dropped together
+    if (
+      loc.bbqMenuPick ||
+      loc.slug === 'kennedy-school' ||
+      loc.slug === 'kennedy-school-bbq'
+    ) {
+      [
+        'kennedyschool_bbq_prefs_v5',
+        'kennedyschool_bbq_prefs_v4',
+        'kennedyschool_bbq_prefs_v3',
+        'kennedyschool_bbq_prefs_v2',
+        'kennedyschool_bbq_prefs_v1'
+      ].forEach((k) => {
+        try {
+          const arr = JSON.parse(localStorage.getItem(k) || '[]');
+          if (Array.isArray(arr) && arr.length) local = mergeOrders(local, arr);
+        } catch (_) {}
+      });
+    }
+
+    let remote = null; // null = fetch failed (offline)
     try {
       remote = await fetchSharedOrders(loc.id || loc.slug);
     } catch (e) {
       console.warn('[RE] shared orders fetch failed', e);
     }
-    const merged = mergeOrders(local, remote);
+
+    let next;
+    let source;
+    if (remote !== null) {
+      // Cloud won — drop local-only ghosts (except in-flight last 2 min)
+      next = reconcileWithRemote(local, remote);
+      source = 'remote';
+      // Wipe legacy keys so they cannot re-merge later
+      if (
+        loc.bbqMenuPick ||
+        loc.slug === 'kennedy-school' ||
+        loc.slug === 'kennedy-school-bbq'
+      ) {
+        [
+          'kennedyschool_bbq_prefs_v5',
+          'kennedyschool_bbq_prefs_v4',
+          'kennedyschool_bbq_prefs_v3',
+          'kennedyschool_bbq_prefs_v2',
+          'kennedyschool_bbq_prefs_v1'
+        ].forEach((k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch (_) {}
+        });
+      }
+    } else {
+      next = Array.isArray(local) ? local : [];
+      source = 'local-offline';
+    }
+
     try {
-      localStorage.setItem(key, JSON.stringify(merged));
+      localStorage.setItem(key, JSON.stringify(next));
     } catch (_) {}
-    return merged;
+
+    if (opts.meta) {
+      return { orders: next, source, remoteCount: remote ? remote.length : null, localCount: local.length };
+    }
+    return next;
   }
 
   function matchesLocation(o, loc) {
@@ -291,12 +380,7 @@
   }
 
   function orderKey(o) {
-    if (!o || typeof o !== 'object') return '';
-    if (o.id != null && String(o.id)) return 'id:' + String(o.id);
-    return (
-      'k:' +
-      `${String(o.email || '').toLowerCase()}|${o.phone || ''}|${o.ts || ''}|${String(o.name || '').toLowerCase()}`
-    );
+    return keyOf(o);
   }
 
   function matchesRemoveKey(o, keys) {
@@ -463,7 +547,9 @@
   global.RESharedOrders = {
     blobUrl,
     mergeOrders,
+    reconcileWithRemote,
     orderKey,
+    keyOf,
     fetchSharedOrders,
     putSharedOrders,
     appendSharedOrder,

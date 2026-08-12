@@ -59,16 +59,28 @@ function getOrders() {
   return JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
 }
 
-/** Merge remote shared log into this browser so command center shows all guest submits */
-async function refreshOrdersFromShared() {
+/** Pull cloud preference log (source of truth) into this browser */
+async function refreshOrdersFromShared(opts = {}) {
   const loc = getReportLoc();
-  if (!window.RESharedOrders?.loadOrdersForLocation) return getOrders();
+  if (!window.RESharedOrders?.loadOrdersForLocation) {
+    return opts.meta ? { orders: getOrders(), source: 'local-offline' } : getOrders();
+  }
   try {
-    const merged = await RESharedOrders.loadOrdersForLocation(loc);
-    return merged;
+    const result = await RESharedOrders.loadOrdersForLocation(loc, { meta: true });
+    if (result && Array.isArray(result.orders)) {
+      if (result.source === 'remote' && result.localCount > result.orders.length) {
+        console.info(
+          `[RE] dropped ${result.localCount - result.orders.length} local-only ghost preference(s); cloud has ${result.remoteCount}`
+        );
+      }
+      return opts.meta ? result : result.orders;
+    }
+    const list = Array.isArray(result) ? result : getOrders();
+    return opts.meta ? { orders: list, source: 'remote' } : list;
   } catch (e) {
     console.warn('[RE] refresh shared orders failed', e);
-    return getOrders();
+    const list = getOrders();
+    return opts.meta ? { orders: list, source: 'local-offline' } : list;
   }
 }
 
@@ -514,92 +526,149 @@ async function publishHostStateToGuestMap(reportLoc, orders) {
   return { orders: mergedOrders, seats: st };
 }
 
-async function renderReport() {
+function paintLocationReport(loc, reportLoc, orders, opts = {}) {
+  const body = document.getElementById('report-body');
+  if (!body) return;
+  const seatClaimN = opts.seatClaimN != null ? opts.seatClaimN : 0;
+  const seatsOnline = !!opts.seatsOnline;
+  const loading = !!opts.loading;
+  const source = opts.source || '';
+  const share = renderShareBar(loc);
+  const durable = !!(window.RESharedStore?.isConfigured?.());
+  const syncBadge = reportLoc.bbqMenuPick
+    ? seatsOnline
+      ? `<span style="color:#6d6;font-weight:600">● Seats sync online</span> · <strong style="color:var(--text)">${seatClaimN}</strong> reserved · ${durable ? 'cloud store' : '<span style="color:#e8a">jsonblob fallback</span>'}`
+      : loading
+        ? `<span style="color:#ca8;font-weight:600">● Syncing seats…</span>`
+        : `<span style="color:#e88;font-weight:600">● Seats sync offline</span> — ${durable ? 'cloud store slow/unreachable' : 'configure shared store'}`
+    : '';
+  const sourceNote =
+    source === 'remote'
+      ? 'from shared cloud log'
+      : source === 'local-offline'
+        ? 'from this browser only (cloud unreachable)'
+        : source === 'local-cache'
+          ? 'cached on this device — refreshing from cloud…'
+          : 'from shared log';
+  const syncNote = `<div class="card-box" style="margin-bottom:16px;font-size:0.85rem;color:var(--muted)">
+    <strong style="color:var(--text)">Shared state</strong> ·
+    Showing <strong style="color:var(--text)">${orders.length}</strong> preference submission(s) ${sourceNote}.
+    ${loading ? `<span style="margin-left:8px;color:var(--accent)">Updating…</span>` : ''}
+    ${syncBadge ? `<div style="margin-top:8px">${syncBadge}</div>` : ''}
+    ${!durable ? `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(224,130,50,0.15);color:#f0c080;font-size:0.82rem"><strong>Action needed:</strong> Deploy the durable store. Open <a href="tools/setup-shared-store.html" style="color:var(--accent)">Shared store setup</a>.</div>` : ''}
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn-sm" id="btnRefreshShared">Refresh from cloud</button>
+      ${reportLoc.bbqMenuPick ? `<button type="button" class="btn-sm btn-accent" id="btnPublishSeats">Publish recent local only → guest map</button>` : ''}
+    </div>
+    <p style="margin:10px 0 0;font-size:0.78rem">Cloud list is the source of truth. <strong>Remove</strong> on a guest row deletes that person only. <strong>Clear</strong> (toolbar) wipes everyone.</p>
+  </div>`;
+
+  if (!orders.length) {
+    body.innerHTML = `${share}${syncNote}<div class="empty">${loading ? 'Loading preferences…' : `No preferences yet for ${esc(loc.shortName)}. Use <strong>Email / text guest link</strong>, then hit <strong>Refresh from cloud</strong> after guests submit.`}</div>`;
+  } else {
+    body.innerHTML =
+      share +
+      syncNote +
+      (reportLoc.type === 'screening'
+        ? renderScreeningReport(orders, reportLoc)
+        : reportLoc.type === 'preorder'
+          ? renderPreorderReport(orders, reportLoc)
+          : reportLoc.type === 'buffet'
+            ? renderBuffetReport(orders, reportLoc)
+            : renderRetreatReport(orders, reportLoc));
+  }
+
+  body.querySelector('[data-copy-link]')?.addEventListener('click', (e) => {
+    copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
+  });
+  body.querySelector('#btnRefreshShared')?.addEventListener('click', () => {
+    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
+    if (window.RESeating?.clearLocalCache) RESeating.clearLocalCache();
+    renderReport({ forceCloud: true });
+  });
+  body.querySelector('#btnPublishSeats')?.addEventListener('click', async () => {
+    const btn = body.querySelector('#btnPublishSeats');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Publishing…';
+    }
+    try {
+      const pub = await publishHostStateToGuestMap(reportLoc, orders);
+      const n = Object.keys(pub.seats?.seats || {}).length;
+      alert(
+        `Published to guest map.\n\nPreferences: ${pub.orders?.length || 0}\nSeats blacked out: ${n}\n\nHard-refresh the guest page to confirm.`
+      );
+    } catch (e) {
+      alert('Publish failed: ' + e);
+    }
+    renderReport({ forceCloud: true });
+  });
+  wireGuestRemoveButtons(body);
+
+  // Seating panel shell
+  if (reportLoc.bbqMenuPick && window.RESeating) {
+    let seatDiv = document.getElementById('seating-panel');
+    if (!seatDiv) {
+      seatDiv = document.createElement('div');
+      seatDiv.id = 'seating-panel';
+      body.appendChild(seatDiv);
+    }
+    if (loading && !opts.seatsReady) {
+      seatDiv.innerHTML = '<div class="empty">Loading live seating chart…</div>';
+    }
+  }
+}
+
+async function renderReport(opts = {}) {
   const loc = getLoc();
   const reportLoc = getReportLoc();
   document.body.className = 'theme-hub';
   if (document.getElementById('hostTitle')) {
     document.getElementById('hostTitle').textContent = `${loc.shortName} · Report`;
   }
-  const body = document.getElementById('report-body');
-  body.innerHTML = `${renderShareBar(loc)}<div class="empty">Loading preferences (this browser + shared log)…</div>`;
 
-  // Pull multi-device submissions. Do NOT auto-push this browser's old local
-  // prefs/seats into an empty shared store — that re-ghosted clears across devices.
-  let orders = await refreshOrdersFromShared();
-  let liveSeats = null;
-  let seatsOnline = false;
-  if (reportLoc.bbqMenuPick && window.RESeating?.fetchState) {
-    if (RESeating.clearLocalCache) RESeating.clearLocalCache();
-    else {
-      try {
-        ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3'].forEach((k) =>
-          localStorage.removeItem(k)
-        );
-      } catch (_) {}
-    }
-    try {
-      liveSeats = await RESeating.fetchState({ healRemote: false, orders: [], offlineOrders: false });
-      seatsOnline = !liveSeats.offline;
-    } catch (e) {
-      console.warn('[RE] seat status', e);
-    }
+  // 1) Paint instantly from this device (no waiting on Google)
+  let orders = getOrders();
+  paintLocationReport(loc, reportLoc, orders, {
+    loading: true,
+    source: 'local-cache',
+    seatsOnline: false,
+    seatClaimN: 0
+  });
+
+  if (opts.forceCloud && window.RESharedStore?.memInvalidate) {
+    RESharedStore.memInvalidate();
   }
+
+  // 2) Fetch orders + seats in parallel (was sequential = 2× wait)
+  const ordersPromise = refreshOrdersFromShared({ meta: true }).catch((e) => {
+    console.warn('[RE] orders refresh', e);
+    return { orders, source: 'local-offline' };
+  });
+  const seatsPromise =
+    reportLoc.bbqMenuPick && window.RESeating?.fetchState
+      ? RESeating.fetchState({ healRemote: false, orders: [], offlineOrders: false }).catch((e) => {
+          console.warn('[RE] seat status', e);
+          return null;
+        })
+      : Promise.resolve(null);
+
+  const [ordersMeta, liveSeats] = await Promise.all([ordersPromise, seatsPromise]);
+  orders = Array.isArray(ordersMeta?.orders) ? ordersMeta.orders : Array.isArray(ordersMeta) ? ordersMeta : orders;
+  const seatsOnline = !!(liveSeats && !liveSeats.offline);
   const seatClaimN = liveSeats ? Object.keys(liveSeats.seats || {}).length : 0;
-  const share = renderShareBar(loc);
-  const durable = !!(window.RESharedStore?.isConfigured?.());
-  const syncBadge = reportLoc.bbqMenuPick
-    ? seatsOnline
-      ? `<span style="color:#6d6;font-weight:600">● Seats sync online</span> · <strong style="color:var(--text)">${seatClaimN}</strong> reserved · ${durable ? 'durable Google store' : '<span style="color:#e8a">jsonblob fallback (expires ~24h — set Shared store URL)</span>'}`
-      : `<span style="color:#e88;font-weight:600">● Seats sync offline</span> — ${durable ? 'check Apps Script deploy' : 'configure durable shared store (Outreach)'}`
-    : '';
-  const syncNote = `<div class="card-box" style="margin-bottom:16px;font-size:0.85rem;color:var(--muted)">
-    <strong style="color:var(--text)">Shared state</strong> ·
-    Showing <strong style="color:var(--text)">${orders.length}</strong> preference submission(s) from the shared log (+ this browser).
-    ${syncBadge ? `<div style="margin-top:8px">${syncBadge}</div>` : ''}
-    ${!durable ? `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(224,130,50,0.15);color:#f0c080;font-size:0.82rem"><strong>Action needed:</strong> Deploy the durable store (lasts through Aug 27). Open <a href="tools/setup-shared-store.html" style="color:var(--accent)">Shared store setup</a> → paste URL under Outreach. jsonblob is only a 24h emergency fallback.</div>` : ''}
-    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
-      <button type="button" class="btn-sm" id="btnRefreshShared">Refresh shared log</button>
-      ${reportLoc.bbqMenuPick ? `<button type="button" class="btn-sm btn-accent" id="btnPublishSeats">Publish this browser → guest map</button>` : ''}
-    </div>
-    <p style="margin:10px 0 0;font-size:0.78rem">Guest submits write to the shared log automatically. Use <strong>Publish</strong> only if you need to push test data from this browser up.</p>
-  </div>`;
 
-  if (!orders.length) {
-    body.innerHTML = `${share}${syncNote}<div class="empty">No preferences yet for ${esc(loc.shortName)}. Use <strong>Email / text guest link</strong>, then hit <strong>Refresh shared log</strong> after guests submit.</div>`;
-  } else {
-    body.innerHTML = share + syncNote + (reportLoc.type === 'screening' ? renderScreeningReport(orders, reportLoc)
-      : reportLoc.type === 'preorder' ? renderPreorderReport(orders, reportLoc)
-      : reportLoc.type === 'buffet' ? renderBuffetReport(orders, reportLoc)
-      : renderRetreatReport(orders, reportLoc));
-  }
-  body.querySelector('[data-copy-link]')?.addEventListener('click', e => {
-    copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
+  paintLocationReport(loc, reportLoc, orders, {
+    loading: false,
+    source: ordersMeta?.source || 'remote',
+    seatsOnline,
+    seatClaimN,
+    seatsReady: true
   });
-  body.querySelector('#btnRefreshShared')?.addEventListener('click', () => {
-    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
-    if (window.RESeating?.clearLocalCache) RESeating.clearLocalCache();
-    renderReport();
-  });
-  body.querySelector('#btnPublishSeats')?.addEventListener('click', async () => {
-    const btn = body.querySelector('#btnPublishSeats');
-    if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
-    try {
-      const pub = await publishHostStateToGuestMap(reportLoc, orders);
-      const n = Object.keys(pub.seats?.seats || {}).length;
-      alert(`Published to guest map.\n\nPreferences: ${pub.orders?.length || 0}\nSeats blacked out: ${n}\n\nHard-refresh the guest page (Cmd+Shift+R) to confirm.`);
-    } catch (e) {
-      alert('Publish failed: ' + e);
-    }
-    renderReport();
-  });
-  wireGuestRemoveButtons(body);
+
   if (reportLoc.bbqMenuPick && window.RESeating) {
-    const seatDiv = document.createElement('div');
-    seatDiv.id = 'seating-panel';
-    seatDiv.innerHTML = '<div class="empty">Loading live seating chart…</div>';
-    body.appendChild(seatDiv);
-    loadSeatingPanel(reportLoc, orders);
+    // Pass already-fetched orders so panel doesn't re-hit the store
+    loadSeatingPanel(reportLoc, orders, { skipSharedReload: true, prefetchedSeats: liveSeats });
   }
 }
 
@@ -610,9 +679,8 @@ let seatLinkPicks = [];
 async function loadSeatingPanel(loc, orders, opts = {}) {
   const panel = document.getElementById('seating-panel');
   if (!panel || !window.RESeating) return;
-  if (RESeating.clearLocalCache) RESeating.clearLocalCache();
-  // Live seats map is authoritative when online. Prefer orders already loaded
-  // by renderReport (avoids a second slow Apps Script round-trip).
+  // Live seats map is authoritative when online. Prefer orders/seats already
+  // loaded by renderReport (avoids a second slow Apps Script round-trip).
   let orderList = orders || getOrders();
   if (!opts.skipSharedReload && !orders) {
     try {
@@ -621,16 +689,18 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
       }
     } catch (_) {}
   }
-  let st;
-  try {
-    st = await RESeating.fetchState({
-      orders: orderList,
-      healRemote: false,
-      offlineOrders: false
-    });
-  } catch (e) {
-    st = RESeating.emptyState ? RESeating.emptyState() : { seats: {}, couples: [], accommodations: [] };
-    st.offline = true;
+  let st = opts.prefetchedSeats || null;
+  if (!st) {
+    try {
+      st = await RESeating.fetchState({
+        orders: orderList,
+        healRemote: false,
+        offlineOrders: false
+      });
+    } catch (e) {
+      st = RESeating.emptyState ? RESeating.emptyState() : { seats: {}, couples: [], accommodations: [] };
+      st.offline = true;
+    }
   }
   const claims = Object.values(st.seats || {}).sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)));
   const seatsTaken = claims.length;

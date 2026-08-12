@@ -26,7 +26,7 @@
   /* Short in-memory TTL so one page load doesn't hit Apps Script 3–4 times.
      Apps Script cold starts are often 1.5–8s each — sequential multiplies pain. */
   const mem = { seats: null, orders: null, at: { seats: 0, orders: 0 }, inflight: {} };
-  const MEM_TTL_MS = 4000;
+  const MEM_TTL_MS = 8000;
 
   function memGet(key) {
     if (key !== 'seats' && key !== 'orders') return null;
@@ -85,7 +85,7 @@
             cache: 'no-store',
             headers: { Accept: 'application/json' }
           },
-          12000
+          10000
         );
         const text = await res.text();
         let data;
