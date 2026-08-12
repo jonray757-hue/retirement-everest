@@ -889,13 +889,15 @@
       seatsOnTable(t).forEach((n) => {
         const id = seatKey(t, n);
         const p = seatXY(t, n);
-        const claim = state.seats[id];
+        const claim = state && state.seats ? state.seats[id] : null;
         const isSel = selected.has(id);
         let cls = 'seat-open', fill = 'transparent', stroke = 'var(--accent, #c9a44a)',
           label = String(n), lblFill = 'var(--accent, #c9a44a)', extra = '', title = `Table ${t} · Seat ${n}`;
         if (claim) {
           cls = 'seat-taken';
-          fill = '#1b1b1f'; stroke = '#3a3a40'; lblFill = '#6b6b74';
+          /* Solid blocked-out chair — must not match the removed-X ghosts. */
+          fill = '#2a2416'; stroke = '#c9a44a'; lblFill = '#f0e6c8';
+          extra = ' stroke-opacity="0.95"';
           label = mode === 'host' ? (xesc(initials(claim.person || claim.name)) || '✕') : '✕';
           title = mode === 'host'
             ? `Table ${t} · Seat ${n} — ${xesc(claim.person || claim.name)}${claim.partyType === 'couple' ? ' (couple)' : ''}`
@@ -912,7 +914,7 @@
         seats += `<g class="seat ${cls}" data-seat="${id}" style="cursor:${claim ? 'not-allowed' : 'pointer'}">
           <title>${title}</title>
           <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${SEAT_R}" fill="${fill}" stroke="${stroke}" stroke-width="2"${extra}></circle>
-          <text x="${p.x.toFixed(1)}" y="${(p.y + 4.5).toFixed(1)}" text-anchor="middle" font-size="${claim && mode === 'host' ? 11 : 13}" font-weight="700" fill="${lblFill}">${label}</text>
+          <text x="${p.x.toFixed(1)}" y="${(p.y + 4.5).toFixed(1)}" text-anchor="middle" font-size="${claim ? 12 : 13}" font-weight="800" fill="${lblFill}">${label}</text>
         </g>`;
       });
     });
@@ -954,7 +956,7 @@
     return `<div style="margin-top:8px">
       ${chip('border:2px solid var(--accent,#c9a44a)', 'Open')}
       ${chip('background:var(--accent,#c9a44a)', 'Your pick')}
-      ${chip('background:#1b1b1f;border:2px solid #3a3a40', 'Reserved')}
+      ${chip('background:#2a2416;border:2px solid #c9a44a', 'Reserved')}
       ${mode === 'guest' ? chip('border:2px dashed #7a5f2a', 'Held for couples') : ''}
     </div>`;
   }
