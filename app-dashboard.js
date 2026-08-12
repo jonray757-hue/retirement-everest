@@ -34,116 +34,175 @@ function buildChecklist(loc, eventDate) {
 }
 
 function renderOverview() {
-  const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
+  const locs =
+    typeof getPlannerLocations === 'function' ? getPlannerLocations() : getAllLocations();
+  const allLocs =
+    typeof getAllPlannerLocations === 'function' ? getAllPlannerLocations() : locs;
+  const showingAll = typeof isShowingAllVenues === 'function' ? isShowingAllVenues() : false;
+  const active =
+    typeof getActiveEventLocation === 'function' ? getActiveEventLocation() : locs[0];
   const roomRates = getRoomRates();
   const eventMeta = getEventMeta();
-  let totalOrders = 0;
-  let totalGuests = 0;
-  let totalEst = 0;
-  let scheduled = 0;
 
-  const cards = locs.map(loc => {
+  const cardFor = (loc, { featured } = {}) => {
     const orders = getOrdersForLocation(loc);
     const guests = countGuestsForLocation(loc, orders);
     const est = estimateCostForLocation(loc, orders, roomRates);
     const ev = eventMeta[loc.slug];
     const progress = checklistProgress(ev?.checklist);
-    totalOrders += orders.length;
-    totalGuests += guests;
-    totalEst += est;
-    if (ev?.eventDate) scheduled++;
-
     const days = daysUntil(ev?.eventDate);
     const dateLine = ev?.eventDate
       ? `${formatEventDate(ev.eventDate)}${days != null ? (days > 0 ? ` · ${days}d away` : days === 0 ? ' · Today' : ` · ${Math.abs(days)}d ago`) : ''}`
       : 'Not scheduled';
-
+    const border = featured
+      ? 'border:2px solid var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 30%,transparent)'
+      : '';
     return `
-      <a class="dash-loc-card" href="#" data-goto="location" data-slug="${loc.slug}">
+      <a class="dash-loc-card" href="#" data-goto="location" data-slug="${loc.slug}" style="${border}">
         <div class="dash-loc-top">
-          <span class="dash-loc-name">${esc(loc.shortName)}</span>
-          <span class="dash-loc-type">${esc(loc.type)}</span>
+          <span class="dash-loc-name">${featured ? '★ ' : ''}${esc(loc.shortName)}${loc.guestSlug ? ' BBQ' : ''}</span>
+          <span class="dash-loc-type">${featured ? 'LIVE EVENT' : esc(loc.type)}</span>
         </div>
         <div class="dash-loc-stats">
-          <span><strong>${orders.length}</strong> ${loc.type === 'retreat' ? 'reservations' : 'orders'}</span>
+          <span><strong>${orders.length}</strong> ${loc.type === 'retreat' ? 'reservations' : 'preferences'}</span>
           <span><strong>${guests}</strong> guests</span>
           <span><strong>${fmt(est)}</strong> est.</span>
         </div>
-        <div class="dash-loc-date">${esc(dateLine)}</div>
+        <div class="dash-loc-date">${esc(dateLine)}${loc.venue ? ` · ${esc(loc.venue)}` : ''}</div>
         ${ev?.checklist?.length ? `<div class="dash-progress"><div class="dash-progress-bar" style="width:${progress}%"></div></div><div class="dash-progress-label">${progress}% checklist</div>` : ''}
         <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap" onclick="event.preventDefault();event.stopPropagation()">
+          <button type="button" class="btn-sm btn-accent" data-open-report="${loc.slug}">Open report</button>
           <button type="button" class="btn-sm btn-accent" data-invite="${loc.slug}">Send link</button>
           <a class="btn-sm" href="marketing-kit.html?location=${loc.slug}" style="text-decoration:none">Marketing</a>
         </div>
       </a>`;
-  }).join('');
+  };
+
+  let totalOrders = 0;
+  let totalGuests = 0;
+  let totalEst = 0;
+  locs.forEach((loc) => {
+    const orders = getOrdersForLocation(loc);
+    totalOrders += orders.length;
+    totalGuests += countGuestsForLocation(loc, orders);
+    totalEst += estimateCostForLocation(loc, orders, roomRates);
+  });
+
+  const activeOrders = active ? getOrdersForLocation(active) : [];
+  const activeEv = active ? eventMeta[active.slug] : null;
+  const activeDays = daysUntil(activeEv?.eventDate);
+  const hero = active
+    ? `<div class="card-box" style="margin-bottom:24px;border:2px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:6px">ACTIVE EVENT</div>
+            <h2 style="margin:0 0 6px;font-family:var(--heading-font);color:var(--text);font-size:1.45rem">${esc(active.shortName)}${active.guestSlug ? ' · Backyard BBQ' : ''}</h2>
+            <p style="margin:0;color:var(--muted);font-size:0.9rem">
+              ${esc(active.venue || active.name)} · ${esc(active.city || '')}
+              ${activeEv?.eventDate ? `<br><strong style="color:var(--text)">${formatEventDate(activeEv.eventDate)}</strong>${activeDays != null ? (activeDays > 0 ? ` · ${activeDays} days away` : activeDays === 0 ? ' · <strong>Today</strong>' : ` · ${Math.abs(activeDays)}d ago`) : ''}` : ''}
+            </p>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:0.9rem">
+              <span><strong style="color:var(--accent)">${activeOrders.length}</strong> preferences</span>
+              <span><strong style="color:var(--accent)">${countGuestsForLocation(active, activeOrders)}</strong> guests</span>
+              <span><strong style="color:var(--accent)">${fmt(estimateCostForLocation(active, activeOrders, roomRates))}</strong> est.</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:180px">
+            <button type="button" class="lock-btn btn-accent" id="heroOpenReport" style="max-width:none;width:100%;padding:12px 18px">Open location report →</button>
+            <button type="button" class="btn-sm" id="heroInvite" data-invite="${active.slug}">Send guest link</button>
+            <button type="button" class="btn-sm" id="heroPlanner">Event planner</button>
+          </div>
+        </div>
+      </div>`
+    : '';
+
+  const focusToggle = `
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 class="dash-section-title" style="margin:0">${showingAll ? 'All venues' : 'Working on'}</h3>
+      <button type="button" class="btn-sm" id="toggleShowAllVenues">
+        ${showingAll ? '★ Focus on active event only' : `Show all venues (${allLocs.length})`}
+      </button>
+    </div>`;
+
+  const cards = locs.map((loc) => cardFor(loc, { featured: active && loc.slug === active.slug })).join('');
 
   const upcoming = locs
-    .map(loc => ({ loc, ev: eventMeta[loc.slug] }))
-    .filter(x => x.ev?.eventDate)
+    .map((loc) => ({ loc, ev: eventMeta[loc.slug] }))
+    .filter((x) => x.ev?.eventDate)
     .sort((a, b) => a.ev.eventDate.localeCompare(b.ev.eventDate));
 
   const timeline = upcoming.length
-    ? upcoming.map(({ loc, ev }) => {
-        const progress = checklistProgress(ev.checklist);
-        const overdue = (ev.checklist || []).filter(i => !i.done && i.dueDate < new Date().toISOString().slice(0, 10)).length;
-        return `<div class="timeline-row">
+    ? upcoming
+        .map(({ loc, ev }) => {
+          const progress = checklistProgress(ev.checklist);
+          const overdue = (ev.checklist || []).filter(
+            (i) => !i.done && i.dueDate < new Date().toISOString().slice(0, 10)
+          ).length;
+          return `<div class="timeline-row">
           <div class="timeline-date">${formatEventDate(ev.eventDate)}</div>
           <div class="timeline-body">
             <strong>${esc(loc.shortName)}</strong> · ${countGuestsForLocation(loc, getOrdersForLocation(loc))} guests
             · ${progress}% done${overdue ? ` · <span style="color:var(--red)">${overdue} overdue</span>` : ''}
           </div>
         </div>`;
-      }).join('')
-    : '<p class="empty" style="padding:24px">No event dates set yet. Open <strong>Event Planner</strong> to schedule your first event.</p>';
-
-  const crm = window.VENUE_CRM;
-  const crmCounts = crm?.counts || {};
-  const crmAction = (crm?.venues || []).filter(v => v.needs_action || v.status === 'replied').length;
-  const crmWaiting = crmCounts.awaiting_reply || 0;
-  const crmBanner = crm ? `
-    <div class="card-box" style="margin-bottom:24px">
-      <h3>Venue pipeline (CRM)</h3>
-      <div class="stats" style="margin-bottom:12px;grid-template-columns:repeat(4,1fr)">
-        <div class="stat"><div class="stat-label">Tracked</div><div class="stat-val">${crm.total || 0}</div></div>
-        <div class="stat"><div class="stat-label">Replied</div><div class="stat-val accent">${crmCounts.replied || 0}</div></div>
-        <div class="stat"><div class="stat-label">No reply</div><div class="stat-val">${crmWaiting}</div></div>
-        <div class="stat"><div class="stat-label">Needs action</div><div class="stat-val accent">${crmAction}</div></div>
-      </div>
-      <button type="button" class="btn-sm btn-accent" id="gotoVenuesCrm">Open Venue CRM →</button>
-      <span style="margin-left:12px;font-size:0.72rem;color:var(--muted)">Emails, PDFs, follow-up timelines</span>
-    </div>` : '';
+        })
+        .join('')
+    : '<p class="empty" style="padding:24px">No event dates set yet. Open <strong>Event Planner</strong> to schedule.</p>';
 
   document.getElementById('view-overview').innerHTML = `
+    ${hero}
     <div class="stats">
-      <div class="stat"><div class="stat-label">Locations</div><div class="stat-val">${locs.length}</div></div>
-      <div class="stat"><div class="stat-label">Total orders</div><div class="stat-val accent">${totalOrders}</div></div>
-      <div class="stat"><div class="stat-label">Total guests</div><div class="stat-val">${totalGuests}</div></div>
-      <div class="stat"><div class="stat-label">Est. series cost</div><div class="stat-val accent">${fmt(totalEst)}</div></div>
-      <div class="stat"><div class="stat-label">Scheduled events</div><div class="stat-val">${scheduled} / ${locs.length}</div></div>
+      <div class="stat"><div class="stat-label">${showingAll ? 'Venues shown' : 'Active events'}</div><div class="stat-val">${locs.length}</div></div>
+      <div class="stat"><div class="stat-label">Preferences</div><div class="stat-val accent">${totalOrders}</div></div>
+      <div class="stat"><div class="stat-label">Guests</div><div class="stat-val">${totalGuests}</div></div>
+      <div class="stat"><div class="stat-label">Est. cost</div><div class="stat-val accent">${fmt(totalEst)}</div></div>
     </div>
-    ${crmBanner}
     <div class="card-box" style="margin-bottom:24px">
-      <h3>Upcoming events</h3>
+      <h3>Upcoming</h3>
       <div class="timeline">${timeline}</div>
     </div>
-    <h3 class="dash-section-title">Locations</h3>
-    <div class="dash-loc-grid">${cards}</div>`;
+    ${focusToggle}
+    <div class="dash-loc-grid">${cards}</div>
+    ${!showingAll ? `<p style="margin-top:14px;font-size:0.78rem;color:var(--muted)">Other venues (Edgefield, Grand Lodge, restaurants, etc.) are hidden so Kennedy School stays front and center. Use <strong>Show all venues</strong> when you need them.</p>` : ''}`;
 
-  document.getElementById('gotoVenuesCrm')?.addEventListener('click', () => switchHostView('venues'));
+  document.getElementById('toggleShowAllVenues')?.addEventListener('click', () => {
+    if (typeof setShowAllVenues === 'function') setShowAllVenues(!showingAll);
+    if (typeof fillLocationSelect === 'function') fillLocationSelect();
+    renderOverview();
+  });
 
-  document.querySelectorAll('[data-goto="location"]').forEach(el => {
-    el.addEventListener('click', e => {
+  const goActive = (slug) => {
+    currentSlug = slug || active?.slug || currentSlug;
+    if (typeof fillLocationSelect === 'function') fillLocationSelect();
+    else {
+      const sel = document.getElementById('locSelect');
+      if (sel) sel.value = currentSlug;
+    }
+    switchHostView('location');
+    renderReport();
+  };
+
+  document.getElementById('heroOpenReport')?.addEventListener('click', () => goActive(active?.slug));
+  document.getElementById('heroPlanner')?.addEventListener('click', () => {
+    plannerSlug = active?.slug || plannerSlug;
+    currentSlug = plannerSlug;
+    if (typeof fillLocationSelect === 'function') fillLocationSelect();
+    switchHostView('planner');
+  });
+  document.getElementById('heroInvite')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openInviteModal(active?.slug);
+  });
+
+  document.querySelectorAll('[data-goto="location"], [data-open-report]').forEach((el) => {
+    el.addEventListener('click', (e) => {
       if (e.target.closest('[data-invite]')) return;
       e.preventDefault();
-      switchHostView('location');
-      document.getElementById('locSelect').value = el.dataset.slug;
-      currentSlug = el.dataset.slug;
-      renderReport();
+      goActive(el.dataset.slug || el.dataset.openReport);
     });
   });
-  document.querySelectorAll('[data-invite]').forEach(btn => {
-    btn.addEventListener('click', e => {
+  document.querySelectorAll('[data-invite]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       openInviteModal(btn.dataset.invite);
@@ -155,9 +214,18 @@ async function renderPlanner() {
   await loadChecklistDefaults();
   const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
   if (!plannerSlug || !locs.find(l => l.slug === plannerSlug)) {
-    // Prefer Kennedy School if it has an event date saved
-    const withDate = locs.find(l => getLocationEvent(l.slug)?.eventDate);
-    plannerSlug = withDate?.slug || locs[0]?.slug;
+    // Prefer active live event (Kennedy School BBQ)
+    const active = typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : null;
+    const withDate = locs.find((l) => getLocationEvent(l.slug)?.eventDate);
+    plannerSlug =
+      (active && locs.find((l) => l.slug === active)?.slug) ||
+      withDate?.slug ||
+      locs[0]?.slug;
+  }
+  // Keep topbar in sync with planner venue
+  if (typeof currentSlug !== 'undefined') {
+    currentSlug = plannerSlug;
+    if (typeof fillLocationSelect === 'function') fillLocationSelect();
   }
   const loc = RETIREMENT_EVEREST.locations[plannerSlug];
   let ev = getLocationEvent(plannerSlug) || {};

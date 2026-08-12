@@ -11,9 +11,76 @@ function getAllLocations() {
   return Object.values(RETIREMENT_EVEREST.locations);
 }
 
-/** Locations shown in host planner / overview / dropdowns (hide guest-only package pages) */
+const RE_SHOW_ALL_VENUES_KEY = 're_show_all_venues_v1';
+
+function isHostFocusMode() {
+  // localStorage override wins: "true" = show all, "false" = focus only
+  try {
+    const v = localStorage.getItem(RE_SHOW_ALL_VENUES_KEY);
+    if (v === '1' || v === 'true') return false;
+    if (v === '0' || v === 'false') return true;
+  } catch (_) {}
+  return RETIREMENT_EVEREST?.hostFocusMode !== false;
+}
+
+function setShowAllVenues(showAll) {
+  try {
+    localStorage.setItem(RE_SHOW_ALL_VENUES_KEY, showAll ? '1' : '0');
+  } catch (_) {}
+}
+
+function isShowingAllVenues() {
+  return !isHostFocusMode();
+}
+
+function getActiveEventSlug() {
+  return (
+    RETIREMENT_EVEREST?.activeEventSlug ||
+    getAllLocations().find((l) => l.active && !l.guestOnly)?.slug ||
+    'kennedy-school'
+  );
+}
+
+function getActiveEventLocation() {
+  const slug = getActiveEventSlug();
+  return RETIREMENT_EVEREST?.locations?.[slug] || getPlannerLocations()[0] || null;
+}
+
+function sortLocationsForHost(locs) {
+  const active = getActiveEventSlug();
+  return (locs || []).slice().sort((a, b) => {
+    if (a.slug === active) return -1;
+    if (b.slug === active) return 1;
+    if (a.active && !b.active) return -1;
+    if (b.active && !a.active) return 1;
+    const ao = a.sortOrder != null ? a.sortOrder : 50;
+    const bo = b.sortOrder != null ? b.sortOrder : 50;
+    if (ao !== bo) return ao - bo;
+    return String(a.shortName || '').localeCompare(String(b.shortName || ''));
+  });
+}
+
+/**
+ * Locations shown in host planner / overview / dropdowns.
+ * - Always hide guest-only package pages (kennedy-school-bbq).
+ * - In focus mode (default): only the active event (+ any active:true venues).
+ * - Toggle Show all venues in Overview to expand the full catalog.
+ */
 function getPlannerLocations() {
-  return getAllLocations().filter(l => !l.guestOnly && !l.hideFromPlanner);
+  let locs = getAllLocations().filter((l) => !l.guestOnly && !l.hideFromPlanner);
+  if (isHostFocusMode()) {
+    const active = getActiveEventSlug();
+    const focused = locs.filter((l) => l.active || l.slug === active);
+    if (focused.length) locs = focused;
+  }
+  return sortLocationsForHost(locs);
+}
+
+/** Full catalog for "Show all venues" lists (still no guest-only package pages). */
+function getAllPlannerLocations() {
+  return sortLocationsForHost(
+    getAllLocations().filter((l) => !l.guestOnly && !l.hideFromPlanner)
+  );
 }
 
 function getOrdersForLocation(loc) {

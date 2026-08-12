@@ -1,42 +1,93 @@
-let currentSlug = 'edgefield';
+let currentSlug = (typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : null) || 'kennedy-school';
 let roomRates = getRoomRates();
+
+function fillLocationSelect() {
+  const sel = document.getElementById('locSelect');
+  if (!sel) return;
+  const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet' };
+  const plannerLocs =
+    typeof getPlannerLocations === 'function'
+      ? getPlannerLocations()
+      : Object.values(RETIREMENT_EVEREST.locations || {});
+  sel.innerHTML = plannerLocs
+    .map((l) => {
+      const typeTag = l.guestSlug ? 'BBQ · live' : typeLabels[l.type] || 'Event';
+      const star = l.active || l.slug === (typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : '')
+        ? '★ '
+        : '';
+      return `<option value="${l.slug}">${star}${l.shortName} — ${typeTag}</option>`;
+    })
+    .join('');
+  if (![...sel.options].some((o) => o.value === currentSlug)) {
+    currentSlug = plannerLocs[0]?.slug || currentSlug;
+  }
+  sel.value = currentSlug;
+
+  // Single focused venue: show a clear label instead of a crowded dropdown
+  const topbar = document.getElementById('loc-topbar');
+  if (topbar) {
+    topbar.style.display = 'flex';
+    let badge = document.getElementById('activeEventBadge');
+    if (plannerLocs.length <= 1) {
+      sel.style.display = 'none';
+      const loc = RETIREMENT_EVEREST.locations[currentSlug];
+      const ev = typeof getLocationEvent === 'function' ? getLocationEvent(currentSlug) : null;
+      const dateBit = ev?.eventDate
+        ? ` · ${typeof formatEventDate === 'function' ? formatEventDate(ev.eventDate) : ev.eventDate}`
+        : '';
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'activeEventBadge';
+        badge.style.cssText =
+          'font-size:0.95rem;font-weight:700;color:var(--accent);padding:6px 10px;border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:8px;background:color-mix(in srgb,var(--accent) 12%,transparent)';
+        topbar.appendChild(badge);
+      }
+      badge.style.display = 'block';
+      badge.textContent = `★ ${loc?.shortName || currentSlug}${loc?.guestSlug ? ' BBQ' : ''}${dateBit}`;
+    } else {
+      sel.style.display = '';
+      if (badge) badge.style.display = 'none';
+    }
+  }
+  plannerLocs.forEach((l) => {
+    if (roomRates[l.slug] == null && l.avgRoomRate) roomRates[l.slug] = l.avgRoomRate;
+  });
+}
 
 function initHost() {
   // Restore scheduled events (localStorage) + seed Kennedy School Aug 27 if missing
   if (typeof ensureEventDefaults === 'function') ensureEventDefaults();
 
-  const sel = document.getElementById('locSelect');
-  const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet' };
-  let plannerLocs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : Object.values(RETIREMENT_EVEREST.locations);
-  /* Sort Kennedy School to top */
-  plannerLocs = plannerLocs.sort((a, b) => {
-    if (a.slug === 'kennedy-school') return -1;
-    if (b.slug === 'kennedy-school') return 1;
-    if (a.slug === 'kennedy-school-bbq') return -1;
-    if (b.slug === 'kennedy-school-bbq') return 1;
-    return 0;
-  });
-  sel.innerHTML = plannerLocs.map(l => {
-    const typeTag = l.guestSlug ? 'BBQ prefs' : (typeLabels[l.type] || 'Event');
-    return `<option value="${l.slug}">${l.shortName} — ${typeTag}</option>`;
-  }).join('');
-  /* Show location selector in prominent topbar position */
-  document.getElementById('loc-topbar').style.display = 'flex';
   const p = new URLSearchParams(location.search);
-  const startView = ['overview', 'venues', 'location', 'planner', 'contacts', 'outreach'].includes(p.get('view')) ? p.get('view') : 'overview';
-  currentSlug = p.get('location') || 'kennedy-school';
+  // Default to Location Report for the live event (not a multi-venue overview hunt)
+  const startView = ['overview', 'venues', 'location', 'planner', 'contacts', 'outreach'].includes(
+    p.get('view')
+  )
+    ? p.get('view')
+    : 'location';
+  currentSlug =
+    p.get('location') ||
+    (typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : null) ||
+    'kennedy-school';
   // If someone deep-linked to guest-only BBQ page, show parent Kennedy School
   if (RETIREMENT_EVEREST.locations[currentSlug]?.guestOnly) {
     currentSlug = 'kennedy-school';
   }
-  if (![...sel.options].some(o => o.value === currentSlug)) currentSlug = plannerLocs[0]?.slug || 'edgefield';
-  sel.value = currentSlug;
-  plannerLocs.forEach(l => {
-    if (roomRates[l.slug] == null && l.avgRoomRate) roomRates[l.slug] = l.avgRoomRate;
-  });
-  sel.addEventListener('change', () => { currentSlug = sel.value; renderReport(); });
 
-  document.querySelectorAll('.host-tab').forEach(tab => {
+  fillLocationSelect();
+  const sel = document.getElementById('locSelect');
+  sel?.addEventListener('change', () => {
+    currentSlug = sel.value;
+    if (document.getElementById('view-location')?.classList.contains('active')) renderReport();
+    else if (document.getElementById('view-planner')?.classList.contains('active')) {
+      plannerSlug = currentSlug;
+      renderPlanner();
+    } else if (document.getElementById('view-outreach')?.classList.contains('active')) {
+      renderOutreach();
+    }
+  });
+
+  document.querySelectorAll('.host-tab').forEach((tab) => {
     tab.addEventListener('click', () => switchHostView(tab.dataset.view));
   });
 
@@ -1196,12 +1247,14 @@ function renderOutreach() {
   const cfg = getIntegrations();
   const queue = getInviteQueue();
   const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
+  const activeSlug = typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : null;
 
   const locCards = locs.map(loc => {
     const link = absoluteGuestLink(loc.slug);
     const ev = getLocationEvent(loc.slug);
-    return `<div class="card-box">
-      <h3>${esc(loc.shortName)}${loc.guestSlug ? ' · BBQ' : ''}</h3>
+    const isActive = loc.slug === activeSlug || loc.active;
+    return `<div class="card-box"${isActive ? ' style="border:2px solid var(--accent)"' : ''}>
+      <h3>${isActive ? '★ ' : ''}${esc(loc.shortName)}${loc.guestSlug ? ' · BBQ' : ''}${isActive ? ' <span style="font-size:0.7rem;color:var(--accent)">LIVE</span>' : ''}</h3>
       <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">${esc(loc.name)} · ${esc(loc.city)}</p>
       <div class="status-row"><span>Event date</span><strong>${ev?.eventDate ? formatEventDate(ev.eventDate) : 'Not set'}</strong></div>
       <div class="status-row"><span>Preferences</span><strong>${getOrdersForLocation(loc).length}</strong></div>

@@ -2,6 +2,13 @@
 window.RETIREMENT_EVEREST = {
   series: 'Retirement Everest',
   hostPassword: '1234',
+  /**
+   * Command center focus — which event is "live" right now.
+   * hostFocusMode: only this venue (and any with active:true) show in Overview,
+   * location dropdown, planner, and outreach. Toggle "Show all venues" to expand.
+   */
+  activeEventSlug: 'kennedy-school',
+  hostFocusMode: true,
   /* HAG inbound webhook — fires when a guest submits preferences on the guest page */
   ghlWebhookUrl: 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d',
   ghlLocationId: '24UgqDfh5TcJs5IPnA25',
@@ -363,6 +370,9 @@ window.RETIREMENT_EVEREST = {
       id: 'kennedy-school',
       slug: 'kennedy-school',
       type: 'buffet',
+      /* Live event — always first in host UI when hostFocusMode is on */
+      active: true,
+      sortOrder: 0,
       /* Single planner venue · Aug event lives here · guest page = locked BBQ prefs */
       guestSlug: 'kennedy-school-bbq',
       theme: 'gold',
