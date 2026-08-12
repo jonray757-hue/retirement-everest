@@ -125,6 +125,7 @@
   /* ---------------- Shared state ---------------- */
   /* Bump version when layout / seat IDs change so ghost caches on phones die. */
   const LOCAL_KEY = 're_seats_cache_v3';
+  const LEGACY_CACHE_KEYS = ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3'];
   const SEAT_ID_RE = /^[A-E][1-6]$/;
 
   function emptyState() {
@@ -256,11 +257,15 @@
     } catch (_) {}
   }
 
-  /** Wipe local seat cache entirely (used by clear / full reset). */
+  /** Wipe local seat cache entirely (used by clear / full reset / hard refresh). */
   function clearLocalCache() {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.removeItem(LOCAL_KEY);
+      LEGACY_CACHE_KEYS.forEach((k) => {
+        try {
+          localStorage.removeItem(k);
+        } catch (_) {}
+      });
     } catch (_) {}
   }
 
@@ -310,13 +315,22 @@
       return st;
     }
 
-    // ── Offline: best-effort local chart (never write back to remote) ──
-    const parts = [emptyState()];
-    if (local) parts.push(local);
-    if (opts.offlineOrders !== false) parts.push(fromOrders);
-    const merged = mergeStates(...parts);
-    merged.offline = true;
-    return merged;
+    // ── Offline: last good remote cache only — do NOT re-seed from preference
+    // orders. Phones often keep pre-release orders in localStorage; merging those
+    // resurrected seats after a desktop Release (classic "Jon Ray still reserved").
+    if (local && seatCount(local) >= 0) {
+      const st = normalize(local);
+      st.offline = true;
+      return st;
+    }
+    if (opts.offlineOrders !== false && seatCount(fromOrders) > 0) {
+      const st = mergeStates(emptyState(), fromOrders);
+      st.offline = true;
+      return st;
+    }
+    const empty = emptyState();
+    empty.offline = true;
+    return empty;
   }
 
   async function putState(state) {
@@ -324,6 +338,8 @@
     delete clean.offline;
     // Always persist intentional writes — including empty seat maps after release/clear
     writeLocalCache(clean, { force: true });
+    // Drop short TTL so next device/tab doesn't read a stale in-memory snapshot
+    if (global.RESharedStore?.memInvalidate) global.RESharedStore.memInvalidate('seats');
     await remotePutSeats(clean);
     return clean;
   }
@@ -379,8 +395,11 @@
         }
       }
       await putState(st);
-      await sleep(500 + Math.random() * 400);
-      const verify = await fetchState();
+      // Brief settle only — old 500–900ms sleep made every reserve feel broken
+      // on top of already-slow Apps Script round trips.
+      await sleep(180 + Math.random() * 120);
+      if (global.RESharedStore?.memInvalidate) global.RESharedStore.memInvalidate('seats');
+      const verify = await fetchState({ healRemote: false, orders: [] });
       const lost = seatIds.filter((id) => verify.seats[id]?.groupId !== groupId);
       if (!lost.length) return { ok: true, groupId, state: verify };
       if (attempt === 2) return { ok: false, taken: lost, state: verify };

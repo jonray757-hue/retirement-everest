@@ -411,9 +411,14 @@ async function renderReport() {
   let liveSeats = null;
   let seatsOnline = false;
   if (reportLoc.bbqMenuPick && window.RESeating?.fetchState) {
-    try {
-      localStorage.removeItem('re_seats_cache_v1');
-    } catch (_) {}
+    if (RESeating.clearLocalCache) RESeating.clearLocalCache();
+    else {
+      try {
+        ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3'].forEach((k) =>
+          localStorage.removeItem(k)
+        );
+      } catch (_) {}
+    }
     try {
       liveSeats = await RESeating.fetchState({ healRemote: false, orders: [], offlineOrders: false });
       seatsOnline = !liveSeats.offline;
@@ -452,7 +457,11 @@ async function renderReport() {
   body.querySelector('[data-copy-link]')?.addEventListener('click', e => {
     copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
   });
-  body.querySelector('#btnRefreshShared')?.addEventListener('click', () => renderReport());
+  body.querySelector('#btnRefreshShared')?.addEventListener('click', () => {
+    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
+    if (window.RESeating?.clearLocalCache) RESeating.clearLocalCache();
+    renderReport();
+  });
   body.querySelector('#btnPublishSeats')?.addEventListener('click', async () => {
     const btn = body.querySelector('#btnPublishSeats');
     if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
@@ -481,12 +490,11 @@ let seatLinkPicks = [];
 async function loadSeatingPanel(loc, orders, opts = {}) {
   const panel = document.getElementById('seating-panel');
   if (!panel || !window.RESeating) return;
-  try {
-    localStorage.removeItem('re_seats_cache_v1');
-  } catch (_) {}
-  // Live seats blob is authoritative when online. Orders only matter offline.
+  if (RESeating.clearLocalCache) RESeating.clearLocalCache();
+  // Live seats map is authoritative when online. Prefer orders already loaded
+  // by renderReport (avoids a second slow Apps Script round-trip).
   let orderList = orders || getOrders();
-  if (!opts.skipSharedReload) {
+  if (!opts.skipSharedReload && !orders) {
     try {
       if (window.RESharedOrders?.loadOrdersForLocation) {
         orderList = await RESharedOrders.loadOrdersForLocation(loc);
@@ -498,7 +506,7 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
     st = await RESeating.fetchState({
       orders: orderList,
       healRemote: false,
-      offlineOrders: true
+      offlineOrders: false
     });
   } catch (e) {
     st = RESeating.emptyState ? RESeating.emptyState() : { seats: {}, couples: [], accommodations: [] };
@@ -589,8 +597,15 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
       <button class="btn-sm btn-accent" id="btnLinkCouple" ${seatLinkPicks.length === 2 ? '' : 'disabled'}>♥ Link as couple${seatLinkPicks.length === 2 ? `: ${esc(contacts[seatLinkPicks[0]].name)} + ${esc(contacts[seatLinkPicks[1]].name)}` : ' (pick two names)'}</button>
     </div>`;
 
-  panel.querySelector('#btnRefreshSeats')?.addEventListener('click', () => loadSeatingPanel(loc, orders));
-  panel.querySelector('#btnRetrySeats')?.addEventListener('click', () => loadSeatingPanel(loc, orders));
+  panel.querySelector('#btnRefreshSeats')?.addEventListener('click', () => {
+    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
+    if (window.RESeating?.clearLocalCache) RESeating.clearLocalCache();
+    loadSeatingPanel(loc, null);
+  });
+  panel.querySelector('#btnRetrySeats')?.addEventListener('click', () => {
+    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
+    loadSeatingPanel(loc, null);
+  });
   panel.querySelectorAll('[data-release-seat]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.releaseSeat;
@@ -598,6 +613,7 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
       btn.disabled = true; btn.textContent = '…';
       try {
         // Strip seat from preference logs first so fetchState cannot re-heal it
+        if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
         if (window.RESharedOrders?.stripSeatsFromOrders) {
           await RESharedOrders.stripSeatsFromOrders(loc, [id]);
         } else {

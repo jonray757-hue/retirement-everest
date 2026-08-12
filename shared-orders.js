@@ -28,10 +28,21 @@
     const keyOf = (o) =>
       String(o.id || '') ||
       `${o.email || ''}|${o.phone || ''}|${o.ts || ''}|${o.name || ''}`;
-    [...(local || []), ...(remote || [])].forEach((o) => {
+    // Remote first: shared store is source of truth after host Release/Clear.
+    // Local-first used to resurrect stripped seats (e.g. Jon Ray still blacked
+    // out on a phone after desktop release).
+    [...(remote || []), ...(local || [])].forEach((o) => {
       if (!o || typeof o !== 'object') return;
       const k = keyOf(o);
-      if (!byKey.has(k)) byKey.set(k, o);
+      if (!byKey.has(k)) {
+        byKey.set(k, o);
+        return;
+      }
+      // Same key: prefer the row with fewer seat claims (stripped wins)
+      const prev = byKey.get(k);
+      const prevN = Array.isArray(prev.seats) ? prev.seats.length : prev.seatLabel ? 1 : 0;
+      const nextN = Array.isArray(o.seats) ? o.seats.length : o.seatLabel ? 1 : 0;
+      if (nextN < prevN) byKey.set(k, o);
     });
     return [...byKey.values()].sort((a, b) =>
       String(b.ts || '').localeCompare(String(a.ts || ''))

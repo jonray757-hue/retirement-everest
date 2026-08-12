@@ -316,12 +316,13 @@ function renderSeatSection() {
 async function loadSeatMap() {
   const box = document.getElementById('seatmap-container');
   if (!box || !window.RESeating) return;
-  // Drop legacy seat cache keys so old per-browser ghosts cannot reappear
+  // Drop legacy cache keys only (v1/v2). Live fetch overwrites v3 when online.
   try {
     localStorage.removeItem('re_seats_cache_v1');
+    localStorage.removeItem('re_seats_cache_v2');
   } catch (_) {}
 
-  // Shared preference log — only used if live seats store is unreachable
+  // Partner list still needs orders; seat blackouts do not (live seats map only)
   let orderBackup = [];
   try {
     if (window.RESharedOrders?.fetchSharedOrders) {
@@ -334,15 +335,15 @@ async function loadSeatMap() {
     const localOrders = JSON.parse(localStorage.getItem(LOC.storageKey) || '[]');
     orderBackup = window.RESharedOrders?.mergeOrders
       ? RESharedOrders.mergeOrders(localOrders, orderBackup)
-      : [...localOrders, ...orderBackup];
+      : [...orderBackup, ...localOrders];
   } catch (_) {}
 
   try {
-    // Online: shared seats blob is the only source of blackouts (no auto-heal from orders)
+    // Online: shared seats map is the only source of blackouts (no auto-heal from orders)
     seatState = await RESeating.fetchState({
       orders: orderBackup,
       healRemote: false,
-      offlineOrders: true
+      offlineOrders: false
     });
   } catch (e) {
     console.warn('[RE] seat map load failed', e);
