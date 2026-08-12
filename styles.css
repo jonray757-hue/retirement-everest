@@ -878,6 +878,27 @@ th { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: v
   border-color: #f0c06055;
   background: #f0c06012;
 }
+.crm-chip-priority { font-weight: 600; }
+.crm-pri-couple { color: #f0c060; border-color: #f0c06066; background: #f0c06014; }
+.crm-pri-singleWoman { color: #e89ad4; border-color: #e89ad455; background: #e89ad412; }
+.crm-pri-singleMan { color: #7eb6ff; border-color: #7eb6ff55; background: #7eb6ff12; }
+.crm-pri-unknown { color: var(--muted); }
+.crm-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 1.6rem;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--bg);
+  background: var(--accent);
+}
+.crm-call-order .contact-card {
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
 .contact-meta, .contact-channels, .contact-foot {
   display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 0.8rem; color: var(--muted); margin-top: 4px;
 }

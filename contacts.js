@@ -265,6 +265,8 @@ function prefsFromOrder(o) {
     notes: o.notes || '',
     partyType: o.partyType || '',
     spouse: o.spouse || '',
+    joinedPartner: !!o.joinedPartner,
+    coupleMode: o.coupleMode || '',
     seats: Array.isArray(o.seats) ? o.seats : [],
     seatLabel: o.seatLabel || '',
     salad: o.salad || '',
@@ -315,6 +317,9 @@ function contactFromOrder(o) {
     locationSlug: loc?.slug || locId,
     locationName: loc?.shortName || loc?.name || locId || '',
     sources: ['guest'],
+    partyType: o.partyType || '',
+    spouse: o.spouse || '',
+    joinedPartner: !!o.joinedPartner,
     /* Pipeline: registered (prefs) → seated (prefs + seat map claim) */
     status:
       (Array.isArray(o.seats) && o.seats.length) || o.seatLabel || o.seatAccommodation
@@ -465,13 +470,18 @@ function buildContactDirectory() {
 
   getManualContacts().forEach((c) => add({ ...c, sources: uniqueSources([...(c.sources || []), 'manual']) }));
 
-  return [...map.values()]
-    .map((c) => ({ ...c, status: contactPipelineStatus(c) }))
-    .sort((a, b) => {
-      const ta = a.updatedAt || a.createdAt || '';
-      const tb = b.updatedAt || b.createdAt || '';
-      return String(tb).localeCompare(String(ta));
-    });
+  let list = [...map.values()].map((c) => ({ ...c, status: contactPipelineStatus(c) }));
+  // Optional live enrichment (scores + priority tags) without forcing persist
+  if (typeof REContactScore !== 'undefined' && REContactScore.enrichContact) {
+    list = list.map((c) => REContactScore.enrichContact(c));
+  }
+  return list.sort((a, b) => {
+    // Call score first when present, else recency
+    if ((b.callScore || 0) !== (a.callScore || 0)) return (b.callScore || 0) - (a.callScore || 0);
+    const ta = a.updatedAt || a.createdAt || '';
+    const tb = b.updatedAt || b.createdAt || '';
+    return String(tb).localeCompare(String(ta));
+  });
 }
 
 /** Pull shared guest log into all location keys so contacts see multi-device submits. */

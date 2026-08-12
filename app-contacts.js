@@ -4,7 +4,14 @@
  * Host sends preference links through HAG GHL so they land in Conversations.
  */
 let contactsCache = [];
-let contactsFilter = { q: '', status: 'all', location: 'all', board: true };
+let contactsFilter = {
+  q: '',
+  status: 'all',
+  location: 'all',
+  board: true,
+  priority: 'all',
+  viewMode: 'call' // call | board | list
+};
 let connectDraft = null; // { contact, channel, purpose }
 
 const CRM_STAGES = [
@@ -100,6 +107,10 @@ function filterContactsList() {
   return contactsCache.filter((c) => {
     const status = REContacts?.contactPipelineStatus?.(c) || c.status;
     if (contactsFilter.status !== 'all' && status !== contactsFilter.status) return false;
+    if (contactsFilter.priority && contactsFilter.priority !== 'all') {
+      const cat = c.priorityCategory || '';
+      if (cat !== contactsFilter.priority) return false;
+    }
     if (contactsFilter.location !== 'all') {
       const slug = c.locationSlug || '';
       const active = contactsFilter.location;
@@ -122,6 +133,8 @@ function filterContactsList() {
       c.company,
       c.locationName,
       c.notes,
+      c.priorityLabel,
+      c.priorityTag,
       c.preferences?.preferencesSummary
     ]
       .filter(Boolean)
@@ -131,14 +144,22 @@ function filterContactsList() {
   });
 }
 
-function contactCardHTML(c) {
+function contactCardHTML(c, opts = {}) {
   const status = REContacts?.contactPipelineStatus?.(c) || c.status || 'prospect';
   const prefs = c.preferences;
+  const rank = opts.rank != null ? opts.rank : null;
   const seatBit = prefs?.seatLabel
     ? `<span class="crm-chip crm-chip-seat">${esc(prefs.seatLabel)}</span>`
     : status === 'registered'
       ? `<span class="crm-chip">Prefs only · no seat yet</span>`
       : '';
+  const pri =
+    c.priorityLabel ||
+    (typeof REContactScore !== 'undefined'
+      ? REContactScore.categoryLabel(c.priorityCategory)
+      : '');
+  const priTag = c.priorityTag || '';
+  const score = c.callScore != null ? c.callScore : '—';
   const prefsLine = prefs?.preferencesSummary
     ? esc(prefs.preferencesSummary.replace(/\n/g, ' · ').slice(0, 120))
     : status === 'invited' || status === 'talking'
@@ -151,25 +172,40 @@ function contactCardHTML(c) {
       : '—';
   const idx = contactsCache.indexOf(c);
   const needsLink = status === 'invited' || status === 'talking' || status === 'prospect';
+  const household = c.household === 'couple' ? 'Couple' : c.household === 'single' ? 'Single' : 'HH?';
+  const gender =
+    c.gender === 'female' ? 'F' : c.gender === 'male' ? 'M' : c.genderGuess === 'female' ? 'F?' : c.genderGuess === 'male' ? 'M?' : '?';
 
-  return `<div class="contact-card crm-card" data-idx="${idx}" data-status="${esc(status)}">
+  return `<div class="contact-card crm-card" data-idx="${idx}" data-status="${esc(status)}" data-priority="${esc(c.priorityCategory || '')}">
     <div class="contact-card-main">
       <div class="contact-card-top">
+        ${rank != null ? `<span class="crm-rank">#${rank}</span>` : ''}
         <strong class="contact-name">${esc(c.name || '—')}</strong>
         <span class="contact-status status-${esc(status)}">${esc(stageLabel(status))}</span>
+        ${pri ? `<span class="crm-chip crm-chip-priority crm-pri-${esc(c.priorityCategory || 'unknown')}">${esc(pri)}</span>` : ''}
       </div>
       <div class="contact-channels">
-        <span>${esc(c.email || '—')}</span>
         <span>${esc(c.phone || '—')}</span>
+        <span>${esc(c.email || '—')}</span>
+        <span title="Household / gender">HH: ${esc(household)} · ${esc(gender)}</span>
+        <span title="Call score"><strong style="color:var(--accent)">${esc(String(score))}</strong> pts</span>
       </div>
       <div class="contact-prefs">${prefsLine}</div>
-      ${seatBit ? `<div style="margin-top:6px">${seatBit}</div>` : ''}
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+        ${seatBit}
+        ${priTag ? `<span class="crm-chip" title="Tag for filtering / GHL">${esc(priTag)}</span>` : ''}
+      </div>
       <div class="contact-foot">
         <span>${esc(c.locationName || 'Kennedy School')}</span>
         <span>Last: ${esc(last)}</span>
       </div>
     </div>
     <div class="contact-actions">
+      ${
+        c.phone
+          ? `<a class="btn-sm btn-accent" href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ''))}">Call</a>`
+          : `<button type="button" class="btn-sm" disabled>Call</button>`
+      }
       ${
         needsLink
           ? `<button type="button" class="btn-sm btn-accent" data-prefs-link="sms" data-idx="${idx}" ${c.phone ? '' : 'disabled title="No phone"'}>Text prefs link (GHL)</button>
@@ -188,17 +224,35 @@ function paintContactsView() {
   const root = document.getElementById('view-contacts');
   if (!root) return;
 
+  // Always enrich for display / call order
+  if (typeof REContactScore !== 'undefined' && REContactScore.sortByCallPriority) {
+    contactsCache = REContactScore.sortByCallPriority(contactsCache);
+  } else if (typeof REContactScore !== 'undefined' && REContactScore.enrichContact) {
+    contactsCache = contactsCache.map((c) => REContactScore.enrichContact(c));
+  }
+
   const list = filterContactsList();
+  // Keep call order (score desc) even after filter
+  list.sort((a, b) => (b.callScore || 0) - (a.callScore || 0));
 
   const counts = {
     all: contactsCache.length,
     talking: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'talking').length,
     invited: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'invited').length,
     registered: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'registered').length,
-    seated: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'seated').length
+    seated: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'seated').length,
+    couple: contactsCache.filter((c) => c.priorityCategory === 'couple').length,
+    singleWoman: contactsCache.filter((c) => c.priorityCategory === 'singleWoman').length,
+    singleMan: contactsCache.filter((c) => c.priorityCategory === 'singleMan').length,
+    unknown: contactsCache.filter((c) => c.priorityCategory === 'unknown').length
   };
 
-  const locs = typeof getPlannerLocations === 'function' ? getPlannerLocations() : [];
+  const locs =
+    typeof getAllPlannerLocations === 'function'
+      ? getAllPlannerLocations()
+      : typeof getPlannerLocations === 'function'
+        ? getPlannerLocations()
+        : [];
   const locOpts = locs
     .map(
       (l) =>
@@ -219,6 +273,19 @@ function paintContactsView() {
     )
     .join('');
 
+  const priorityOpts = [
+    ['all', 'All call tags'],
+    ['couple', '★ Couples / married'],
+    ['singleWoman', 'Single women'],
+    ['singleMan', 'Single men'],
+    ['unknown', 'Needs review']
+  ]
+    .map(
+      ([v, lab]) =>
+        `<option value="${v}" ${contactsFilter.priority === v ? 'selected' : ''}>${lab}</option>`
+    )
+    .join('');
+
   const boardHTML = CRM_STAGES.map((stage) => {
     const col = list.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === stage.id);
     return `<div class="crm-col" data-stage="${stage.id}">
@@ -230,56 +297,80 @@ function paintContactsView() {
         <span class="crm-col-count">${col.length}</span>
       </div>
       <div class="crm-col-body">
-        ${col.length ? col.map(contactCardHTML).join('') : `<p class="crm-col-empty">None yet</p>`}
+        ${col.length ? col.map((c) => contactCardHTML(c)).join('') : `<p class="crm-col-empty">None yet</p>`}
       </div>
     </div>`;
   }).join('');
 
+  const callHTML = list.length
+    ? list.map((c, i) => contactCardHTML(c, { rank: i + 1 })).join('')
+    : `<p class="empty" style="padding:28px">No contacts yet. Import GHL/seats or add someone — then hit <strong>Enrich &amp; score</strong>.</p>`;
+
   const listHTML = list.length
-    ? list.map(contactCardHTML).join('')
-    : `<p class="empty" style="padding:28px">No contacts yet for this event. <strong>Add contact</strong> or send invites from Outreach — they'll land here as <em>Registered · invited</em>. When they finish the guest form they move to <em>Preferences in</em> / <em>Prefs + seat</em>.</p>`;
+    ? list.map((c) => contactCardHTML(c)).join('')
+    : `<p class="empty" style="padding:28px">No contacts yet for this event.</p>`;
+
+  const mode = contactsFilter.viewMode || 'call';
 
   root.innerHTML = `
     <div class="card-box" style="margin-bottom:18px;border:2px solid var(--accent)">
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between">
         <div>
-          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">CONTACTS · EVENT CRM · KENNEDY SCHOOL</div>
-          <h3 style="margin:0 0 6px">Guest pipeline</h3>
-          <p class="integration-note" style="margin:0;max-width:640px">
-            Add or invite someone → they show as <strong>Registered · invited</strong>.
-            Use <strong>Text/Email prefs link (GHL)</strong> so the message hits HAG Conversations — then coach them through the form.
-            When they submit prefs they move to <strong>Preferences in</strong>; with a seat claim they move to <strong>Prefs + seat</strong>.
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">CONTACTS · CALL PRIORITY · KENNEDY</div>
+          <h3 style="margin:0 0 6px">Who to call first</h3>
+          <p class="integration-note" style="margin:0;max-width:680px">
+            <strong>1. Couples / married</strong> (party=couple, spouse, 2 seats) ·
+            <strong>2. Single women</strong> ·
+            <strong>3. Single men</strong>.
+            Enrichment uses registration data + first-name gender guess; override on Edit if wrong.
+            Tags: <code>call-priority-couple</code>, <code>call-priority-single-woman</code>, <code>call-priority-single-man</code>.
           </p>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
-          <button type="button" class="lock-btn btn-accent" id="btnAddContact" style="max-width:none;width:auto;padding:12px 18px">+ Add contact</button>
+          <button type="button" class="lock-btn btn-accent" id="btnEnrichScore" style="max-width:none;width:auto;padding:12px 18px">Enrich &amp; score all</button>
+          <button type="button" class="btn-sm btn-accent" id="btnAddContact">+ Add contact</button>
           <button type="button" class="btn-sm" id="btnRefreshContacts">Refresh from cloud</button>
-          <button type="button" class="btn-sm btn-accent" id="btnImportGhlSeed">Re-import GHL / seats</button>
+          <button type="button" class="btn-sm" id="btnImportGhlSeed">Re-import GHL / seats</button>
           <button type="button" class="btn-sm" id="btnExportContacts">Export CSV</button>
-          <button type="button" class="btn-sm" id="btnToggleBoard">${contactsFilter.board ? 'List view' : 'Pipeline board'}</button>
+          <button type="button" class="btn-sm" id="btnViewCall" ${mode === 'call' ? 'disabled' : ''}>Call order</button>
+          <button type="button" class="btn-sm" id="btnViewBoard" ${mode === 'board' ? 'disabled' : ''}>Pipeline</button>
+          <button type="button" class="btn-sm" id="btnViewList" ${mode === 'list' ? 'disabled' : ''}>List</button>
         </div>
       </div>
       <div class="contact-stats" style="margin-top:16px">
         <div class="card-box contact-stat"><div class="stat-label">All</div><div class="stat-val">${counts.all}</div></div>
-        <div class="card-box contact-stat"><div class="stat-label">Invited</div><div class="stat-val">${counts.invited + counts.talking}</div></div>
-        <div class="card-box contact-stat"><div class="stat-label">Prefs in</div><div class="stat-val">${counts.registered}</div></div>
-        <div class="card-box contact-stat"><div class="stat-label">Seated</div><div class="stat-val accent">${counts.seated}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">★ Couples</div><div class="stat-val accent">${counts.couple}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Single ♀</div><div class="stat-val">${counts.singleWoman}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Single ♂</div><div class="stat-val">${counts.singleMan}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Review</div><div class="stat-val">${counts.unknown}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Seated</div><div class="stat-val">${counts.seated}</div></div>
       </div>
     </div>
 
     <div class="contact-filters card-box">
-      <div class="planner-form" style="grid-template-columns: 2fr 1fr 1fr; gap:12px">
+      <div class="planner-form" style="grid-template-columns: 2fr 1fr 1fr 1fr; gap:12px">
         <label class="planner-field full" style="grid-column:auto"><span>Search</span>
-          <input type="search" id="contactSearch" placeholder="Name, email, phone, prefs…" value="${esc(contactsFilter.q)}"></label>
+          <input type="search" id="contactSearch" placeholder="Name, email, phone, tag, prefs…" value="${esc(contactsFilter.q)}"></label>
+        <label class="planner-field"><span>Call tag</span>
+          <select id="contactPriorityFilter">${priorityOpts}</select></label>
         <label class="planner-field"><span>Stage</span>
           <select id="contactStatusFilter">${statusOpts}</select></label>
         <label class="planner-field"><span>Event</span>
           <select id="contactLocFilter"><option value="all">All events</option>${locOpts}</select></label>
       </div>
-      <p style="font-size:0.78rem;color:var(--muted);margin-top:10px">Showing <strong style="color:var(--text)">${list.length}</strong> · GHL webhook must branch on <code>event=host_quick_connect</code> to Send SMS / Email (shows in Conversations).</p>
+      <p style="font-size:0.78rem;color:var(--muted);margin-top:10px">
+        Showing <strong style="color:var(--text)">${list.length}</strong> in call order (highest score first).
+        Score = category base (couple 100 / single woman 60 / single man 30) + seat/prefs/phone bonuses.
+      </p>
     </div>
 
-    ${contactsFilter.board ? `<div class="crm-board">${boardHTML}</div>` : `<div class="contact-list">${listHTML}</div>`}
+    ${
+      mode === 'board'
+        ? `<div class="crm-board">${boardHTML}</div>`
+        : mode === 'list'
+          ? `<div class="contact-list">${listHTML}</div>`
+          : `<div class="contact-list crm-call-order">${callHTML}</div>`
+    }
   `;
 
   root.querySelector('#contactSearch')?.addEventListener('input', (e) => {
@@ -296,12 +387,31 @@ function paintContactsView() {
     contactsFilter.status = e.target.value;
     paintContactsView();
   });
+  root.querySelector('#contactPriorityFilter')?.addEventListener('change', (e) => {
+    contactsFilter.priority = e.target.value;
+    paintContactsView();
+  });
   root.querySelector('#contactLocFilter')?.addEventListener('change', (e) => {
     contactsFilter.location = e.target.value;
     paintContactsView();
   });
   root.querySelector('#btnAddContact')?.addEventListener('click', () => openContactEditModal(null));
   root.querySelector('#btnRefreshContacts')?.addEventListener('click', () => renderContacts());
+  root.querySelector('#btnEnrichScore')?.addEventListener('click', () => {
+    if (typeof REContactScore === 'undefined') {
+      return alert('Scoring module not loaded — hard-refresh command center.');
+    }
+    contactsCache = REContactScore.applyEnrichmentToDirectory(contactsCache);
+    contactsCache = REContactScore.sortByCallPriority(contactsCache);
+    const n = contactsCache.length;
+    const couples = contactsCache.filter((c) => c.priorityCategory === 'couple').length;
+    const sw = contactsCache.filter((c) => c.priorityCategory === 'singleWoman').length;
+    const sm = contactsCache.filter((c) => c.priorityCategory === 'singleMan').length;
+    alert(
+      `Enriched ${n} contact(s).\n\n★ Couples: ${couples}\nSingle women: ${sw}\nSingle men: ${sm}\n\nTags saved. Call order is ready — highest score first.`
+    );
+    paintContactsView();
+  });
   root.querySelector('#btnImportGhlSeed')?.addEventListener('click', async () => {
     const btn = root.querySelector('#btnImportGhlSeed');
     if (btn) {
@@ -321,8 +431,16 @@ function paintContactsView() {
     renderContacts();
   });
   root.querySelector('#btnExportContacts')?.addEventListener('click', exportContactsCsv);
-  root.querySelector('#btnToggleBoard')?.addEventListener('click', () => {
-    contactsFilter.board = !contactsFilter.board;
+  root.querySelector('#btnViewCall')?.addEventListener('click', () => {
+    contactsFilter.viewMode = 'call';
+    paintContactsView();
+  });
+  root.querySelector('#btnViewBoard')?.addEventListener('click', () => {
+    contactsFilter.viewMode = 'board';
+    paintContactsView();
+  });
+  root.querySelector('#btnViewList')?.addEventListener('click', () => {
+    contactsFilter.viewMode = 'list';
     paintContactsView();
   });
 
@@ -391,15 +509,23 @@ async function removeContactAt(idx, btn) {
 }
 
 function exportContactsCsv() {
+  const ranked =
+    typeof REContactScore !== 'undefined'
+      ? REContactScore.sortByCallPriority(contactsCache)
+      : contactsCache;
   const rows = [
     [
+      'Call rank',
+      'Call score',
+      'Priority tag',
+      'Priority category',
+      'Household',
+      'Gender',
       'Name',
       'First',
       'Last',
       'Email',
       'Phone',
-      'Position',
-      'Company',
       'Event',
       'Pipeline',
       'Sources',
@@ -408,14 +534,18 @@ function exportContactsCsv() {
       'Notes',
       'Last contact'
     ],
-    ...contactsCache.map((c) => [
+    ...ranked.map((c, i) => [
+      i + 1,
+      c.callScore || '',
+      c.priorityTag || '',
+      c.priorityCategory || '',
+      c.household || '',
+      c.gender || c.genderGuess || '',
       c.name,
       c.firstName,
       c.lastName,
       c.email,
       c.phone,
-      c.position,
-      c.company,
       c.locationName,
       REContacts?.contactPipelineStatus?.(c) || c.status,
       (c.sources || []).join('|'),
@@ -434,21 +564,27 @@ function exportContactsCsv() {
 
 function showContactDetail(c) {
   if (!c) return;
-  const status = REContacts?.contactPipelineStatus?.(c) || c.status;
-  const prefs = c.preferences?.preferencesSummary || 'No preference submission yet.';
+  const en = typeof REContactScore !== 'undefined' ? REContactScore.enrichContact(c) : c;
+  const status = REContacts?.contactPipelineStatus?.(en) || en.status;
+  const prefs = en.preferences?.preferencesSummary || 'No preference submission yet.';
+  const br = (en.callScoreBreakdown || []).map((b) => `  ${b.label}: +${b.pts}`).join('\n');
   alert(
     [
-      c.name,
-      c.position || c.company ? [c.position, c.company].filter(Boolean).join(' · ') : '',
-      c.email,
-      c.phone,
-      c.locationName ? `Event: ${c.locationName}` : '',
+      en.name,
+      en.email,
+      en.phone,
+      en.locationName ? `Event: ${en.locationName}` : '',
       `Pipeline: ${stageLabel(status)}`,
-      c.preferences?.seatLabel ? `Seats: ${c.preferences.seatLabel}` : '',
+      `Call priority: ${en.priorityLabel || '—'} (${en.priorityTag || ''})`,
+      `Score: ${en.callScore ?? '—'}`,
+      br ? `Breakdown:\n${br}` : '',
+      `Household: ${en.household || '—'} (${en.householdConfidence || ''})`,
+      `Gender: ${en.gender || en.genderGuess || '—'} (${en.genderConfidence || ''})`,
+      en.preferences?.seatLabel ? `Seats: ${en.preferences.seatLabel}` : '',
       '',
       '— Preferences —',
       prefs,
-      c.notes ? `\n— Notes —\n${c.notes}` : ''
+      en.notes ? `\n— Notes —\n${en.notes}` : ''
     ]
       .filter((x) => x != null && x !== '')
       .join('\n')
@@ -464,21 +600,57 @@ function openContactEditModal(contact) {
   document.getElementById('ctPhone').value = c.phone || '';
   document.getElementById('ctPosition').value = c.position || '';
   document.getElementById('ctCompany').value = c.company || '';
-  document.getElementById('ctNotes').value = c.notes || '';
+  // Encode household/gender overrides in notes prefix only if fields missing — use dedicated selects if present
+  let notes = c.notes || '';
+  document.getElementById('ctNotes').value = notes;
   const st = document.getElementById('ctStatus');
   if (st) {
-    // Ensure seated option exists
     if (![...st.options].some((o) => o.value === 'seated')) {
       st.insertAdjacentHTML('beforeend', '<option value="seated">Prefs + seat</option>');
-    }
-    if (![...st.options].some((o) => o.value === 'registered')) {
-      /* already there usually */
     }
     st.value = c.status || 'invited';
   }
 
+  // Inject household + gender override fields once
+  let extra = document.getElementById('ctPriorityFields');
+  if (!extra) {
+    const notesField = document.getElementById('ctNotes')?.closest('.modal-field');
+    extra = document.createElement('div');
+    extra.id = 'ctPriorityFields';
+    extra.innerHTML = `
+      <div class="modal-field"><span>Household (call priority)</span>
+        <select id="ctHousehold">
+          <option value="">Auto from registration</option>
+          <option value="couple">Couple / married</option>
+          <option value="single">Single</option>
+        </select>
+      </div>
+      <div class="modal-field"><span>Gender (call priority)</span>
+        <select id="ctGender">
+          <option value="">Auto from first name</option>
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+        </select>
+      </div>
+      <div class="modal-field"><span>Manual score boost</span>
+        <input type="number" id="ctBoost" placeholder="0" step="1">
+      </div>`;
+    notesField?.parentNode?.insertBefore(extra, notesField);
+  }
+  const hh = document.getElementById('ctHousehold');
+  const gen = document.getElementById('ctGender');
+  const boost = document.getElementById('ctBoost');
+  if (hh) hh.value = c.household === 'couple' || c.household === 'single' ? c.household : '';
+  if (gen) gen.value = c.gender === 'female' || c.gender === 'male' ? c.gender : '';
+  if (boost) boost.value = c.priorityBoost || '';
+
   const sel = document.getElementById('ctLocation');
-  const locs = typeof getPlannerLocations === 'function' ? getPlannerLocations() : [];
+  const locs =
+    typeof getAllPlannerLocations === 'function'
+      ? getAllPlannerLocations()
+      : typeof getPlannerLocations === 'function'
+        ? getPlannerLocations()
+        : [];
   const active = typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : 'kennedy-school';
   sel.innerHTML =
     locs
@@ -513,7 +685,12 @@ function saveContactFromModal() {
   const existingId = document.getElementById('ctId').value.trim();
   const status = document.getElementById('ctStatus').value || 'invited';
 
-  REContacts.upsertManualContact({
+  const household = document.getElementById('ctHousehold')?.value || '';
+  const gender = document.getElementById('ctGender')?.value || '';
+  const boostRaw = document.getElementById('ctBoost')?.value;
+  const priorityBoost = boostRaw === '' || boostRaw == null ? undefined : Number(boostRaw);
+
+  const saved = REContacts.upsertManualContact({
     id: existingId || undefined,
     firstName: first,
     lastName: last,
@@ -526,8 +703,15 @@ function saveContactFromModal() {
     status: status === 'talking' ? 'invited' : status,
     locationSlug: locSlug || '',
     locationName: loc?.shortName || 'Kennedy School',
-    sources: ['manual']
+    sources: ['manual'],
+    household: household || undefined,
+    gender: gender || undefined,
+    priorityBoost
   });
+  // Re-score immediately with manual overrides
+  if (typeof REContactScore !== 'undefined' && saved) {
+    REContactScore.applyEnrichmentToDirectory([saved]);
+  }
   closeContactEditModal();
   renderContacts();
 }
