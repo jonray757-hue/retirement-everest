@@ -290,6 +290,113 @@
     }
   }
 
+  function orderKey(o) {
+    if (!o || typeof o !== 'object') return '';
+    if (o.id != null && String(o.id)) return 'id:' + String(o.id);
+    return (
+      'k:' +
+      `${String(o.email || '').toLowerCase()}|${o.phone || ''}|${o.ts || ''}|${String(o.name || '').toLowerCase()}`
+    );
+  }
+
+  function matchesRemoveKey(o, keys) {
+    const set = new Set((keys || []).map(String));
+    if (!set.size) return false;
+    return set.has(orderKey(o)) || (o.id != null && set.has(String(o.id))) || set.has('id:' + String(o.id));
+  }
+
+  /**
+   * Remove one or more preference submissions (not just seats).
+   * keys: orderKey() strings and/or raw id values.
+   * Returns { removed, remaining, seatIds } — seatIds from deleted rows for map cleanup.
+   */
+  async function removeOrders(loc, keys) {
+    const keyList = (keys || []).map(String).filter(Boolean);
+    if (!keyList.length || !loc?.storageKey) {
+      return { removed: 0, remaining: [], seatIds: [] };
+    }
+
+    const seatIds = [];
+    const collectSeats = (o) => {
+      if (!o) return;
+      if (Array.isArray(o.seats)) {
+        o.seats.forEach((s) => {
+          if (s && !seatIds.includes(String(s))) seatIds.push(String(s));
+        });
+      }
+    };
+
+    const drop = (list) => {
+      const kept = [];
+      let removed = 0;
+      (list || []).forEach((o) => {
+        if (matchesRemoveKey(o, keyList)) {
+          collectSeats(o);
+          removed += 1;
+        } else {
+          kept.push(o);
+        }
+      });
+      return { kept, removed };
+    };
+
+    // Local + legacy BBQ keys
+    const storageKeys = [loc.storageKey];
+    if (
+      loc.bbqMenuPick ||
+      loc.slug === 'kennedy-school' ||
+      loc.slug === 'kennedy-school-bbq' ||
+      /kennedyschool_bbq/i.test(loc.storageKey || '')
+    ) {
+      storageKeys.push(
+        'kennedyschool_bbq_prefs_v5',
+        'kennedyschool_bbq_prefs_v4',
+        'kennedyschool_bbq_prefs_v3',
+        'kennedyschool_bbq_prefs_v2',
+        'kennedyschool_bbq_prefs_v1'
+      );
+    }
+    let localRemoved = 0;
+    let primaryKept = [];
+    storageKeys.forEach((k, idx) => {
+      try {
+        const arr = JSON.parse(localStorage.getItem(k) || '[]');
+        if (!Array.isArray(arr)) return;
+        const { kept, removed } = drop(arr);
+        localRemoved += removed;
+        localStorage.setItem(k, JSON.stringify(kept));
+        if (idx === 0) primaryKept = kept;
+      } catch (_) {}
+    });
+
+    // Shared log: filter full list then put (works with durable + jsonblob)
+    let remoteRemoved = 0;
+    let remainingForLoc = primaryKept;
+    try {
+      if (global.RESharedStore?.memInvalidate) global.RESharedStore.memInvalidate('orders');
+      const all = await fetchSharedOrders();
+      const before = (all || []).length;
+      const next = (all || []).filter((o) => !matchesRemoveKey(o, keyList));
+      remoteRemoved = before - next.length;
+      if (remoteRemoved > 0) {
+        await putSharedOrders(next);
+      }
+      remainingForLoc = next.filter((o) => matchesLocation(o, loc));
+      try {
+        localStorage.setItem(loc.storageKey, JSON.stringify(remainingForLoc));
+      } catch (_) {}
+    } catch (e) {
+      console.warn('[RE] removeOrders remote failed', e);
+      remainingForLoc = primaryKept;
+    }
+
+    return {
+      removed: Math.max(localRemoved, remoteRemoved),
+      remaining: remainingForLoc,
+      seatIds
+    };
+  }
+
   async function clearOrdersForLocation(loc) {
     if (!loc?.storageKey) return { local: 0, remoteRemoved: 0 };
 
@@ -356,6 +463,7 @@
   global.RESharedOrders = {
     blobUrl,
     mergeOrders,
+    orderKey,
     fetchSharedOrders,
     putSharedOrders,
     appendSharedOrder,
@@ -363,6 +471,7 @@
     emailHostReport,
     loadOrdersForLocation,
     stripSeatsFromOrders,
+    removeOrders,
     clearOrdersForLocation,
     useDurableStore
   };

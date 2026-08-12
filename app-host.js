@@ -141,7 +141,7 @@ function renderBbqMenuPickReport(orders, loc) {
     <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Tallies are preference votes for planning quantities — full BBQ package still served for the group.</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Adult drink?</th><th>Notes</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Adult drink?</th><th>Notes</th><th>Time</th><th></th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
           let party = 'Solo';
@@ -156,10 +156,127 @@ function renderBbqMenuPickReport(orders, loc) {
             party = `Couple${o.spouse ? ` · ${esc(o.spouse)}` : ''}${partnerIn ? ' ✓ linked' : ' · awaiting partner form'}`;
           }
           const seatCol = o.seatLabel ? `<strong style="color:var(--accent)">${esc(o.seatLabel)}</strong>` : (o.seatAccommodation ? '<span style="color:var(--red,#e05252)">Needs arranging</span>' : '—');
-          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${party}</td><td>${seatCol}</td><td>${esc((o.sides || []).join(' · ') || '—')}</td><td>${esc(o.entree || '—')}</td><td>${esc(o.dessert || '—')}</td><td>${esc(cat === 'Adult' ? 'Yes — adult drink' : 'No adult drink')}</td><td>${esc(o.notes || '—')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+          const ok = orderKeyAttr(o);
+          return `<tr>
+            <td>${i + 1}</td>
+            <td><strong>${esc(o.name)}</strong>${o.email || o.phone ? `<div style="font-size:0.72rem;color:var(--muted)">${esc([o.email, o.phone].filter(Boolean).join(' · '))}</div>` : ''}</td>
+            <td>${party}</td><td>${seatCol}</td>
+            <td>${esc((o.sides || []).join(' · ') || '—')}</td>
+            <td>${esc(o.entree || '—')}</td>
+            <td>${esc(o.dessert || '—')}</td>
+            <td>${esc(cat === 'Adult' ? 'Yes — adult drink' : 'No adult drink')}</td>
+            <td>${esc(o.notes || '—')}</td>
+            <td>${new Date(o.ts).toLocaleString()}</td>
+            <td><button type="button" class="btn-sm" data-remove-guest="${esc(ok)}" data-remove-name="${esc(o.name || 'this guest')}" title="Remove this guest's preferences and free their seats">Remove</button></td>
+          </tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
+}
+
+/** Stable key for a preference row (matches RESharedOrders.orderKey). */
+function orderKeyAttr(o) {
+  if (window.RESharedOrders?.orderKey) return RESharedOrders.orderKey(o);
+  if (o?.id != null && String(o.id)) return 'id:' + String(o.id);
+  return (
+    'k:' +
+    `${String(o?.email || '').toLowerCase()}|${o?.phone || ''}|${o?.ts || ''}|${String(o?.name || '').toLowerCase()}`
+  );
+}
+
+/**
+ * Remove one preference submission + free any seats they held.
+ * Does not clear the rest of the guest list.
+ */
+async function removeGuestPreference(orderKey, displayName) {
+  const loc = getReportLoc();
+  const name = displayName || 'this guest';
+  if (
+    !confirm(
+      `Remove ${name} from the guest list?\n\nThis deletes their food preferences and frees any seats they reserved.\nOther guests are left alone.`
+    )
+  ) {
+    return false;
+  }
+
+  const errors = [];
+  let seatIds = [];
+
+  // Snapshot seats from local list before delete (in case remote already dropped seats field)
+  try {
+    const local = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
+    (local || []).forEach((o) => {
+      if (orderKeyAttr(o) !== orderKey && String(o?.id) !== orderKey.replace(/^id:/, '')) return;
+      if (Array.isArray(o.seats)) seatIds.push(...o.seats.map(String));
+    });
+  } catch (_) {}
+
+  try {
+    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
+    if (window.RESharedOrders?.removeOrders) {
+      const result = await RESharedOrders.removeOrders(loc, [orderKey]);
+      if (Array.isArray(result.seatIds) && result.seatIds.length) {
+        seatIds = [...new Set([...seatIds, ...result.seatIds.map(String)])];
+      }
+      if (!result.removed) {
+        // Still try seat cleanup; may only have existed on seats map
+      }
+    } else {
+      errors.push('removeOrders not available — hard-refresh command center');
+    }
+  } catch (e) {
+    errors.push('preferences: ' + e);
+  }
+
+  // Free seats even if they only existed on the live map
+  if (seatIds.length && window.RESeating?.releaseSeats) {
+    try {
+      if (window.RESharedOrders?.stripSeatsFromOrders) {
+        await RESharedOrders.stripSeatsFromOrders(loc, seatIds);
+      }
+      await RESeating.releaseSeats(seatIds);
+    } catch (e) {
+      errors.push('seats: ' + e);
+    }
+  } else if (window.RESeating?.fetchState && window.RESeating?.releaseSeats) {
+    // Fallback: find seats claimed under this guest name on the map
+    try {
+      const st = await RESeating.fetchState({ healRemote: false, orders: [], offlineOrders: false });
+      const needle = String(displayName || '').toLowerCase().trim();
+      const hit = Object.values(st.seats || {})
+        .filter((c) => {
+          const n = String(c.person || c.name || '').toLowerCase();
+          return needle && (n === needle || n.includes(needle) || needle.includes(n));
+        })
+        .map((c) => c.seatId);
+      if (hit.length) await RESeating.releaseSeats(hit);
+    } catch (e) {
+      errors.push('seat lookup: ' + e);
+    }
+  }
+
+  if (errors.length) {
+    alert(`Removed with some issues:\n\n${errors.join('\n')}`);
+  }
+  return true;
+}
+
+function wireGuestRemoveButtons(root) {
+  (root || document).querySelectorAll('[data-remove-guest]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const key = btn.dataset.removeGuest;
+      const name = btn.dataset.removeName || 'this guest';
+      if (!key) return;
+      btn.disabled = true;
+      btn.textContent = '…';
+      const ok = await removeGuestPreference(key, name);
+      if (ok) renderReport();
+      else {
+        btn.disabled = false;
+        btn.textContent = 'Remove';
+      }
+    });
+  });
 }
 
 function renderBuffetReport(orders, loc) {
@@ -203,10 +320,11 @@ function renderBuffetReport(orders, loc) {
     <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage bucket</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage bucket</th><th>Time</th><th></th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
-          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`;
+          const ok = orderKeyAttr(o);
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${new Date(o.ts).toLocaleString()}</td><td><button type="button" class="btn-sm" data-remove-guest="${esc(ok)}" data-remove-name="${esc(o.name || 'this guest')}">Remove</button></td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;
@@ -249,11 +367,12 @@ function renderPreorderReport(orders, loc) {
     <div class="card-box">
       <h3>All orders (${enriched.length})</h3>
       <div style="overflow-x:auto;margin-top:12px"><table>
-        <thead><tr><th>#</th><th>Guest</th><th>Arrival Bite</th><th>Main</th><th>Drink</th><th>Subtotal</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Guest</th><th>Arrival Bite</th><th>Main</th><th>Drink</th><th>Subtotal</th><th>Time</th><th></th></tr></thead>
         <tbody>${enriched.map((o, i) => `<tr>
-          <td>${i + 1}</td><td><strong>${o.name}</strong></td>
-          <td>${o.starter || '—'}</td><td>${o.main}</td><td>${o.drink}</td>
-          <td>${fmt(o.total)}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`).join('')}
+          <td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td>
+          <td>${esc(o.starter || '—')}</td><td>${esc(o.main)}</td><td>${esc(o.drink)}</td>
+          <td>${fmt(o.total)}</td><td>${new Date(o.ts).toLocaleString()}</td>
+          <td><button type="button" class="btn-sm" data-remove-guest="${esc(orderKeyAttr(o))}" data-remove-name="${esc(o.name || 'this guest')}">Remove</button></td></tr>`).join('')}
         </tbody></table></div>
     </div>`;
 }
@@ -298,8 +417,8 @@ function renderScreeningReport(orders, loc) {
     <div class="card-box">
       <h3>All orders (${enriched.length})</h3>
       <div style="overflow-x:auto;margin-top:12px"><table>
-        <thead><tr><th>#</th><th>Guest</th><th>Salad</th><th>Entrée</th><th>Dessert</th>${drinkCol}<th>Cost</th><th>Time</th></tr></thead>
-        <tbody>${enriched.map((o,i) => `<tr><td>${i+1}</td><td><strong>${o.name}</strong></td><td>${o.salad}</td><td>${o.entree}</td><td>${o.dessert}</td>${drinkCells(o)}<td>${fmt(o.total)}</td><td>${new Date(o.ts).toLocaleString()}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>#</th><th>Guest</th><th>Salad</th><th>Entrée</th><th>Dessert</th>${drinkCol}<th>Cost</th><th>Time</th><th></th></tr></thead>
+        <tbody>${enriched.map((o,i) => `<tr><td>${i+1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.salad)}</td><td>${esc(o.entree)}</td><td>${esc(o.dessert)}</td>${drinkCells(o)}<td>${fmt(o.total)}</td><td>${new Date(o.ts).toLocaleString()}</td><td><button type="button" class="btn-sm" data-remove-guest="${esc(orderKeyAttr(o))}" data-remove-name="${esc(o.name || 'this guest')}">Remove</button></td></tr>`).join('')}</tbody>
       </table></div>
     </div>`;
 }
@@ -474,6 +593,7 @@ async function renderReport() {
     }
     renderReport();
   });
+  wireGuestRemoveButtons(body);
   if (reportLoc.bbqMenuPick && window.RESeating) {
     const seatDiv = document.createElement('div');
     seatDiv.id = 'seating-panel';
