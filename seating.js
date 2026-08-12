@@ -895,9 +895,8 @@
           label = String(n), lblFill = 'var(--accent, #c9a44a)', extra = '', title = `Table ${t} · Seat ${n}`;
         if (claim) {
           cls = 'seat-taken';
-          /* Solid blocked-out chair — must not match the removed-X ghosts. */
-          fill = '#2a2416'; stroke = '#c9a44a'; lblFill = '#f0e6c8';
-          extra = ' stroke-opacity="0.95"';
+          /* Gray blocked chair — gold is only for open / in-progress picks. */
+          fill = '#2c2c32'; stroke = '#6a6a72'; lblFill = '#d0d0d6';
           label = mode === 'host' ? (xesc(initials(claim.person || claim.name)) || '✕') : '✕';
           title = mode === 'host'
             ? `Table ${t} · Seat ${n} — ${xesc(claim.person || claim.name)}${claim.partyType === 'couple' ? ' (couple)' : ''}`
@@ -956,7 +955,7 @@
     return `<div style="margin-top:8px">
       ${chip('border:2px solid var(--accent,#c9a44a)', 'Open')}
       ${chip('background:var(--accent,#c9a44a)', 'Your pick')}
-      ${chip('background:#2a2416;border:2px solid #c9a44a', 'Reserved')}
+      ${chip('background:#2c2c32;border:2px solid #6a6a72', 'Reserved')}
       ${mode === 'guest' ? chip('border:2px dashed #7a5f2a', 'Held for couples') : ''}
     </div>`;
   }
