@@ -126,6 +126,11 @@ let selectedPartnerKey = '';      // key from listJoinablePartners
 function initGuest() {
   const slug = getLocationSlug();
   LOC = RETIREMENT_EVEREST.locations[slug];
+  /* Parent venue (kennedy-school) still has the old buffet-poll form with no seats.
+     Always use the locked guest package so the seat chart is on the page. */
+  if (LOC?.guestSlug && RETIREMENT_EVEREST.locations[LOC.guestSlug]) {
+    LOC = RETIREMENT_EVEREST.locations[LOC.guestSlug];
+  }
   if (!LOC) {
     document.body.innerHTML = '<div style="padding:80px 24px;text-align:center;color:#888;"><h2>Location not found</h2><p><a href="index.html">← Back to locations</a></p></div>';
     return;
@@ -321,54 +326,20 @@ function renderSeatSection() {
     </div>`;
 }
 
-async function loadSeatMap() {
+function paintSeatMap(state, orderBackup) {
   const box = document.getElementById('seatmap-container');
   if (!box || !window.RESeating) return;
-  // Drop legacy cache keys only (v1/v2). Live fetch overwrites v3 when online.
-  try {
-    localStorage.removeItem('re_seats_cache_v1');
-    localStorage.removeItem('re_seats_cache_v2');
-    localStorage.removeItem('re_seats_cache_v3');
-  } catch (_) {}
-
-  // Partner list still needs orders; seat blackouts do not (live seats map only)
-  let orderBackup = [];
-  try {
-    if (window.RESharedOrders?.fetchSharedOrders) {
-      orderBackup = await RESharedOrders.fetchSharedOrders(LOC.id || LOC.slug);
-    }
-  } catch (e) {
-    console.warn('[RE] order backup for seats failed', e);
-  }
-  try {
-    const localOrders = JSON.parse(localStorage.getItem(LOC.storageKey) || '[]');
-    orderBackup = window.RESharedOrders?.mergeOrders
-      ? RESharedOrders.mergeOrders(localOrders, orderBackup)
-      : [...orderBackup, ...localOrders];
-  } catch (_) {}
-
-  try {
-    // Online: shared seats map is the only source of blackouts (no auto-heal from orders)
-    seatState = await RESeating.fetchState({
-      orders: orderBackup,
-      healRemote: false,
-      offlineOrders: false
-    });
-  } catch (e) {
-    console.warn('[RE] seat map load failed', e);
-    seatState = RESeating.emptyState ? RESeating.emptyState() : { seats: {}, couples: [], accommodations: [] };
-    seatState.offline = true;
-  }
-  // Always paint the floor plan — never blank the section if the shared store is down
+  seatState = state || RESeating.emptyState();
   seatFriendly = RESeating.soloFriendly(seatState);
   selSeats = selSeats.filter(id => !seatState.seats?.[id]);
-  joinablePartners = typeof RESeating.listJoinablePartners === 'function'
-    ? RESeating.listJoinablePartners(seatState, orderBackup)
-    : [];
-  refreshPartnerSelect();
-  applyCoupleModeUI();
+  if (orderBackup) {
+    joinablePartners = typeof RESeating.listJoinablePartners === 'function'
+      ? RESeating.listJoinablePartners(seatState, orderBackup)
+      : [];
+    refreshPartnerSelect();
+    applyCoupleModeUI();
+  }
   const takenN = Object.keys(seatState.seats || {}).length;
-  // Never show sync/offline diagnostics on the guest form — chart still works quietly.
   const takenNote = takenN
     ? `<div style="margin-bottom:6px;font-size:0.78rem;color:var(--muted,#888)"><strong style="color:var(--text,#ddd)">${takenN}</strong> seat${takenN === 1 ? '' : 's'} already reserved (blacked out)</div>`
     : '';
@@ -377,6 +348,52 @@ async function loadSeatMap() {
   }) + RESeating.legendHTML('guest') +
   `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
   updateSeatStatus();
+}
+
+async function loadSeatMap() {
+  const box = document.getElementById('seatmap-container');
+  if (!box || !window.RESeating) return;
+  try {
+    localStorage.removeItem('re_seats_cache_v1');
+    localStorage.removeItem('re_seats_cache_v2');
+    localStorage.removeItem('re_seats_cache_v3');
+  } catch (_) {}
+
+  /* Draw the floor plan immediately so a slow cloud fetch never hides the diagram. */
+  const cached = typeof RESeating.getCachedState === 'function' ? RESeating.getCachedState() : null;
+  paintSeatMap(cached || RESeating.emptyState(), []);
+
+  const ordersPromise = (async () => {
+    let orderBackup = [];
+    try {
+      if (window.RESharedOrders?.fetchSharedOrders) {
+        orderBackup = await RESharedOrders.fetchSharedOrders(LOC.id || LOC.slug);
+      }
+    } catch (e) {
+      console.warn('[RE] order backup for seats failed', e);
+    }
+    try {
+      const localOrders = JSON.parse(localStorage.getItem(LOC.storageKey) || '[]');
+      orderBackup = window.RESharedOrders?.mergeOrders
+        ? RESharedOrders.mergeOrders(localOrders, orderBackup)
+        : [...orderBackup, ...localOrders];
+    } catch (_) {}
+    return orderBackup;
+  })();
+
+  const seatsPromise = RESeating.fetchState({
+    orders: [],
+    healRemote: false,
+    offlineOrders: false
+  }).catch((e) => {
+    console.warn('[RE] seat map load failed', e);
+    const fallback = cached || (RESeating.emptyState ? RESeating.emptyState() : { seats: {}, couples: [], accommodations: [] });
+    fallback.offline = true;
+    return fallback;
+  });
+
+  const [orderBackup, live] = await Promise.all([ordersPromise, seatsPromise]);
+  paintSeatMap(live, orderBackup);
 }
 
 function refreshPartnerSelect() {

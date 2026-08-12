@@ -1004,6 +1004,7 @@
     claimsFromOrders,
     parseSeatLabel,
     fetchState,
+    getCachedState: readLocalCache,
     putState,
     claimSeats,
     releaseSeats,
