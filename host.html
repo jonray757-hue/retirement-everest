@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Retirement Everest — Command Center</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<link rel="stylesheet" href="styles.css?v=20260812d">
+<link rel="stylesheet" href="styles.css?v=20260812e">
 </head>
 <body class="theme-hub">
 <div id="report" style="display:none">
@@ -18,11 +18,12 @@
       <h1 id="hostTitle" style="font-family:var(--heading-font);font-size:1.2rem;color:var(--accent)">Series Overview</h1>
       <nav class="host-nav">
         <button type="button" class="host-tab active" data-view="overview">Overview</button>
-        <button type="button" class="host-tab" data-view="venues">Venue CRM</button>
         <button type="button" class="host-tab" data-view="location">Location Report</button>
+        <button type="button" class="host-tab" data-view="contacts">Event CRM</button>
         <button type="button" class="host-tab" data-view="planner">Event Planner</button>
-        <button type="button" class="host-tab" data-view="contacts">Contacts</button>
         <button type="button" class="host-tab" data-view="outreach">Outreach</button>
+        <!-- Venue research CRM hidden while Kennedy is the only live event; open via ?view=venues if needed -->
+        <button type="button" class="host-tab host-tab-secondary" data-view="venues" style="display:none" aria-hidden="true">Venue research</button>
       </nav>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -70,11 +71,12 @@
     <div class="modal-field"><span>Position / title</span><input type="text" id="ctPosition" placeholder="e.g. Advisor, Office Manager"></div>
     <div class="modal-field"><span>Company</span><input type="text" id="ctCompany" placeholder="Optional"></div>
     <div class="modal-field"><span>Event</span><select id="ctLocation"></select></div>
-    <div class="modal-field"><span>Status</span>
+    <div class="modal-field"><span>Pipeline stage</span>
       <select id="ctStatus">
-        <option value="talking">Talking / pipeline</option>
-        <option value="invited">Invited</option>
-        <option value="registered">Registered</option>
+        <option value="invited">Registered · invited (send prefs link)</option>
+        <option value="talking">Talking</option>
+        <option value="registered">Preferences in</option>
+        <option value="seated">Prefs + seat</option>
         <option value="prospect">Prospect</option>
       </select>
     </div>
@@ -133,20 +135,20 @@
   </div>
 </div>
 
-<script src="locations.js?v=20260812d"></script>
-<script src="checklist-defaults.js?v=20260812d"></script>
-<script src="data/venue-crm.js?v=20260812d"></script>
-<script src="integrations.js?v=20260812d"></script>
-<script src="shared.js?v=20260812d"></script>
-<script src="shared-store.js?v=20260812d"></script>
-<script src="shared-orders.js?v=20260812d"></script>
-<script src="contacts.js?v=20260812d"></script>
-<script src="seating.js?v=20260812d"></script>
-<script src="app-dashboard.js?v=20260812d"></script>
-<script src="app-venue-crm.js?v=20260812d"></script>
-<script src="app-contacts.js?v=20260812d"></script>
-<script src="app-host.js?v=20260812d"></script>
-<script src="host-auth.js?v=20260812d"></script>
+<script src="locations.js?v=20260812e"></script>
+<script src="checklist-defaults.js?v=20260812e"></script>
+<script src="data/venue-crm.js?v=20260812e"></script>
+<script src="integrations.js?v=20260812e"></script>
+<script src="shared.js?v=20260812e"></script>
+<script src="shared-store.js?v=20260812e"></script>
+<script src="shared-orders.js?v=20260812e"></script>
+<script src="contacts.js?v=20260812e"></script>
+<script src="seating.js?v=20260812e"></script>
+<script src="app-dashboard.js?v=20260812e"></script>
+<script src="app-venue-crm.js?v=20260812e"></script>
+<script src="app-contacts.js?v=20260812e"></script>
+<script src="app-host.js?v=20260812e"></script>
+<script src="host-auth.js?v=20260812e"></script>
 <script>
 initHostLock({
   contentId: 'report',

@@ -170,16 +170,24 @@ function renderPage() {
       <h2>${LOC.formTitle}</h2>
       ${LOC.formIntro ? `<p class="order-intro">${LOC.formIntro}</p>` : ''}
       ${guestSafeFormNote(LOC.formNote) ? `<div class="order-note">${guestSafeFormNote(LOC.formNote)}</div>` : ''}
-      <div class="field-wrap"><label class="field-label" for="guestName">Your Full Name</label>
-        <input type="text" id="guestName" placeholder="First and last name" autocomplete="name"></div>
-      <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px">
-        <div class="field-wrap" style="margin-bottom:0"><label class="field-label" for="guestEmail">Email</label>
-          <input type="email" id="guestEmail" placeholder="you@email.com" autocomplete="email"></div>
-        <div class="field-wrap" style="margin-bottom:0"><label class="field-label" for="guestPhone">Mobile phone</label>
-          <input type="tel" id="guestPhone" placeholder="(503) 555-0100" autocomplete="tel"></div>
-      </div>
-      <p class="order-intro" style="margin-top:0;margin-bottom:20px;font-size:0.78rem">Email or mobile required so we can confirm your preferences.</p>
       <div id="form-fields"></div>
+      <div class="guest-contact-card" id="guest-contact-card">
+        <div class="guest-contact-card-head">
+          <div class="guest-contact-card-title">Your contact info</div>
+          <div class="guest-contact-card-sub">Required · so we can confirm your preferences</div>
+        </div>
+        <div class="field-wrap guest-contact-field"><label class="field-label" for="guestName">Your full name</label>
+          <input type="text" id="guestName" placeholder="First and last name" autocomplete="name"></div>
+        <div class="err-msg" id="err-name">Please enter your full name.</div>
+        <div class="grid2 guest-contact-grid">
+          <div class="field-wrap guest-contact-field" style="margin-bottom:0"><label class="field-label" for="guestEmail">Email</label>
+            <input type="email" id="guestEmail" placeholder="you@email.com" autocomplete="email"></div>
+          <div class="field-wrap guest-contact-field" style="margin-bottom:0"><label class="field-label" for="guestPhone">Mobile phone</label>
+            <input type="tel" id="guestPhone" placeholder="(503) 555-0100" autocomplete="tel"></div>
+        </div>
+        <div class="err-msg" id="err-contact">Add an email <em>or</em> mobile number (at least one).</div>
+        <p class="guest-contact-hint">We only use this for your event confirmation — not a mailing list pitch.</p>
+      </div>
       <div class="submit-area">
         <button class="submit-btn" id="submitBtn">${LOC.type === 'preorder' || LOC.type === 'buffet' ? 'Confirm My Preferences' : 'Confirm My Reservation'}</button>
         <p class="submit-legal">Your selections help us prepare for your ${LOC.type === 'retreat' ? 'stay' : 'evening'}. By submitting, you confirm your intent to attend.</p>
@@ -1025,19 +1033,66 @@ async function pushGuestOrderToGHL(order) {
   }
 }
 
+/** Scroll the first validation problem into view (name/contact live near submit). */
+function scrollToFirstError(candidates) {
+  for (const sel of candidates) {
+    const el = typeof sel === 'string' ? document.querySelector(sel) : sel;
+    if (!el) continue;
+    const isErrMsg = el.classList?.contains('err-msg');
+    const isInputErr = el.classList?.contains('err');
+    const isShown = !isErrMsg || el.classList.contains('show');
+    if ((isErrMsg && isShown) || isInputErr || el.getAttribute?.('data-force-focus') === '1') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof el.focus === 'function' && !isErrMsg) {
+        try {
+          el.focus({ preventScroll: true });
+        } catch (_) {
+          el.focus();
+        }
+      }
+      return true;
+    }
+  }
+  // Fallback: any visible error message
+  const shown = document.querySelector('.err-msg.show, input.err, select.err');
+  if (shown) {
+    shown.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (shown.tagName === 'INPUT' || shown.tagName === 'SELECT') {
+      try {
+        shown.focus({ preventScroll: true });
+      } catch (_) {
+        shown.focus();
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
 async function submitOrder() {
+  // Clear previous contact errors
+  document.getElementById('err-name')?.classList.remove('show');
+  document.getElementById('err-contact')?.classList.remove('show');
+
   const name = document.getElementById('guestName').value.trim();
   const email = (document.getElementById('guestEmail')?.value || '').trim();
   const phone = (document.getElementById('guestPhone')?.value || '').trim();
-  document.getElementById('guestName').classList.toggle('err', !name);
+  const nameEl = document.getElementById('guestName');
   const emailEl = document.getElementById('guestEmail');
   const phoneEl = document.getElementById('guestPhone');
+  nameEl?.classList.toggle('err', !name);
   const contactOk = !!(email || phone);
-  if (emailEl) emailEl.classList.toggle('err', !contactOk && !email);
-  if (phoneEl) phoneEl.classList.toggle('err', !contactOk && !phone);
-  if (!name) return;
+  if (emailEl) emailEl.classList.toggle('err', !contactOk);
+  if (phoneEl) phoneEl.classList.toggle('err', !contactOk);
+
+  if (!name) {
+    document.getElementById('err-name')?.classList.add('show');
+    scrollToFirstError(['#guestName', '#err-name', '#guest-contact-card']);
+    return;
+  }
   if (!contactOk) {
-    alert('Please add an email or mobile number so we can confirm your preferences.');
+    document.getElementById('err-contact')?.classList.add('show');
+    scrollToFirstError(['#guestEmail', '#guestPhone', '#err-contact', '#guest-contact-card']);
     return;
   }
 
@@ -1049,7 +1104,10 @@ async function submitOrder() {
     if (!selEntree) { document.getElementById('err-entree')?.classList.add('show'); ok = false; }
     if (!selDessert) { document.getElementById('err-dessert')?.classList.add('show'); ok = false; }
     if (!selDrink) { document.getElementById('err-drink')?.classList.add('show'); ok = false; }
-    if (!ok) return;
+    if (!ok) {
+      scrollToFirstError(['#err-side', '#err-entree', '#err-dessert', '#err-drink', '#side-cards', '#entree-cards']);
+      return;
+    }
     const sideItems = selSides.map(id => (LOC.menus.sides || []).find(s => s.id === id)).filter(Boolean);
     const entree = (LOC.menus.entrees || []).find(s => s.id === selEntree);
     const dessert = (LOC.menus.desserts || []).find(s => s.id === selDessert);
@@ -1074,7 +1132,12 @@ async function submitOrder() {
       }
     } else if (window.RESeating && seatPartyType === 'couple' && !spouseNameVal && selSeats.length) {
       document.getElementById('spouseName')?.classList.add('err');
-      alert('Please add your spouse / partner\'s name so we can put it on their seat.');
+      document.getElementById('spouseName')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try {
+        document.getElementById('spouseName')?.focus({ preventScroll: true });
+      } catch (_) {
+        document.getElementById('spouseName')?.focus();
+      }
       return;
     }
 

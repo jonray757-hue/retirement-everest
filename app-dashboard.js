@@ -355,10 +355,10 @@ function switchHostView(view) {
   document.getElementById('view-' + view).classList.add('active');
   document.getElementById('loc-toolbar').style.display = view === 'location' ? 'flex' : 'none';
   document.getElementById('hostTitle').textContent =
-    view === 'overview' ? 'Series Overview'
-    : view === 'venues' ? 'Venue CRM'
+    view === 'overview' ? 'Overview'
+    : view === 'venues' ? 'Venue research'
+    : view === 'contacts' ? 'Event CRM · Kennedy School'
     : view === 'planner' ? 'Event Planner'
-    : view === 'contacts' ? 'Contacts'
     : view === 'outreach' ? 'Outreach & Integrations'
     : `${getLoc().shortName} · Report`;
 

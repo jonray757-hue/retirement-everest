@@ -311,7 +311,11 @@ function contactFromOrder(o) {
     locationSlug: loc?.slug || locId,
     locationName: loc?.shortName || loc?.name || locId || '',
     sources: ['guest'],
-    status: 'registered',
+    /* Pipeline: registered (prefs) → seated (prefs + seat map claim) */
+    status:
+      (Array.isArray(o.seats) && o.seats.length) || o.seatLabel || o.seatAccommodation
+        ? 'seated'
+        : 'registered',
     preferences: prefsFromOrder(o),
     notes: '',
     orderId: o.id,
@@ -348,13 +352,27 @@ function contactFromInvite(inv) {
   };
 }
 
+function contactPipelineStatus(rec) {
+  if (!rec) return 'prospect';
+  const prefs = rec.preferences || {};
+  const hasSeats =
+    (Array.isArray(prefs.seats) && prefs.seats.length) ||
+    !!prefs.seatLabel ||
+    rec.status === 'seated';
+  const hasPrefs = !!(prefs.preferencesSummary || prefs.entree || prefs.buffet || prefs.sides?.length);
+  if (hasSeats) return 'seated';
+  if (hasPrefs || rec.status === 'registered' || (rec.sources || []).includes('guest')) return 'registered';
+  if (rec.status === 'invited' || (rec.sources || []).includes('invite')) return 'invited';
+  if (rec.status === 'talking') return 'talking';
+  return rec.status || 'prospect';
+}
+
 function mergeContactRecords(a, b) {
   const sources = uniqueSources([...(a.sources || []), ...(b.sources || [])]);
   let status = a.status || b.status || 'prospect';
-  // registered > invited > talking > prospect
-  const rank = { registered: 4, invited: 3, talking: 2, prospect: 1 };
+  // seated > registered (prefs) > invited > talking > prospect
+  const rank = { seated: 5, registered: 4, invited: 3, talking: 2, prospect: 1 };
   if ((rank[b.status] || 0) > (rank[status] || 0)) status = b.status;
-  if (sources.includes('guest')) status = 'registered';
 
   const prefs = a.preferences?.preferencesSummary
     ? a.preferences
@@ -362,7 +380,7 @@ function mergeContactRecords(a, b) {
       ? b.preferences
       : a.preferences || b.preferences || null;
 
-  return {
+  const merged = {
     ...a,
     ...b,
     id: a.id?.startsWith('c_') ? a.id : b.id?.startsWith('c_') ? b.id : a.id || b.id,
@@ -383,9 +401,13 @@ function mergeContactRecords(a, b) {
     inviteId: b.inviteId || a.inviteId,
     lastContactAt: (b.lastContactAt || '') > (a.lastContactAt || '') ? b.lastContactAt : a.lastContactAt,
     lastConnectChannel: b.lastConnectChannel || a.lastConnectChannel || '',
+    lastLinkSentAt: b.lastLinkSentAt || a.lastLinkSentAt || '',
     createdAt: (a.createdAt || '') < (b.createdAt || '') ? a.createdAt || b.createdAt : b.createdAt || a.createdAt,
     updatedAt: (b.updatedAt || '') > (a.updatedAt || '') ? b.updatedAt : a.updatedAt
   };
+  // Derive pipeline status from combined prefs/seats/sources
+  merged.status = contactPipelineStatus(merged);
+  return merged;
 }
 
 /** Collect every known order from all location storage keys (local after shared sync). */
@@ -439,11 +461,13 @@ function buildContactDirectory() {
 
   getManualContacts().forEach((c) => add({ ...c, sources: uniqueSources([...(c.sources || []), 'manual']) }));
 
-  return [...map.values()].sort((a, b) => {
-    const ta = a.updatedAt || a.createdAt || '';
-    const tb = b.updatedAt || b.createdAt || '';
-    return String(tb).localeCompare(String(ta));
-  });
+  return [...map.values()]
+    .map((c) => ({ ...c, status: contactPipelineStatus(c) }))
+    .sort((a, b) => {
+      const ta = a.updatedAt || a.createdAt || '';
+      const tb = b.updatedAt || b.createdAt || '';
+      return String(tb).localeCompare(String(ta));
+    });
 }
 
 /** Pull shared guest log into all location keys so contacts see multi-device submits. */
@@ -530,6 +554,18 @@ async function pushQuickConnectToGHL({ contact, channel, message, subject }) {
         };
   const eventLabel = locFields.re_event_location || locFields.eventLocation || contact.locationName || 'update';
 
+  const linkSlug =
+    contact.locationSlug ||
+    (typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : '') ||
+    'kennedy-school';
+  let prefLink = '';
+  try {
+    if (typeof absoluteGuestLink === 'function') prefLink = absoluteGuestLink(linkSlug) || '';
+    else if (typeof guestLink === 'function') prefLink = guestLink(linkSlug) || '';
+  } catch (_) {
+    prefLink = '';
+  }
+
   const payload = {
     event: 'host_quick_connect',
     channel: ch,
@@ -547,13 +583,19 @@ async function pushQuickConnectToGHL({ contact, channel, message, subject }) {
     message: message || '',
     sms: ch === 'sms' ? message || '' : '',
     emailBody: ch === 'email' ? message || '' : '',
+    guestLink: prefLink || '',
+    preferenceLink: prefLink || '',
+    rsvpLink: prefLink || '',
     ...locFields,
     status: contact.status || '',
+    pipelineStage: contactPipelineStatus(contact),
     contactSource: (contact.sources || []).join(','),
     preferencesSummary: prefs.preferencesSummary || '',
     buffet: prefs.buffet || '',
     entree: prefs.entree || '',
     drink: prefs.drink || '',
+    seats: Array.isArray(prefs.seats) ? prefs.seats.join(', ') : '',
+    seatLabel: prefs.seatLabel || '',
     brand: cfg.ghlBrand || 'HAG',
     ghlLocationId: cfg.ghlLocationId || '24UgqDfh5TcJs5IPnA25',
     source: 'retirement-everest-contacts',
@@ -572,6 +614,7 @@ async function pushQuickConnectToGHL({ contact, channel, message, subject }) {
   }
 
   // Log last contact on manual record so directory shows activity
+  const keepStatus = contactPipelineStatus(contact);
   upsertManualContact({
     id: contact.id?.startsWith('c_') ? contact.id : undefined,
     firstName,
@@ -584,8 +627,9 @@ async function pushQuickConnectToGHL({ contact, channel, message, subject }) {
     locationSlug: contact.locationSlug,
     locationName: contact.locationName,
     sources: contact.sources || ['manual'],
-    status: contact.status === 'registered' ? 'registered' : contact.status || 'talking',
+    status: keepStatus === 'prospect' ? 'invited' : keepStatus,
     lastContactAt: new Date().toISOString(),
+    lastLinkSentAt: new Date().toISOString(),
     lastConnectChannel: ch,
     notes: contact.notes || ''
   });
@@ -617,6 +661,7 @@ window.REContacts = {
   pushQuickConnectToGHL,
   recordInviteAsContact,
   contactMatchKey,
+  contactPipelineStatus,
   splitContactName,
   prefsFromOrder,
   buildPrefsSummary
