@@ -5,49 +5,47 @@ function fillLocationSelect() {
   const sel = document.getElementById('locSelect');
   if (!sel) return;
   const typeLabels = { retreat: 'Retreat', screening: 'Screening', preorder: 'Preorder', buffet: 'Buffet' };
+  // Always list ALL planner venues in the dropdown so you can switch events.
+  // Focus mode only trims Overview cards — it must not hide this select.
   const plannerLocs =
-    typeof getPlannerLocations === 'function'
-      ? getPlannerLocations()
-      : Object.values(RETIREMENT_EVEREST.locations || {});
+    typeof getAllPlannerLocations === 'function'
+      ? getAllPlannerLocations()
+      : typeof getPlannerLocations === 'function'
+        ? getPlannerLocations()
+        : Object.values(RETIREMENT_EVEREST.locations || {});
+  const activeSlug = typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : 'kennedy-school';
   sel.innerHTML = plannerLocs
     .map((l) => {
       const typeTag = l.guestSlug ? 'BBQ · live' : typeLabels[l.type] || 'Event';
-      const star = l.active || l.slug === (typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : '')
-        ? '★ '
-        : '';
+      const star = l.active || l.slug === activeSlug ? '★ ' : '';
       return `<option value="${l.slug}">${star}${l.shortName} — ${typeTag}</option>`;
     })
     .join('');
   if (![...sel.options].some((o) => o.value === currentSlug)) {
-    currentSlug = plannerLocs[0]?.slug || currentSlug;
+    currentSlug = activeSlug || plannerLocs[0]?.slug || currentSlug;
   }
   sel.value = currentSlug;
+  sel.style.display = '';
 
-  // Single focused venue: show a clear label instead of a crowded dropdown
   const topbar = document.getElementById('loc-topbar');
   if (topbar) {
     topbar.style.display = 'flex';
+    // Small live-event chip next to the dropdown (dropdown stays usable)
     let badge = document.getElementById('activeEventBadge');
-    if (plannerLocs.length <= 1) {
-      sel.style.display = 'none';
-      const loc = RETIREMENT_EVEREST.locations[currentSlug];
-      const ev = typeof getLocationEvent === 'function' ? getLocationEvent(currentSlug) : null;
-      const dateBit = ev?.eventDate
-        ? ` · ${typeof formatEventDate === 'function' ? formatEventDate(ev.eventDate) : ev.eventDate}`
-        : '';
-      if (!badge) {
-        badge = document.createElement('div');
-        badge.id = 'activeEventBadge';
-        badge.style.cssText =
-          'font-size:0.95rem;font-weight:700;color:var(--accent);padding:6px 10px;border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:8px;background:color-mix(in srgb,var(--accent) 12%,transparent)';
-        topbar.appendChild(badge);
-      }
-      badge.style.display = 'block';
-      badge.textContent = `★ ${loc?.shortName || currentSlug}${loc?.guestSlug ? ' BBQ' : ''}${dateBit}`;
-    } else {
-      sel.style.display = '';
-      if (badge) badge.style.display = 'none';
+    const live = RETIREMENT_EVEREST.locations[activeSlug];
+    const ev = typeof getLocationEvent === 'function' ? getLocationEvent(activeSlug) : null;
+    const dateBit = ev?.eventDate
+      ? ` · ${typeof formatEventDate === 'function' ? formatEventDate(ev.eventDate) : ev.eventDate}`
+      : '';
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'activeEventBadge';
+      badge.style.cssText =
+        'font-size:0.78rem;font-weight:600;color:var(--accent);padding:4px 8px;border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:8px;background:color-mix(in srgb,var(--accent) 10%,transparent);white-space:nowrap';
+      topbar.appendChild(badge);
     }
+    badge.style.display = 'block';
+    badge.textContent = `Live: ${live?.shortName || activeSlug}${live?.guestSlug ? ' BBQ' : ''}${dateBit}`;
   }
   plannerLocs.forEach((l) => {
     if (roomRates[l.slug] == null && l.avgRoomRate) roomRates[l.slug] = l.avgRoomRate;
@@ -1245,15 +1243,22 @@ async function queueInvite() {
 
 function renderOutreach() {
   const cfg = getIntegrations();
-  const queue = getInviteQueue();
-  const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
+  const queue = typeof getInviteQueue === 'function' ? getInviteQueue() : [];
+  // Full venue catalog for outreach (never hide Edgefield / other events here)
+  const locs =
+    typeof getAllPlannerLocations === 'function'
+      ? getAllPlannerLocations()
+      : typeof getPlannerLocations === 'function'
+        ? getPlannerLocations()
+        : getAllLocations();
   const activeSlug = typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : null;
 
-  const locCards = locs.map(loc => {
-    const link = absoluteGuestLink(loc.slug);
-    const ev = getLocationEvent(loc.slug);
-    const isActive = loc.slug === activeSlug || loc.active;
-    return `<div class="card-box"${isActive ? ' style="border:2px solid var(--accent)"' : ''}>
+  const locCards = locs
+    .map((loc) => {
+      const link = absoluteGuestLink(loc.slug);
+      const ev = getLocationEvent(loc.slug);
+      const isActive = loc.slug === activeSlug || loc.active;
+      return `<div class="card-box"${isActive ? ' style="border:2px solid var(--accent)"' : ''}>
       <h3>${isActive ? '★ ' : ''}${esc(loc.shortName)}${loc.guestSlug ? ' · BBQ' : ''}${isActive ? ' <span style="font-size:0.7rem;color:var(--accent)">LIVE</span>' : ''}</h3>
       <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">${esc(loc.name)} · ${esc(loc.city)}</p>
       <div class="status-row"><span>Event date</span><strong>${ev?.eventDate ? formatEventDate(ev.eventDate) : 'Not set'}</strong></div>
@@ -1265,16 +1270,29 @@ function renderOutreach() {
         <a class="btn-sm" href="${link}" target="_blank" style="text-decoration:none">Open guest page ↗</a>
       </div>
     </div>`;
-  }).join('');
+    })
+    .join('');
 
   const queueHTML = queue.length
-    ? queue.slice(0, 30).map(inv => `<div class="invite-row">
-        <strong>${esc(inv.firstName || '')} ${esc(inv.lastName || '')}</strong> · ${esc(inv.locationName)}
-        <div style="font-size:0.75rem;color:var(--muted)">${esc(inv.email || '—')} · ${esc(inv.phone || '—')} · ${inv.status} · ${new Date(inv.ts).toLocaleString()}</div>
-      </div>`).join('')
-    : '<p class="empty" style="padding:16px">No invites queued yet.</p>';
+    ? queue
+        .slice(0, 100)
+        .map(
+          (inv) => `<div class="invite-row">
+        <strong>${esc(inv.firstName || '')} ${esc(inv.lastName || '')}</strong> · ${esc(inv.locationName || inv.locationSlug || '—')}
+        <div style="font-size:0.75rem;color:var(--muted)">${esc(inv.email || '—')} · ${esc(inv.phone || '—')} · ${esc(inv.status || '')} · ${inv.ts ? new Date(inv.ts).toLocaleString() : ''}</div>
+      </div>`
+        )
+        .join('')
+    : `<p class="empty" style="padding:16px">No invites in this browser yet. Invites are stored on this device (<code>re_invites_v1</code>) — they are not wiped by focus mode. If you used another browser/computer, open command center there to see that queue.</p>`;
 
   document.getElementById('view-outreach').innerHTML = `
+    <div class="card-box" style="margin-bottom:18px">
+      <h3 style="margin-top:0">Outreach records</h3>
+      <p class="integration-note" style="margin:0">
+        Invite history, marketing links, and integrations are still here — nothing was deleted by the Kennedy cleanup.
+        Overview can hide other venues; <strong>this tab always lists every event</strong> and the full invite queue from this browser.
+      </p>
+    </div>
     <div class="two-col" style="margin-bottom:24px">
       <div class="card-box">
         <h3>Integrations</h3>
@@ -1308,7 +1326,7 @@ function renderOutreach() {
         <div class="invite-queue">${queueHTML}</div>
       </div>
     </div>
-    <h3 class="dash-section-title">Send links by location</h3>
+    <h3 class="dash-section-title">Send links by location <span style="font-weight:400;color:var(--muted);font-size:0.85rem">(${locs.length} venues)</span></h3>
     <div class="dash-loc-grid">${locCards}</div>
     <div class="card-box" style="margin-top:8px">
       <h3>Marketing kit</h3>

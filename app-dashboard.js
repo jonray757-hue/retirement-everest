@@ -214,8 +214,14 @@ function renderOverview() {
 
 async function renderPlanner() {
   await loadChecklistDefaults();
-  const locs = (typeof getPlannerLocations === 'function') ? getPlannerLocations() : getAllLocations();
-  if (!plannerSlug || !locs.find(l => l.slug === plannerSlug)) {
+  // Full venue list in planner dropdown (same as top event selector)
+  const locs =
+    typeof getAllPlannerLocations === 'function'
+      ? getAllPlannerLocations()
+      : typeof getPlannerLocations === 'function'
+        ? getPlannerLocations()
+        : getAllLocations();
+  if (!plannerSlug || !locs.find((l) => l.slug === plannerSlug)) {
     // Prefer active live event (Kennedy School BBQ)
     const active = typeof getActiveEventSlug === 'function' ? getActiveEventSlug() : null;
     const withDate = locs.find((l) => getLocationEvent(l.slug)?.eventDate);
