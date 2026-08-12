@@ -109,6 +109,7 @@ function renderOverview() {
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;min-width:180px">
             <button type="button" class="lock-btn btn-accent" id="heroOpenReport" style="max-width:none;width:100%;padding:12px 18px">Open location report →</button>
+            <button type="button" class="btn-sm btn-accent" id="heroContacts">Open Contacts / Event CRM</button>
             <button type="button" class="btn-sm" id="heroInvite" data-invite="${active.slug}">Send guest link</button>
             <button type="button" class="btn-sm" id="heroPlanner">Event planner</button>
           </div>
@@ -183,6 +184,7 @@ function renderOverview() {
   };
 
   document.getElementById('heroOpenReport')?.addEventListener('click', () => goActive(active?.slug));
+  document.getElementById('heroContacts')?.addEventListener('click', () => switchHostView('contacts'));
   document.getElementById('heroPlanner')?.addEventListener('click', () => {
     plannerSlug = active?.slug || plannerSlug;
     currentSlug = plannerSlug;
@@ -357,7 +359,7 @@ function switchHostView(view) {
   document.getElementById('hostTitle').textContent =
     view === 'overview' ? 'Overview'
     : view === 'venues' ? 'Venue research'
-    : view === 'contacts' ? 'Event CRM · Kennedy School'
+    : view === 'contacts' ? 'Contacts · Kennedy School'
     : view === 'planner' ? 'Event Planner'
     : view === 'outreach' ? 'Outreach & Integrations'
     : `${getLoc().shortName} · Report`;

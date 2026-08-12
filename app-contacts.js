@@ -65,7 +65,7 @@ async function renderContacts() {
   const root = document.getElementById('view-contacts');
   if (!root) return;
 
-  root.innerHTML = `<div class="empty">Loading Event CRM…</div>`;
+  root.innerHTML = `<div class="empty">Loading Contacts / Event CRM…</div>`;
 
   try {
     if (window.REContacts?.refreshContactsFromShared) {
@@ -73,6 +73,16 @@ async function renderContacts() {
     }
   } catch (e) {
     console.warn('[RE] contacts shared refresh', e);
+  }
+
+  // Pull HAG GHL + live seat/order seed so CRM is never blank for Kennedy guests
+  try {
+    if (window.REContacts?.importEventCrmSeed) {
+      const r = await REContacts.importEventCrmSeed();
+      if (r?.imported) console.info('[RE] Event CRM seed imported', r.imported, 'of', r.total);
+    }
+  } catch (e) {
+    console.warn('[RE] event CRM seed import', e);
   }
 
   // Default filter to active event (Kennedy) unless user already chose
@@ -233,7 +243,7 @@ function paintContactsView() {
     <div class="card-box" style="margin-bottom:18px;border:2px solid var(--accent)">
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between">
         <div>
-          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">EVENT CRM · KENNEDY SCHOOL</div>
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">CONTACTS · EVENT CRM · KENNEDY SCHOOL</div>
           <h3 style="margin:0 0 6px">Guest pipeline</h3>
           <p class="integration-note" style="margin:0;max-width:640px">
             Add or invite someone → they show as <strong>Registered · invited</strong>.
@@ -244,6 +254,7 @@ function paintContactsView() {
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           <button type="button" class="lock-btn btn-accent" id="btnAddContact" style="max-width:none;width:auto;padding:12px 18px">+ Add contact</button>
           <button type="button" class="btn-sm" id="btnRefreshContacts">Refresh from cloud</button>
+          <button type="button" class="btn-sm btn-accent" id="btnImportGhlSeed">Re-import GHL / seats</button>
           <button type="button" class="btn-sm" id="btnExportContacts">Export CSV</button>
           <button type="button" class="btn-sm" id="btnToggleBoard">${contactsFilter.board ? 'List view' : 'Pipeline board'}</button>
         </div>
@@ -291,6 +302,24 @@ function paintContactsView() {
   });
   root.querySelector('#btnAddContact')?.addEventListener('click', () => openContactEditModal(null));
   root.querySelector('#btnRefreshContacts')?.addEventListener('click', () => renderContacts());
+  root.querySelector('#btnImportGhlSeed')?.addEventListener('click', async () => {
+    const btn = root.querySelector('#btnImportGhlSeed');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Importing…';
+    }
+    try {
+      const r = await REContacts.importEventCrmSeed({ force: true });
+      alert(
+        r?.ok
+          ? `Imported ${r.imported} guest(s) from HAG GHL + seat/preference store into Contacts.`
+          : `Import failed: ${r?.error || 'unknown'}`
+      );
+    } catch (e) {
+      alert('Import failed: ' + (e.message || e));
+    }
+    renderContacts();
+  });
   root.querySelector('#btnExportContacts')?.addEventListener('click', exportContactsCsv);
   root.querySelector('#btnToggleBoard')?.addEventListener('click', () => {
     contactsFilter.board = !contactsFilter.board;

@@ -1,0 +1,110 @@
+[
+  {
+    "ghlId": "GyBnlfbLWUOGeuQMwagr",
+    "firstName": "Dr. Milton",
+    "lastName": "Alverez",
+    "name": "Dr. Milton Alverez",
+    "email": "alvarezmilton@yahoo.com",
+    "phone": "+15039754612",
+    "locationSlug": "kennedy-school",
+    "locationName": "Kennedy School",
+    "preferencesSummary": "Dinner: Backyard Barbecue Buffet\nSides: Dad's Moonshine baked beans \u00b7 Buttermilk coleslaw\nEntr\u00e9e: Red Eye BBQ beef brisket\nDessert: Northwest berry bars\nDrink: No adult drink for me\nSeats: Table C \u00b7 Seats 1 & 2\n\nPARTNER JOINED\nAnav Torres (alvarezmilton@yahoo.com) joined seats reserved by DR Milton (alvarezmilton@yahoo.com)\nSeats: Table C \u00b7 Seats 1 & 2\nLink/create partner-spouse contact in CRM.",
+    "seatLabel": "Table C \u00b7 Seats 1 & 2",
+    "seats": [
+      "C1",
+      "C2"
+    ],
+    "status": "seated",
+    "sources": [
+      "ghl",
+      "ghl-import"
+    ],
+    "tags": [
+      "food-seat-reserved"
+    ]
+  },
+  {
+    "ghlId": "JOKttds3gKdjgvkXNMlB",
+    "firstName": "patricia",
+    "lastName": "ford",
+    "name": "patricia ford",
+    "email": "pford2169@gmail.com",
+    "phone": "+19712127413",
+    "locationSlug": "kennedy-school",
+    "locationName": "Kennedy School",
+    "preferencesSummary": "",
+    "seatLabel": "",
+    "seats": [],
+    "status": "invited",
+    "sources": [
+      "ghl",
+      "ghl-import"
+    ],
+    "tags": []
+  },
+  {
+    "ghlId": "DnrV8ElSXQfzrwSIUOJU",
+    "firstName": "nancy",
+    "lastName": "klos",
+    "name": "nancy klos",
+    "email": "nancyklos@gmail.com",
+    "phone": "+15039579938",
+    "locationSlug": "kennedy-school",
+    "locationName": "Kennedy School",
+    "preferencesSummary": "",
+    "seatLabel": "",
+    "seats": [],
+    "status": "invited",
+    "sources": [
+      "ghl",
+      "ghl-import"
+    ],
+    "tags": []
+  },
+  {
+    "ghlId": "vLIRstSuJkIS5klpkvXz",
+    "firstName": "last",
+    "lastName": "test",
+    "name": "last test",
+    "email": "jonray757@gmail.com",
+    "phone": "+19715702438",
+    "locationSlug": "kennedy-school",
+    "locationName": "Kennedy School",
+    "preferencesSummary": "Event location: Kennedy School BBQ \u00b7 Martha Jordan Room \u00b7 Portland, OR\nLocation slug: kennedy-school-bbq\nEvent date: 2026-08-27\nDinner: Backyard Barbecue Buffet\nSides: Biscuits & honey butter \u00b7 Buttermilk coleslaw\nEntr\u00e9e: Jerk jackfruit sliders (vegan)\nDessert: Northwest berry bars\nDrink: Yes \u2014 adult beverage (Adult)\nParty: Solo\nSeats: Table B \u00b7 Seat 1",
+    "seatLabel": "Table B \u00b7 Seat 1",
+    "seats": [
+      "B1"
+    ],
+    "status": "seated",
+    "sources": [
+      "ghl",
+      "ghl-import"
+    ],
+    "tags": [
+      "food-seat-reserved"
+    ]
+  },
+  {
+    "ghlId": "",
+    "firstName": "Anav",
+    "lastName": "Torres",
+    "name": "Anav Torres",
+    "email": "alvarezmilton@yahoo.com",
+    "phone": "(503) 975-4612",
+    "locationSlug": "kennedy-school",
+    "locationName": "Kennedy School",
+    "preferencesSummary": "Dinner: Backyard Barbecue Buffet\nSides: Dad's Moonshine baked beans \u00b7 Buttermilk coleslaw\nEntr\u00e9e: Red Eye BBQ beef brisket\nDessert: Northwest berry bars\nDrink: No adult drink for me\nSeats: Table C \u00b7 Seats 1 & 2",
+    "seatLabel": "Table C \u00b7 Seats 1 & 2",
+    "seats": [
+      "C1",
+      "C2"
+    ],
+    "status": "seated",
+    "sources": [
+      "guest",
+      "ghl-import"
+    ],
+    "orderId": 1786496349510,
+    "tags": []
+  }
+]

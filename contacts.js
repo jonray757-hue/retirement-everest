@@ -16,12 +16,16 @@ function normalizeEmail(e) {
 
 function contactMatchKey(c) {
   const email = normalizeEmail(c.email);
-  if (email) return 'e:' + email;
-  const phone = normalizePhone(c.phone);
-  if (phone.length >= 10) return 'p:' + phone.slice(-10);
   const name = String(c.name || [c.firstName, c.lastName].filter(Boolean).join(' ') || '')
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  // Include name with email so partners sharing one inbox stay separate (Milton / Anav)
+  if (email && name) return 'e:' + email + '|n:' + name;
+  if (email) return 'e:' + email;
+  const phone = normalizePhone(c.phone);
+  if (phone.length >= 10 && name) return 'p:' + phone.slice(-10) + '|n:' + name;
+  if (phone.length >= 10) return 'p:' + phone.slice(-10);
   const loc = c.locationSlug || '';
   if (name) return 'n:' + name + '|' + loc;
   return 'id:' + (c.id || Math.random().toString(36).slice(2));
@@ -648,6 +652,69 @@ function recordInviteAsContact(inv) {
   });
 }
 
+/**
+ * Import GHL + seat-map seed (data/event-crm-seed.json) into the manual directory
+ * so Event CRM is never empty when guests already exist in HAG / shared store.
+ * Safe to re-run — merges by contactMatchKey, does not wipe other contacts.
+ */
+async function importEventCrmSeed(opts = {}) {
+  const force = !!opts.force;
+  const url = opts.url || 'data/event-crm-seed.json';
+  let seed = [];
+  try {
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), {
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error('seed HTTP ' + res.status);
+    seed = await res.json();
+  } catch (e) {
+    console.warn('[RE] event CRM seed fetch failed', e);
+    return { ok: false, imported: 0, error: String(e.message || e) };
+  }
+  if (!Array.isArray(seed) || !seed.length) return { ok: true, imported: 0 };
+
+  let imported = 0;
+  seed.forEach((row) => {
+    if (!row || (!row.name && !row.email && !row.phone)) return;
+    const prefsSummary = row.preferencesSummary || '';
+    const seats = Array.isArray(row.seats) ? row.seats : [];
+    const seatLabel = row.seatLabel || '';
+    const status =
+      row.status ||
+      (seats.length || seatLabel
+        ? 'seated'
+        : prefsSummary
+          ? 'registered'
+          : 'invited');
+    const prefs =
+      prefsSummary || seats.length || seatLabel
+        ? {
+            preferencesSummary: prefsSummary || (seatLabel ? `Seats: ${seatLabel}` : ''),
+            seats,
+            seatLabel,
+            submittedAt: row.dateAdded || row.ts || ''
+          }
+        : null;
+    upsertManualContact({
+      firstName: row.firstName || splitContactName(row.name).firstName,
+      lastName: row.lastName || splitContactName(row.name).lastName,
+      name: row.name || [row.firstName, row.lastName].filter(Boolean).join(' '),
+      email: row.email || '',
+      phone: row.phone || '',
+      locationSlug: row.locationSlug || 'kennedy-school',
+      locationName: row.locationName || 'Kennedy School',
+      status,
+      sources: uniqueSources([...(row.sources || []), 'ghl-import', row.ghlId ? 'ghl' : '']),
+      preferences: prefs,
+      notes: row.ghlId ? `GHL contact id: ${row.ghlId}` : row.notes || '',
+      ghlId: row.ghlId || '',
+      orderId: row.orderId || undefined
+    });
+    imported += 1;
+  });
+  return { ok: true, imported, total: seed.length, force };
+}
+
 // Expose for host UI
 window.REContacts = {
   buildContactDirectory,
@@ -660,6 +727,7 @@ window.REContacts = {
   getRemovedContactKeys,
   pushQuickConnectToGHL,
   recordInviteAsContact,
+  importEventCrmSeed,
   contactMatchKey,
   contactPipelineStatus,
   splitContactName,
