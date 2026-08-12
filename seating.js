@@ -2,7 +2,8 @@
  * Seat reservations — Kennedy School BBQ (Jordan Room).
  * Five 60" round tables (true 5 ft tops). Each is an 8-chair ring with the
  * 2 screen-side chairs removed so no one's back faces the screen → 6 tops.
- * Tables A–E in an arch facing the screen (30 seats total).
+ * Table C restores the chair next to seat 6 as C7 (one X remains toward seat 1).
+ * Tables A–E in an arch facing the screen (31 seats total).
  *
  * Live shared state: durable Google Apps Script store (RESharedStore) preferred.
  * jsonblob fallback only if sharedStoreUrl is not configured (expires ~24h).
@@ -54,6 +55,9 @@
   /* ---------------- Layout ---------------- */
   const TABLES = ['A', 'B', 'C', 'D', 'E'];
   const SEATS_PER_TABLE = 6;
+  /* Host-restored screen-side chairs. Seat 7 = the X next to seat 6 (-22.5°). */
+  const EXTRA_SEATS = { C: [7] };
+  const SEAT_7_DEG = -22.5;
   /* Jordan Room, drawn to scale: 23 ft wide × 31 ft deep (713 sq ft), 34 px/ft.
      Screen on the short wall; BBQ buffet on the opposite short wall.
      Tables are true 60" (5 ft) rounds — venue 8-tops with 2 screen-side chairs
@@ -89,12 +93,28 @@
 
   function seatKey(t, n) { return `${t}${n}`; }
 
+  function seatsOnTable(t) {
+    const nums = [];
+    for (let n = 1; n <= SEATS_PER_TABLE; n++) nums.push(n);
+    (EXTRA_SEATS[t] || []).forEach((n) => {
+      if (!nums.includes(n)) nums.push(n);
+    });
+    return nums.sort((a, b) => a - b);
+  }
+
   function allSeats() {
     const out = [];
     TABLES.forEach((t) => {
-      for (let n = 1; n <= SEATS_PER_TABLE; n++) out.push(seatKey(t, n));
+      seatsOnTable(t).forEach((n) => out.push(seatKey(t, n)));
     });
     return out;
+  }
+
+  function isValidSeatId(id) {
+    const s = String(id || '');
+    const m = s.match(/^([A-E])(\d+)$/);
+    if (!m) return false;
+    return seatsOnTable(m[1]).includes(parseInt(m[2], 10));
   }
 
   function screenAngle(t) {
@@ -105,7 +125,7 @@
   /** Seat position: real 8-top spacing (45°), 90° opening faces the screen. */
   function seatXY(t, n) {
     const c = TABLE_POS[t];
-    const deg = FIRST_SEAT_DEG + (n - 1) * SEAT_STEP; // 67.5°..292.5°
+    const deg = n === 7 ? SEAT_7_DEG : FIRST_SEAT_DEG + (n - 1) * SEAT_STEP; // 67.5°..292.5°, C7 at -22.5°
     const a = screenAngle(t) + (deg * Math.PI) / 180;
     return {
       x: c.x + SEAT_RING * Math.cos(a),
@@ -113,10 +133,12 @@
     };
   }
 
-  /** Positions of the two REMOVED screen-side chairs (rendered as ghosts). */
+  /** Positions of remaining REMOVED screen-side chairs (rendered as ghosts). */
   function removedXY(t) {
     const c = TABLE_POS[t];
-    return REMOVED_DEG.map((deg) => {
+    const extra = EXTRA_SEATS[t] || [];
+    const degs = extra.includes(7) ? [22.5] : REMOVED_DEG;
+    return degs.map((deg) => {
       const a = screenAngle(t) + (deg * Math.PI) / 180;
       return { x: c.x + SEAT_RING * Math.cos(a), y: c.y + SEAT_RING * Math.sin(a) };
     });
@@ -124,9 +146,9 @@
 
   /* ---------------- Shared state ---------------- */
   /* Bump version when layout / seat IDs change so ghost caches on phones die. */
-  const LOCAL_KEY = 're_seats_cache_v3';
-  const LEGACY_CACHE_KEYS = ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3'];
-  const SEAT_ID_RE = /^[A-E][1-6]$/;
+  const LOCAL_KEY = 're_seats_cache_v4';
+  const LEGACY_CACHE_KEYS = ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3', 're_seats_cache_v4'];
+  const SEAT_ID_RE = /^[A-E][1-8]$/;
 
   function emptyState() {
     return {
@@ -164,7 +186,7 @@
     const m = String(label).match(/Table\s+([A-E]).*?Seat[s]?\s+([0-9]+(?:\s*&\s*[0-9]+)*)/i);
     if (!m) return [];
     const t = m[1].toUpperCase();
-    return m[2].split(/\s*&\s*/).map((n) => t + String(n).trim()).filter((id) => SEAT_ID_RE.test(id));
+    return m[2].split(/\s*&\s*/).map((n) => t + String(n).trim()).filter((id) => isValidSeatId(id));
   }
 
   /**
@@ -175,7 +197,7 @@
     const seats = {};
     (orders || []).forEach((o) => {
       if (!o || typeof o !== 'object') return;
-      let ids = Array.isArray(o.seats) ? o.seats.filter((id) => SEAT_ID_RE.test(String(id))) : [];
+      let ids = Array.isArray(o.seats) ? o.seats.filter((id) => isValidSeatId(String(id))) : [];
       if (!ids.length) ids = parseSeatLabel(o.seatLabel);
       ids.forEach((id, i) => {
         if (seats[id]) return;
@@ -209,7 +231,7 @@
       if (!raw) return;
       const st = normalize(raw);
       Object.entries(st.seats || {}).forEach(([id, claim]) => {
-        if (!claim || !SEAT_ID_RE.test(id)) return;
+        if (!claim || !isValidSeatId(id)) return;
         const prev = out.seats[id];
         if (!prev || String(claim.ts || '') >= String(prev.ts || '')) {
           out.seats[id] = { ...claim, seatId: id };
@@ -412,7 +434,7 @@
    * re-healed from preference logs (host must strip seats from orders separately).
    */
   async function releaseSeats(seatIds) {
-    const ids = (seatIds || []).map(String).filter((id) => SEAT_ID_RE.test(id));
+    const ids = (seatIds || []).map(String).filter((id) => isValidSeatId(id));
     if (!ids.length) return emptyState();
 
     // Read remote + local only (do not re-seed from orders here)
@@ -575,7 +597,7 @@
       if (!o || o.partyType !== 'couple' || !o.name) return;
       if (o.joinedPartner || o.partnerJoined) return;
       let ids = Array.isArray(o.seats)
-        ? o.seats.filter((id) => SEAT_ID_RE.test(String(id)))
+        ? o.seats.filter((id) => isValidSeatId(String(id)))
         : [];
       if (!ids.length) ids = parseSeatLabel(o.seatLabel);
       if (ids.length < 1) return;
@@ -614,7 +636,7 @@
    */
   async function attachPartnerToCouple(primary, partnerInfo) {
     const st = await fetchState({ healRemote: false });
-    const seats = Array.isArray(primary.seats) ? primary.seats.filter((id) => SEAT_ID_RE.test(id)) : [];
+    const seats = Array.isArray(primary.seats) ? primary.seats.filter((id) => isValidSeatId(id)) : [];
     let groupClaims = [];
 
     if (primary.groupId) {
@@ -783,11 +805,11 @@
     const runs = [];
     TABLES.forEach((t) => {
       let run = [];
-      for (let n = 1; n <= SEATS_PER_TABLE; n++) {
+      seatsOnTable(t).forEach((n) => {
         const id = seatKey(t, n);
         if (!state.seats[id]) run.push(id);
         else { if (run.length) runs.push(run); run = []; }
-      }
+      });
       if (run.length) runs.push(run);
     });
     return runs;
@@ -818,8 +840,9 @@
   function adjacentOpen(id, state) {
     const t = id[0];
     const n = parseInt(id.slice(1), 10);
+    const allowed = seatsOnTable(t);
     return [n - 1, n + 1]
-      .filter((m) => m >= 1 && m <= SEATS_PER_TABLE)
+      .filter((m) => allowed.includes(m))
       .map((m) => seatKey(t, m))
       .filter((s) => !state.seats[s]);
   }
@@ -863,7 +886,7 @@
 
     let seats = '';
     TABLES.forEach((t) => {
-      for (let n = 1; n <= SEATS_PER_TABLE; n++) {
+      seatsOnTable(t).forEach((n) => {
         const id = seatKey(t, n);
         const p = seatXY(t, n);
         const claim = state.seats[id];
@@ -891,7 +914,7 @@
           <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${SEAT_R}" fill="${fill}" stroke="${stroke}" stroke-width="2"${extra}></circle>
           <text x="${p.x.toFixed(1)}" y="${(p.y + 4.5).toFixed(1)}" text-anchor="middle" font-size="${claim && mode === 'host' ? 11 : 13}" font-weight="700" fill="${lblFill}">${label}</text>
         </g>`;
-      }
+      });
     });
 
     const tables = TABLES.map((t) => {
@@ -907,7 +930,7 @@
       return `<g>
         <circle cx="${c.x}" cy="${c.y}" r="${TABLE_R}" fill="rgba(201,164,74,0.07)" stroke="var(--accent, #c9a44a)" stroke-width="1.5" stroke-opacity="0.5"></circle>
         <text x="${c.x}" y="${c.y + 2}" text-anchor="middle" font-size="40" font-weight="800" fill="var(--accent, #c9a44a)" fill-opacity="0.9">${t}</text>
-        <text x="${c.x}" y="${c.y + 26}" text-anchor="middle" font-size="12" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.55">SEATS 6</text>
+        <text x="${c.x}" y="${c.y + 26}" text-anchor="middle" font-size="12" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.55">SEATS ${seatsOnTable(t).length}</text>
         ${ghosts}
       </g>`;
     }).join('');
@@ -970,6 +993,9 @@
   global.RESeating = {
     TABLES,
     SEATS_PER_TABLE,
+    EXTRA_SEATS,
+    seatsOnTable,
+    isValidSeatId,
     allSeats,
     emptyState,
     normalize,
