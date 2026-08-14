@@ -305,7 +305,8 @@ function prefsFromOrder(o) {
 
 function buildPrefsSummary(o) {
   const lines = [
-    o.buffet ? `Dinner: ${o.buffet}` : '',
+    o.buffet ? `Dinner: ${o.buffet}${o.form === 'bbq-menu-display' ? ' (group buffet — no plate pick)' : ''}` : '',
+    o.dietHasRestrictions ? 'Dietary restrictions: YES' : (o.notes && /^no restrictions$/i.test(String(o.notes).trim()) ? 'Dietary restrictions: none' : ''),
     o.sides?.length ? `Sides: ${Array.isArray(o.sides) ? o.sides.join(' · ') : o.sides}` : o.starter ? `Starter: ${o.starter}` : '',
     o.entree || o.main || o.dinner ? `Entrée: ${o.entree || o.main || o.dinner}` : '',
     o.dessert ? `Dessert: ${o.dessert}` : '',

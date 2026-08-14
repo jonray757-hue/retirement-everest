@@ -194,15 +194,26 @@ function renderBbqMenuPickReport(orders, loc) {
         Use the adult count to decide whether to provide a bar package or have guests order from the bar.
       </p>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="card-box"><h3>Sides &amp; salads (2 picks each)</h3>${rankBars(sideCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
-      <div class="card-box"><h3>Entrées</h3>${rankBars(entreeCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
-      <div class="card-box"><h3>Desserts</h3>${rankBars(dessertCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
+    <div class="card-box" style="margin-bottom:16px">
+      <h3>Dietary restrictions</h3>
+      ${(() => {
+        const flagged = orders.filter(o => o.dietHasRestrictions || (o.notes && !/^no restrictions$/i.test(String(o.notes).trim())));
+        if (!flagged.length) return '<p style="color:var(--muted);font-size:0.8rem;margin:0">No restrictions reported yet.</p>';
+        return `<ul style="margin:8px 0 0;padding-left:18px">${flagged.map(o =>
+          `<li style="margin-bottom:6px"><strong>${esc(o.name)}</strong> — ${esc(o.notes || 'restriction noted')}</li>`
+        ).join('')}</ul>`;
+      })()}
     </div>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Tallies are preference votes for planning quantities — full BBQ package still served for the group.</p>
+    ${Object.keys(sideCounts).length || Object.keys(entreeCounts).length || Object.keys(dessertCounts).length ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card-box"><h3>Legacy side picks</h3>${rankBars(sideCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
+      <div class="card-box"><h3>Legacy entrée picks</h3>${rankBars(entreeCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
+      <div class="card-box"><h3>Legacy dessert picks</h3>${rankBars(dessertCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
+    </div>` : ''}
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Guests no longer pick plates. Kitchen serves the full BBQ buffet — use diet notes + adult-drink counts to plan.</p>
     <div class="card-box" style="overflow:auto">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Sides (2)</th><th>Entrée</th><th>Dessert</th><th>Adult drink?</th><th>Notes</th><th>Time</th><th></th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Adult drink?</th><th>Dietary notes</th><th>Time</th><th></th></tr></thead>
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
           let party = 'Solo';
@@ -222,11 +233,8 @@ function renderBbqMenuPickReport(orders, loc) {
             <td>${i + 1}</td>
             <td><strong>${esc(o.name)}</strong>${o.email || o.phone ? `<div style="font-size:0.72rem;color:var(--muted)">${esc([o.email, o.phone].filter(Boolean).join(' · '))}</div>` : ''}</td>
             <td>${party}</td><td>${seatCol}</td>
-            <td>${esc((o.sides || []).join(' · ') || '—')}</td>
-            <td>${esc(o.entree || '—')}</td>
-            <td>${esc(o.dessert || '—')}</td>
             <td>${esc(cat === 'Adult' ? 'Yes — adult drink' : 'No adult drink')}</td>
-            <td>${esc(o.notes || '—')}</td>
+            <td>${esc(o.notes || (o.dietHasRestrictions ? 'Restriction noted' : '—'))}</td>
             <td>${new Date(o.ts).toLocaleString()}</td>
             <td><button type="button" class="btn-sm" data-remove-guest="${esc(ok)}" data-remove-name="${esc(o.name || 'this guest')}" title="Remove this guest's preferences and free their seats">Remove</button></td>
           </tr>`;
@@ -254,7 +262,7 @@ async function removeGuestPreference(orderKey, displayName) {
   const name = displayName || 'this guest';
   if (
     !confirm(
-      `Remove ${name} from the guest list?\n\nThis deletes their food preferences and frees any seats they reserved.\nOther guests are left alone.`
+      `Remove ${name} from the guest list?\n\nThis deletes their diet/drink notes and frees any seats they reserved.\nOther guests are left alone.`
     )
   ) {
     return false;

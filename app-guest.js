@@ -111,8 +111,10 @@ let selections = [{ starter: null, drink: null, dinner: null }];
 let selSalad = null, selEntree = null, selDessert = null;
 let selStarter = null, selMain = null, selDrink = null, starterFilter = 'all';
 let selBuffet = null;
-/** BBQ menu tally: up to 2 side ids */
+/** BBQ menu tally: up to 2 side ids (legacy — plate picks removed) */
 let selSides = [];
+/** BBQ diet: 'none' | 'yes' */
+let selDiet = null;
 /* --- Seat reservations (Kennedy BBQ) --- */
 let seatPartyType = 'solo';       // 'solo' | 'couple'
 let coupleMode = 'new';           // 'new' = first-time reserve | 'join' = partner already reserved
@@ -193,7 +195,7 @@ function renderPage() {
       <div class="guest-contact-card" id="guest-contact-card">
         <div class="guest-contact-card-head">
           <div class="guest-contact-card-title">Your contact info</div>
-          <div class="guest-contact-card-sub">Required · so we can confirm your preferences</div>
+          <div class="guest-contact-card-sub">Required · so we can match your notes to you</div>
         </div>
         <div class="field-wrap guest-contact-field"><label class="field-label" for="guestName">Your full name</label>
           <input type="text" id="guestName" placeholder="First and last name" autocomplete="name"></div>
@@ -208,14 +210,18 @@ function renderPage() {
         <p class="guest-contact-hint">We only use this for your event confirmation — not a mailing list pitch.</p>
       </div>
       <div class="submit-area">
-        <button class="submit-btn" id="submitBtn">${LOC.type === 'preorder' || LOC.type === 'buffet' ? 'Confirm My Preferences' : 'Confirm My Reservation'}</button>
-        <p class="submit-legal">Your selections help us prepare for your ${LOC.type === 'retreat' ? 'stay' : 'evening'}. By submitting, you confirm your intent to attend.</p>
+        <button class="submit-btn" id="submitBtn">${LOC.bbqMenuPick ? 'Submit Diet &amp; Drink Notes' : (LOC.type === 'preorder' || LOC.type === 'buffet' ? 'Confirm My Preferences' : 'Confirm My Reservation')}</button>
+        <p class="submit-legal">${LOC.bbqMenuPick
+          ? 'Submitting this page does not reserve a seat. Johnny Harris confirms every seat personally. Use this form only after he has spoken with you.'
+          : `Your selections help us prepare for your ${LOC.type === 'retreat' ? 'stay' : 'evening'}. By submitting, you confirm your intent to attend.`}</p>
       </div>
     </div>
     <div class="success" id="success">
       <div class="success-ring">✓</div>
-      <h2>You're confirmed.</h2>
-      <p>We look forward to hosting you at ${LOC.shortName}. A reminder with details will follow closer to the date.</p>
+      <h2>${LOC.bbqMenuPick ? 'Notes received.' : "You're confirmed."}</h2>
+      <p>${LOC.bbqMenuPick
+        ? 'Thank you — we have your diet notes and drink preference. A seat is only reserved after Johnny Harris confirms it with you personally.'
+        : `We look forward to hosting you at ${LOC.shortName}. A reminder with details will follow closer to the date.`}</p>
       <div class="success-card" id="success-card"></div>
     </div>
     <footer>
@@ -237,6 +243,19 @@ function simpleCardHTML(pick, item, selected) {
   </div>`;
 }
 
+function menuBoardCol(title, items) {
+  return `
+    <div class="menu-board-col">
+      <div class="menu-board-h">${esc(title)}</div>
+      <ul class="menu-board-list">
+        ${(items || []).map(i => `<li>
+          <span class="menu-board-name">${esc(i.name)}${i.vegan ? ' <em>(vegan)</em>' : ''}</span>
+          ${i.desc ? `<span class="menu-board-desc">${esc(i.desc)}</span>` : ''}
+        </li>`).join('')}
+      </ul>
+    </div>`;
+}
+
 function renderBbqMenuPickForm() {
   const sides = LOC.menus.sides || [];
   const entrees = LOC.menus.entrees || [];
@@ -244,30 +263,38 @@ function renderBbqMenuPickForm() {
   const buffetLabel = LOC.menus.buffetName || 'Backyard Barbecue Buffet';
   return `
     <div class="locked-buffet" id="locked-buffet-panel">
-      <div class="locked-buffet-badge">Tonight’s dinner · locked in</div>
+      <div class="locked-buffet-badge">Tonight’s dinner · served for the room</div>
       <div class="locked-buffet-name">${esc(buffetLabel)}</div>
-      <div class="locked-buffet-blurb">Pick your favorites from this menu only — we use the tallies to plan the evening.</div>
+      <div class="locked-buffet-blurb">Guests do not pick individual plates. This is what the kitchen is serving — tell us about dietary restrictions and your drink below.</div>
+    </div>
+    <div class="menu-board" id="menu-board">
+      ${menuBoardCol('Entrées', entrees)}
+      ${menuBoardCol('Sides &amp; salads', sides)}
+      ${menuBoardCol('Desserts', desserts)}
     </div>
     <div class="section-gap"></div>
-    <div class="pick-head"><span class="pick-title">Sides &amp; Salads</span><span class="pick-req">Select two</span></div>
-    <p class="order-intro" style="margin-top:0;font-size:0.9rem">Choose <strong>two</strong> sides you prefer most.</p>
-    <div class="cards" id="side-cards">
-      ${sides.map(s => simpleCardHTML('side', s, selSides.includes(s.id))).join('')}
+    <div class="pick-head"><span class="pick-title">Dietary restrictions</span><span class="pick-req">Required</span></div>
+    <p class="order-intro" style="margin-top:0;font-size:0.9rem">
+      Allergies, vegan, no pork, gluten-free, religious restrictions — anything the kitchen should know.
+    </p>
+    <div class="bev-row" id="diet-cards">
+      <button type="button" class="bev-card" id="card-diet-none" data-pick="diet" data-id="none">
+        <span class="bev-icon">✓</span>
+        <span class="bev-name">No restrictions</span>
+        <span class="bev-desc">I can eat from this buffet as served</span>
+      </button>
+      <button type="button" class="bev-card" id="card-diet-yes" data-pick="diet" data-id="yes">
+        <span class="bev-icon">!</span>
+        <span class="bev-name">Yes — I have restrictions</span>
+        <span class="bev-desc">Allergies, vegan, no pork, gluten-free, etc.</span>
+      </button>
     </div>
-    <div class="vote-status" id="side-pick-status">${selSides.length ? `Selected ${selSides.length} of 2` : 'Select 2 sides'}</div>
-    <div class="err-msg" id="err-side">Please select exactly two sides &amp; salads.</div>
-    <div class="section-gap"></div>
-    <div class="pick-head"><span class="pick-title">Entrées</span><span class="pick-req">Select one</span></div>
-    <div class="cards" id="entree-cards">
-      ${entrees.map(s => simpleCardHTML('entree', s, selEntree === s.id)).join('')}
+    <div class="err-msg" id="err-diet">Please tell us whether you have dietary restrictions.</div>
+    <div class="field-wrap" id="diet-notes-wrap" style="display:none;margin-bottom:0">
+      <label class="field-label" for="guestNotes">Please describe your restrictions or allergies</label>
+      <textarea id="guestNotes" rows="3" placeholder="e.g. nut allergy, no pork, gluten-free, vegan guest…" autocomplete="off"></textarea>
+      <div class="err-msg" id="err-diet-notes">Please describe your restrictions or allergies.</div>
     </div>
-    <div class="err-msg" id="err-entree">Please choose one entrée.</div>
-    <div class="section-gap"></div>
-    <div class="pick-head"><span class="pick-title">Desserts</span><span class="pick-req">Select one</span></div>
-    <div class="cards" id="dessert-cards">
-      ${desserts.map(s => simpleCardHTML('dessert', s, selDessert === s.id)).join('')}
-    </div>
-    <div class="err-msg" id="err-dessert">Please choose one dessert.</div>
     <div class="section-gap"></div>
     <div class="pick-head"><span class="pick-title">Adult beverage?</span><span class="pick-req">Yes or no</span></div>
     <p class="order-intro" style="margin-top:0;font-size:0.9rem">
@@ -277,11 +304,6 @@ function renderBbqMenuPickForm() {
       ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
     </div>
     <div class="err-msg" id="err-drink">Please tell us whether you’d like an adult beverage.</div>
-    <div class="section-gap"></div>
-    <div class="field-wrap" style="margin-bottom:0">
-      <label class="field-label" for="guestNotes">Dietary notes or allergies (optional)</label>
-      <input type="text" id="guestNotes" placeholder="e.g. vegetarian guest, nut allergy, no pork…" autocomplete="off">
-    </div>
     ${window.RESeating ? renderSeatSection() : ''}`;
 }
 
@@ -311,14 +333,14 @@ function renderSeatSection() {
       <div id="spouse-new-fields">
         <label class="field-label" for="spouseName">Spouse / partner full name</label>
         <input type="text" id="spouseName" placeholder="Their first and last name" autocomplete="off">
-        <p class="order-intro" style="margin:8px 0 0;font-size:0.78rem">We'll put their name on the seat beside yours. They can come back later and submit their own food prefs by choosing “Partner already reserved.”</p>
+        <p class="order-intro" style="margin:8px 0 0;font-size:0.78rem">We'll put their name on the seat beside yours. They can come back later and submit their own diet &amp; drink notes by choosing “Partner already reserved.”</p>
       </div>
       <div id="spouse-join-fields" style="display:none">
         <label class="field-label" for="partnerSelect">Who already reserved your seats?</label>
         <select id="partnerSelect" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border,#333);background:var(--panel,#1a1a1a);color:var(--text,#eee);font-size:1rem">
           <option value="">Loading people who reserved…</option>
         </select>
-        <p class="order-intro" style="margin:8px 0 0;font-size:0.78rem">Pick your partner from the list. Your seats stay with them — you only submit <strong>your</strong> food &amp; drink preferences (no extra seats blocked).</p>
+        <p class="order-intro" style="margin:8px 0 0;font-size:0.78rem">Pick your partner from the list. Your seats stay with them — you only submit <strong>your</strong> diet &amp; drink notes (no extra seats blocked).</p>
         <div id="partner-join-summary" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;border:1px solid var(--accent,#c9a44a);background:rgba(201,164,74,0.08);font-size:0.9rem;color:var(--text,#eee)"></div>
       </div>
     </div>
@@ -599,6 +621,7 @@ function renderFormFields() {
     selEntree = null;
     selDessert = null;
     selDrink = null;
+    selDiet = null;
     el.innerHTML = renderBbqMenuPickForm();
     if (window.RESeating) loadSeatMap();
   } else if (LOC.type === 'buffet') {
@@ -780,7 +803,7 @@ function handleCardClick(e) {
     return;
   }
 
-  // BBQ locked menu tally: 2 sides + 1 entree + 1 dessert + beverage
+  // BBQ: diet + beverage only (menu is display — no plate picks)
   if (LOC.type === 'buffet' && LOC.bbqMenuPick) {
     const bev = e.target.closest('.bev-card[data-pick="drink"]');
     if (bev) {
@@ -790,47 +813,15 @@ function handleCardClick(e) {
       document.getElementById('err-drink')?.classList.remove('show');
       return;
     }
-    const sideCard = e.target.closest('.card[data-pick="side"]');
-    if (sideCard) {
-      const id = sideCard.dataset.id;
-      const idx = selSides.indexOf(id);
-      if (idx >= 0) {
-        selSides.splice(idx, 1);
-        sideCard.classList.remove('selected');
-      } else if (selSides.length < 2) {
-        selSides.push(id);
-        sideCard.classList.add('selected');
-      } else {
-        // already 2 — swap out the first pick for the new one
-        const drop = selSides.shift();
-        document.getElementById(`card-side-${drop}`)?.classList.remove('selected');
-        selSides.push(id);
-        sideCard.classList.add('selected');
-      }
-      const st = document.getElementById('side-pick-status');
-      if (st) {
-        st.textContent = selSides.length === 2
-          ? '2 of 2 selected'
-          : `Selected ${selSides.length} of 2`;
-        st.classList.toggle('has-vote', selSides.length === 2);
-      }
-      if (selSides.length === 2) document.getElementById('err-side')?.classList.remove('show');
-      return;
-    }
-    const entCard = e.target.closest('.card[data-pick="entree"]');
-    if (entCard) {
-      if (selEntree) document.getElementById(`card-entree-${selEntree}`)?.classList.remove('selected');
-      selEntree = entCard.dataset.id;
-      entCard.classList.add('selected');
-      document.getElementById('err-entree')?.classList.remove('show');
-      return;
-    }
-    const desCard = e.target.closest('.card[data-pick="dessert"]');
-    if (desCard) {
-      if (selDessert) document.getElementById(`card-dessert-${selDessert}`)?.classList.remove('selected');
-      selDessert = desCard.dataset.id;
-      desCard.classList.add('selected');
-      document.getElementById('err-dessert')?.classList.remove('show');
+    const dietCard = e.target.closest('.bev-card[data-pick="diet"]');
+    if (dietCard) {
+      if (selDiet) document.getElementById(`card-diet-${selDiet}`)?.classList.remove('selected');
+      selDiet = dietCard.dataset.id;
+      dietCard.classList.add('selected');
+      document.getElementById('err-diet')?.classList.remove('show');
+      const notesWrap = document.getElementById('diet-notes-wrap');
+      if (notesWrap) notesWrap.style.display = selDiet === 'yes' ? '' : 'none';
+      if (selDiet !== 'yes') document.getElementById('err-diet-notes')?.classList.remove('show');
       return;
     }
     return;
@@ -1008,7 +999,7 @@ async function pushGuestOrderToGHL(order) {
   const locVenue = locFields.venue || LOC.venue || '';
   const locCity = locFields.city || LOC.city || '';
   const eventDate = locFields.eventDate || '';
-  const isBbq = !!(LOC.bbqMenuPick || order.form === 'bbq-menu-pick');
+  const isBbq = !!(LOC.bbqMenuPick || order.form === 'bbq-menu-pick' || order.form === 'bbq-menu-display');
   const hasSeats = !!(order.seatLabel || (Array.isArray(order.seats) && order.seats.length));
   const isWaitlist = !!(order.waitlist || order.waitlistHold);
   const pipelineStage = isWaitlist ? 'Waitlist' : hasSeats ? 'Seated' : 'Preferences Received';
@@ -1047,6 +1038,7 @@ async function pushGuestOrderToGHL(order) {
     dessert: order.dessert || '',
     drink: order.drink || '',
     drinkCat: order.drinkCat || '',
+    dietHasRestrictions: order.dietHasRestrictions ? 'yes' : 'no',
     notes: order.notes || '',
     // Seating / couple linking
     partyType: order.partyType || '',
@@ -1063,11 +1055,12 @@ async function pushGuestOrderToGHL(order) {
     preferencesSummary: [
       `${eventLocationLabel}${locVenue ? ` · ${locVenue}` : ''}${eventDate ? ` · ${eventDate}` : ''}`,
       `Stage: ${pipelineStage}`,
-      isBbq ? 'Form: BBQ menu + seats' : 'Form: old buffet poll — not the live BBQ menu',
-      order.buffet ? `Dinner: ${order.buffet}` : '',
-      order.sides?.length ? `Sides: ${order.sides.join(' · ')}` : '',
-      order.entree ? `Entrée: ${order.entree}` : '',
-      order.dessert ? `Dessert: ${order.dessert}` : '',
+      isBbq ? 'Form: BBQ menu (display) + diet + drink + seats' : 'Form: old buffet poll — not the live BBQ menu',
+      order.buffet ? `Dinner: ${order.buffet} (group buffet — no plate pick)` : '',
+      order.dietHasRestrictions ? 'Dietary restrictions: YES' : (order.dietHasRestrictions === false ? 'Dietary restrictions: none' : ''),
+      order.sides?.length ? `Sides (legacy pick): ${order.sides.join(' · ')}` : '',
+      order.entree ? `Entrée (legacy pick): ${order.entree}` : '',
+      order.dessert ? `Dessert (legacy pick): ${order.dessert}` : '',
       !isBbq && order.starter ? `Poll appetizer (ignore): ${order.starter}` : '',
       order.drink ? `Drink: ${order.drinkCat === 'Adult' ? 'Yes — adult beverage' : 'No — soft drinks included'}` : '',
       order.notes ? `Notes: ${order.notes}` : '',
@@ -1187,20 +1180,17 @@ async function submitOrder() {
 
   if (LOC.type === 'buffet' && LOC.bbqMenuPick) {
     let ok = true;
-    if (selSides.length !== 2) { document.getElementById('err-side')?.classList.add('show'); ok = false; }
-    if (!selEntree) { document.getElementById('err-entree')?.classList.add('show'); ok = false; }
-    if (!selDessert) { document.getElementById('err-dessert')?.classList.add('show'); ok = false; }
+    if (!selDiet) { document.getElementById('err-diet')?.classList.add('show'); ok = false; }
+    const notesRaw = (document.getElementById('guestNotes')?.value || '').trim();
+    if (selDiet === 'yes' && !notesRaw) { document.getElementById('err-diet-notes')?.classList.add('show'); ok = false; }
     if (!selDrink) { document.getElementById('err-drink')?.classList.add('show'); ok = false; }
     if (!ok) {
-      scrollToFirstError(['#err-side', '#err-entree', '#err-dessert', '#err-drink', '#side-cards', '#entree-cards']);
+      scrollToFirstError(['#err-diet', '#err-diet-notes', '#err-drink', '#diet-cards', '#drink-cards']);
       return;
     }
-    const sideItems = selSides.map(id => (LOC.menus.sides || []).find(s => s.id === id)).filter(Boolean);
-    const entree = (LOC.menus.entrees || []).find(s => s.id === selEntree);
-    const dessert = (LOC.menus.desserts || []).find(s => s.id === selDessert);
     const drink = LOC.menus.drinks.find(d => d.id === selDrink);
     const drinkBucket = drink.cat === 'Adult' || drink.id === 'd-adult' ? 'Adult' : 'Soft';
-    const notes = (document.getElementById('guestNotes')?.value || '').trim();
+    const notes = selDiet === 'yes' ? notesRaw : (notesRaw || 'No restrictions');
     const buffetName = LOC.menus.buffetName || 'Backyard Barbecue Buffet';
 
     /* --- Seat reservation / partner join --- */
@@ -1249,7 +1239,7 @@ async function submitOrder() {
       } catch (e) {
         console.warn('[RE] partner attach error', e);
         btn0.disabled = false;
-        btn0.textContent = 'Confirm My Preferences';
+        btn0.textContent = 'Submit Diet & Drink Notes';
         alert(String(e.message || e) || 'Could not link to your partner\'s seats. Refresh and try again, or contact the host.');
         await loadSeatMap();
         return;
@@ -1290,7 +1280,7 @@ async function submitOrder() {
       }
       if (!seatClaim.ok) {
         btn0.disabled = false;
-        btn0.textContent = 'Confirm My Preferences';
+        btn0.textContent = 'Submit Diet & Drink Notes';
         alert('So sorry — one of those seats was just taken by another guest. The map has been refreshed; please pick again (or tap the arrangements button).');
         selSeats = [];
         await loadSeatMap();
@@ -1313,7 +1303,7 @@ async function submitOrder() {
             seatLabel: RESeating.seatLabel(selSeats),
             location: LOC.id,
             locationName: LOC.name,
-            preferencesSummary: `COUPLE RESERVED\n${name} reserved seats for self + ${spouseNameVal}\nSeats: ${RESeating.seatLabel(selSeats)}\nPartner will submit own prefs via “Partner already reserved.”`
+            preferencesSummary: `COUPLE RESERVED\n${name} reserved seats for self + ${spouseNameVal}\nSeats: ${RESeating.seatLabel(selSeats)}\nPartner will submit own diet & drink notes via “Partner already reserved.”`
           });
         } catch (e) {
           console.warn('[RE] couple_reserved GHL push failed', e);
@@ -1330,7 +1320,7 @@ async function submitOrder() {
 
     order = {
       id: Date.now(), locationId: LOC.id, name, email, phone,
-      form: 'bbq-menu-pick',
+      form: 'bbq-menu-display',
       partyType: window.RESeating ? seatPartyType : undefined,
       /* Join partner = 1 meal prefs row; primary couple still 2 until partner joins */
       partySize: isJoinPartner ? 1 : (seatPartyType === 'couple' ? 2 : 1),
@@ -1348,10 +1338,11 @@ async function submitOrder() {
       seatAccommodation: (!isJoinPartner && seatAccomRequested) || null,
       buffet: buffetName, buffetId: LOC.lockedBuffetId || 'b-bbq', buffetPrice: LOC.menus.buffetPrice || 63.50,
       buffetLocked: true,
-      sides: sideItems.map(s => s.name),
-      sideIds: sideItems.map(s => s.id),
-      entree: entree.name, entreeId: entree.id,
-      dessert: dessert.name, dessertId: dessert.id,
+      sides: [],
+      sideIds: [],
+      entree: '', entreeId: '',
+      dessert: '', dessertId: '',
+      dietHasRestrictions: selDiet === 'yes',
       drink: drink.name, drinkId: drink.id, drinkPrice: drink.price || 0,
       drinkCat: drinkBucket,
       notes: notes || null,
@@ -1359,12 +1350,9 @@ async function submitOrder() {
     };
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
       <div class="sc-row"><div class="sc-label">Contact</div><div class="sc-val">${esc([email, phone].filter(Boolean).join(' · '))}</div></div>
-      <div class="sc-row"><div class="sc-label">Dinner</div><div class="sc-val">${esc(buffetName)}</div></div>
-      <div class="sc-row"><div class="sc-label">Sides &amp; salads (2)</div><div class="sc-val">${esc(sideItems.map(s => s.name).join(' · '))}</div></div>
-      <div class="sc-row"><div class="sc-label">Entrée</div><div class="sc-val">${esc(entree.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Dessert</div><div class="sc-val">${esc(dessert.name)}</div></div>
+      <div class="sc-row"><div class="sc-label">Dinner</div><div class="sc-val">${esc(buffetName)} — group buffet, no plate pick</div></div>
+      <div class="sc-row"><div class="sc-label">Dietary</div><div class="sc-val">${esc(selDiet === 'yes' ? notes : 'No restrictions')}</div></div>
       <div class="sc-row"><div class="sc-label">Adult drink</div><div class="sc-val">${drinkBucket === 'Adult' ? 'Yes — interested' : 'No — included coffee / tea / soda is fine'}</div></div>
-      ${notes ? `<div class="sc-row"><div class="sc-label">Notes</div><div class="sc-val">${esc(notes)}</div></div>` : ''}
       ${order.joinedPartner
         ? `<div class="sc-row"><div class="sc-label">Joined partner</div><div class="sc-val">${esc(order.linkedPartnerName)} — your seats stay with them</div></div>`
         : (order.spouse ? `<div class="sc-row"><div class="sc-label">Attending with</div><div class="sc-val">${esc(order.spouse)}</div></div>` : '')}

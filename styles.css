@@ -591,6 +591,44 @@ select {
 .locked-buffet-body { margin-top: 4px; }
 .locked-buffet-body .acc-section:first-child { margin-top: 10px; }
 
+.menu-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin: 14px 0 4px;
+}
+@media (max-width: 720px) { .menu-board { grid-template-columns: 1fr; } }
+.menu-board-col {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 16px 12px;
+}
+.menu-board-h {
+  font-size: 0.62rem;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.menu-board-list { list-style: none; margin: 0; padding: 0; }
+.menu-board-list li { margin: 0 0 12px; }
+.menu-board-list li:last-child { margin-bottom: 0; }
+.menu-board-name { display: block; font-size: 0.92rem; font-weight: 500; line-height: 1.3; }
+.menu-board-name em { font-style: normal; color: var(--accent); font-size: 0.78em; }
+.menu-board-desc { display: block; font-size: 0.74rem; color: var(--muted); line-height: 1.35; margin-top: 3px; }
+#guestNotes {
+  width: 100%;
+  min-height: 88px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
 /* Beverage: adult vs soft only */
 .bev-row {
   display: grid;

@@ -41,13 +41,13 @@ function defaultConnectMessage(contact, channel, purpose) {
 
   if (purpose === 'prefs_link') {
     if (channel === 'sms') {
-      return `Hi ${first} — Johnny here. You're on the list for Retirement Everest at ${loc}. Pick your BBQ prefs + seat here: ${link} — reply if you need help. — ${sign.split(' ')[0]}`;
+      return `Hi ${first} — Johnny here. You're on the list for Retirement Everest at ${loc}. See the buffet, share diet notes + drink here: ${link} — reply if you need help. — ${sign.split(' ')[0]}`;
     }
     return `Hi ${first},
 
 You're registered for Retirement Everest at ${loc}.
 
-Next step — open this link and choose your food preferences and seat (takes about 2 minutes):
+Next step — open this link to see what’s being served, tell us any dietary restrictions, and whether you’d like an adult drink (takes about 2 minutes):
 
 ${link}
 
@@ -175,7 +175,10 @@ function contactCardHTML(c, opts = {}) {
       : '');
   const priTag = c.priorityTag || '';
   const score = c.callScore != null ? c.callScore : '—';
-  const foodBits = [prefs?.entree, Array.isArray(prefs?.sides) ? prefs.sides.join(', ') : '', prefs?.drinkCat === 'Adult' ? 'adult drink' : '']
+  const foodBits = [
+    prefs?.notes && !/^no restrictions$/i.test(String(prefs.notes).trim()) ? prefs.notes : '',
+    prefs?.drinkCat === 'Adult' ? 'adult drink' : (prefs?.drinkCat === 'Soft' ? 'no adult drink' : '')
+  ]
     .filter(Boolean)
     .join(' · ');
   const prefsLine = foodBits

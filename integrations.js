@@ -68,7 +68,7 @@ function buildInviteMessage(loc, guestLink, event, guestName) {
     ? ` Doors ${event.doorsTime || 'TBD'}${event.showTime ? `, film ${event.showTime}` : ''}.`
     : '';
   const dinnerNote = loc.guestSlug || loc.bbqMenuPick
-    ? 'Dinner is the Backyard BBQ buffet (complimentary). Use the link to share your food & drink preferences so we can plan the evening:'
+    ? 'Dinner is the Backyard BBQ buffet (complimentary). Use the link to see what’s being served, tell us any dietary restrictions, and whether you’d like an adult drink:'
     : 'Dinner is complimentary — open the link to share your meal preferences:';
   const sign = cfg.organizerName || 'Johnny Harris';
   const phone = cfg.organizerPhone ? `\n${cfg.organizerPhone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')}` : '';

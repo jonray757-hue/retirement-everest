@@ -659,7 +659,7 @@ window.RETIREMENT_EVEREST = {
 
     /**
      * Locked package: Backyard BBQ decided.
-     * Guest picks: 2 sides & salads · 1 entrée · 1 dessert · adult-drink yes/no.
+     * Guest form: show the locked buffet (no plate picks) · diet restrictions · adult-drink yes/no.
      * Soft drinks (coffee/tea/soda) are included — only poll who wants alcohol.
      * Menu items ONLY from the Backyard BBQ buffet (no other packages).
      * Original multi-buffet poll remains at location=kennedy-school (not used for invites).
@@ -693,15 +693,15 @@ window.RETIREMENT_EVEREST = {
       aboutHeadline: "This is not a seminar.<br>It's a private premiere.",
       about: [
         "You've been personally invited to an exclusive screening of <strong>Retirement Everest</strong> — a powerful documentary that explores the financial risks most Americans face in retirement and the strategies that can make the difference between struggle and security.",
-        "Dinner is set: the <strong>Backyard Barbecue Buffet</strong> for the whole group. Tell us your food preferences from <em>that</em> menu so we can tally favorites and plan quantities."
+        "Dinner is set: the <strong>Backyard Barbecue Buffet</strong> for the whole group. Guests do not pick individual plates — we’ll show you what’s being served, then ask about dietary restrictions and whether you’d like an adult drink."
       ],
       expect: [
         { title: 'Arrive & Be Welcomed', desc: 'Doors open 15 minutes before showtime. Historic school setting, private room.' },
         { title: 'Watch the Film', desc: 'Retirement Everest screens for our group — real stories, real clarity.' },
-        { title: 'Backyard BBQ Buffet', desc: 'Brisket, white BBQ chicken, picnic sides, and dessert. Pick two sides you prefer, one entrée, one dessert, and whether you’d like an adult beverage.' }
+        { title: 'Backyard BBQ Buffet', desc: 'The room shares one buffet: brisket, white BBQ chicken, jerk jackfruit sliders (vegan), picnic sides, and dessert. Tell us any dietary restrictions and whether you’d like an adult beverage.' }
       ],
-      formTitle: 'Tell Us What You Prefer',
-      formLabel: 'Backyard BBQ Preferences',
+      formTitle: 'Dinner, Diet & Drink',
+      formLabel: 'Backyard BBQ',
       formIntro: '',
       formNote: '',
       footer: 'Retirement Everest · Private Screening Series · McMenamins Kennedy School · Backyard BBQ · Portland, OR',
