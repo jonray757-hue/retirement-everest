@@ -132,6 +132,21 @@ function waitlistCopy() {
     'WAITLIST HOLD — this is not a confirmed seat. If that seat opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.';
 }
 
+function toggleSeatMapMode(mode, ev) {
+  if (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+  const next = mode === 'waitlist' ? 'waitlist' : 'main';
+  seatMapUserPicked = true;
+  if (seatMapMode === next) return;
+  seatMapMode = next;
+  selSeats = [];
+  seatAccomRequested = false;
+  paintSeatMap(seatState, null);
+}
+window.toggleSeatMapMode = toggleSeatMapMode;
+
 function viewSeatState() {
   if (!seatState) return { seats: {} };
   if (seatMapMode === 'waitlist') {
@@ -354,10 +369,16 @@ function renderSeatSection() {
       <div id="waitlist-banner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;border:1px solid #c9a44a;background:rgba(201,164,74,0.08);font-size:0.85rem;color:var(--text,#eee);line-height:1.45">
         <strong style="color:var(--accent,#c9a44a)">Waitlist hold</strong> — you are not confirmed yet. If this seat opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.
       </div>
-      <div style="margin-top:12px;text-align:center">
-        <button type="button" class="submit-btn" id="waitlistToggleBtn"
+      <div id="seat-map-tabs" style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button type="button" class="submit-btn" id="seatMapMainBtn" data-seatmap="main"
+          onclick="toggleSeatMapMode('main', event)"
           style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.82rem;padding:10px 16px">
-          Room is full? Join the waitlist instead
+          Reserved seats
+        </button>
+        <button type="button" class="submit-btn" id="seatMapWaitlistBtn" data-seatmap="waitlist"
+          onclick="toggleSeatMapMode('waitlist', event)"
+          style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.82rem;padding:10px 16px">
+          Standby waitlist
         </button>
       </div>
       <div style="margin-top:14px;text-align:center">
@@ -378,8 +399,6 @@ function paintSeatMap(state, orderBackup) {
   seatState = state || RESeating.emptyState();
   const totalN = RESeating.allSeats().length;
   const mainFull = Object.keys(seatState.seats || {}).length >= totalN;
-  /* Room-full default is waitlist — but never override Back to confirmed seating. */
-  if (mainFull && seatMapMode === 'main' && !seatMapUserPicked) seatMapMode = 'waitlist';
   const view = viewSeatState();
   seatFriendly = RESeating.soloFriendly(view);
   selSeats = selSeats.filter(id => !view.seats?.[id]);
@@ -401,11 +420,22 @@ function paintSeatMap(state, orderBackup) {
   `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
   const banner = document.getElementById('waitlist-banner');
   if (banner) banner.style.display = seatMapMode === 'waitlist' ? '' : 'none';
-  const wbtn = document.getElementById('waitlistToggleBtn');
-  if (wbtn) {
-    wbtn.textContent = seatMapMode === 'waitlist'
-      ? '← Back to confirmed seating chart'
-      : (mainFull ? 'Jordan Room is full — join the waitlist' : 'Room is full? Join the waitlist instead');
+  const mainBtn = document.getElementById('seatMapMainBtn');
+  const waitBtn = document.getElementById('seatMapWaitlistBtn');
+  const on = 'var(--accent,#c9a44a)';
+  const off = 'transparent';
+  if (mainBtn) {
+    const active = seatMapMode !== 'waitlist';
+    mainBtn.style.background = active ? on : off;
+    mainBtn.style.color = active ? '#141414' : on;
+    mainBtn.style.fontWeight = active ? '700' : '500';
+  }
+  if (waitBtn) {
+    const active = seatMapMode === 'waitlist';
+    waitBtn.style.background = active ? on : off;
+    waitBtn.style.color = active ? '#141414' : on;
+    waitBtn.style.fontWeight = active ? '700' : '500';
+    waitBtn.textContent = mainFull ? 'Standby waitlist (room is full)' : 'Standby waitlist';
   }
   updateSeatStatus();
 }
@@ -747,6 +777,11 @@ function bindEvents() {
 }
 
 function handleCardClick(e) {
+  const mapTab = e.target.closest('[data-seatmap]');
+  if (mapTab) {
+    toggleSeatMapMode(mapTab.getAttribute('data-seatmap'), e);
+    return;
+  }
   /* Seat picker (Kennedy BBQ) — must run before generic .party-btn handling */
   const seatPartyBtn = e.target.closest('[data-seatparty]');
   if (seatPartyBtn) {
@@ -780,14 +815,6 @@ function handleCardClick(e) {
   if (seatEl) { handleSeatClick(seatEl.dataset.seat); return; }
   if (e.target.closest('#seatRefreshBtn')) { selSeats = []; loadSeatMap(); return; }
   if (e.target.closest('#seatHelpBtn')) { requestSeatAccommodation(); return; }
-  if (e.target.closest('#waitlistToggleBtn')) {
-    seatMapUserPicked = true;
-    seatMapMode = seatMapMode === 'waitlist' ? 'main' : 'waitlist';
-    selSeats = [];
-    seatAccomRequested = false;
-    paintSeatMap(seatState, []);
-    return;
-  }
 
   const filterBtn = e.target.closest('.filter-btn[data-filter]');
   if (filterBtn) {
