@@ -12,8 +12,8 @@ body {
 
 /* ── THEMES ── */
 body.theme-gold {
-  --bg: #1c1914; --panel: #2a261f; --border: #433c32;
-  --accent: #c9a84c; --accent-lt: #e2c06a; --text: #f5efe4; --muted: #9a8f7a; --red: #a83232;
+  --bg: #3f3a32; --panel: #524c42; --border: #6b6356;
+  --accent: #d4b25a; --accent-lt: #e8c97a; --text: #faf6ee; --muted: #cfc4b0; --red: #a83232;
   --heading-font: 'Playfair Display', serif;
   --tag-v-bg: #132516; --tag-v-color: #7fc47f;
 }
@@ -60,25 +60,25 @@ body { background: var(--bg); color: var(--text); }
 /* ── GUEST PAGE SHARED ── */
 .hero { position: relative; min-height: 88vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; text-align: center; padding: 28px 20px 50px; overflow: hidden; }
 .hero-bg { position: absolute; inset: 0; overflow: hidden; }
-.hero-bg.theme-gold-bg { background: linear-gradient(180deg, #2a1818 0%, #3a2428 40%, #1c1914 100%); }
+.hero-bg.theme-gold-bg { background: linear-gradient(180deg, #4a3834 0%, #433c36 40%, #3f3a32 100%); }
 .hero-bg.theme-forest-bg { background: linear-gradient(180deg, #1a2e26 0%, #0d1410 60%, #0d1410 100%); }
 .hero-bg.theme-navy-bg { background: linear-gradient(180deg, #0a1628 0%, #050a14 60%, #050a14 100%); }
-.hero-bg.has-image { background: #1c1914; }
+.hero-bg.has-image { background: #3f3a32; }
 .hero-bg picture {
   position: absolute; inset: 0; display: block; width: 100%; height: 100%;
 }
 .hero-bg img {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; object-position: center top;
-  opacity: 0.9;
+  opacity: 0.96;
 }
 .hero-bg .hero-overlay {
   position: absolute; inset: 0;
   background: linear-gradient(180deg,
-    rgba(0,0,0,0.06) 0%,
-    rgba(0,0,0,0.04) 40%,
-    rgba(0,0,0,0.34) 78%,
-    rgba(0,0,0,0.5) 100%);
+    rgba(0,0,0,0.02) 0%,
+    rgba(0,0,0,0.02) 40%,
+    rgba(0,0,0,0.18) 78%,
+    rgba(0,0,0,0.32) 100%);
 }
 .hero--hub {
   min-height: 72vh;
@@ -121,10 +121,10 @@ body { background: var(--bg); color: var(--text); }
     /* Clear through title + mountain; only soft fade at very bottom for meta */
     background: linear-gradient(180deg,
       rgba(0,0,0,0) 0%,
-      rgba(0,0,0,0) 42%,
-      rgba(0,0,0,0.04) 62%,
-      rgba(0,0,0,0.26) 82%,
-      rgba(0,0,0,0.5) 100%);
+      rgba(0,0,0,0) 48%,
+      rgba(0,0,0,0.02) 66%,
+      rgba(0,0,0,0.16) 84%,
+      rgba(0,0,0,0.32) 100%);
   }
   .hero.hero--has-poster .hero-content {
     /* Pull UI up — less empty dark band above the venue words */
@@ -402,7 +402,7 @@ input.err, select.err { border-color: var(--red); box-shadow: 0 0 0 1px var(--re
 .guest-contact-card input[type="text"],
 .guest-contact-card input[type="email"],
 .guest-contact-card input[type="tel"] {
-  background: color-mix(in srgb, var(--bg) 70%, #1a1408);
+  background: color-mix(in srgb, var(--panel) 70%, #6a6256);
   border: 1.5px solid color-mix(in srgb, var(--accent) 55%, var(--border));
   color: var(--text);
 }
