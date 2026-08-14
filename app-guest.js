@@ -123,6 +123,7 @@ let seatState = null;             // last fetched shared seat state
 let seatFriendly = new Set();     // solo-safe seats
 let seatAccomRequested = false;   // "can't find a seat" pressed
 let seatMapMode = 'main';         // 'main' | 'waitlist'
+let seatMapUserPicked = false;    // don't yank them back to waitlist after they hit Back
 let joinablePartners = [];        // dropdown options for "partner already reserved"
 let selectedPartnerKey = '';      // key from listJoinablePartners
 
@@ -377,7 +378,8 @@ function paintSeatMap(state, orderBackup) {
   seatState = state || RESeating.emptyState();
   const totalN = RESeating.allSeats().length;
   const mainFull = Object.keys(seatState.seats || {}).length >= totalN;
-  if (mainFull && seatMapMode === 'main') seatMapMode = 'waitlist';
+  /* Room-full default is waitlist — but never override Back to confirmed seating. */
+  if (mainFull && seatMapMode === 'main' && !seatMapUserPicked) seatMapMode = 'waitlist';
   const view = viewSeatState();
   seatFriendly = RESeating.soloFriendly(view);
   selSeats = selSeats.filter(id => !view.seats?.[id]);
@@ -779,6 +781,7 @@ function handleCardClick(e) {
   if (e.target.closest('#seatRefreshBtn')) { selSeats = []; loadSeatMap(); return; }
   if (e.target.closest('#seatHelpBtn')) { requestSeatAccommodation(); return; }
   if (e.target.closest('#waitlistToggleBtn')) {
+    seatMapUserPicked = true;
     seatMapMode = seatMapMode === 'waitlist' ? 'main' : 'waitlist';
     selSeats = [];
     seatAccomRequested = false;
