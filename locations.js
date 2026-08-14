@@ -386,7 +386,7 @@ window.RETIREMENT_EVEREST = {
         doorsTime: '',
         showTime: '',
         guestGoal: 30,
-        notes: 'Jordan Room · Backyard BBQ · ~30 guests · arch seating A–E (5×60″ 6-tops)'
+        notes: 'Jordan Room · Backyard BBQ · ~32 guests · arch seating A–E (A7/A8 + C7 restored, backs to screen)'
       },
       /* Preferences save on BBQ page storage (via guestSlug) */
       storageKey: 'kennedyschool_buffet_orders_v1',

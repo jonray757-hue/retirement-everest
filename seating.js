@@ -1,9 +1,11 @@
 /**
  * Seat reservations — Kennedy School BBQ (Jordan Room).
- * Five 60" round tables (true 5 ft tops). Each is an 8-chair ring with the
- * 2 screen-side chairs removed so no one's back faces the screen → 6 tops.
- * Table C restores the chair next to seat 6 as C7 (one X remains toward seat 1).
- * Tables A–E in an arch facing the screen (31 seats total).
+ * Five 60" round tables (true 5 ft tops). Each is an 8-chair ring; screen-side
+ * chairs start X'd out so most guests face the screen. Host can restore them
+ * (backs to screen) via EXTRA_SEATS.
+ *   Table A — both screen-side chairs restored as A7 + A8
+ *   Table C — chair next to seat 6 restored as C7 (one X remains toward seat 1)
+ * Tables A–E in an arch facing the screen (33 seats total).
  *
  * Live shared state: durable Google Apps Script store (RESharedStore) preferred.
  * jsonblob fallback only if sharedStoreUrl is not configured (expires ~24h).
@@ -55,13 +57,16 @@
   /* ---------------- Layout ---------------- */
   const TABLES = ['A', 'B', 'C', 'D', 'E'];
   const SEATS_PER_TABLE = 6;
-  /* Host-restored screen-side chairs. Seat 7 = the X next to seat 6 (-22.5°). */
-  const EXTRA_SEATS = { C: [7] };
+  /* Host-restored screen-side chairs.
+     Seat 7 = the X next to seat 6 (-22.5°). Seat 8 = the X next to seat 1 (22.5°). */
+  const EXTRA_SEATS = { A: [7, 8], C: [7] };
   const SEAT_7_DEG = -22.5;
+  const SEAT_8_DEG = 22.5;
   /* Jordan Room, drawn to scale: 23 ft wide × 31 ft deep (713 sq ft), 34 px/ft.
      Screen on the short wall; BBQ buffet on the opposite short wall.
-     Tables are true 60" (5 ft) rounds — venue 8-tops with 2 screen-side chairs
-     removed so every guest faces the screen (6 tops). Footprint ≈ 8 ft with chairs. */
+     Tables are true 60" (5 ft) rounds — venue 8-tops. Screen-side chairs start
+     removed so most guests face the screen (6-tops). A7/A8 and C7 restored.
+     Footprint ≈ 8 ft with chairs. */
   const PXFT = 34, M = 13;
   const VIEW = { w: 23 * PXFT + 2 * M, h: 31 * PXFT + 2 * M }; // 808 × 1080
   const ROOM = { x: M, y: M, w: 23 * PXFT, h: 31 * PXFT };
@@ -125,7 +130,7 @@
   /** Seat position: real 8-top spacing (45°), 90° opening faces the screen. */
   function seatXY(t, n) {
     const c = TABLE_POS[t];
-    const deg = n === 7 ? SEAT_7_DEG : FIRST_SEAT_DEG + (n - 1) * SEAT_STEP; // 67.5°..292.5°, C7 at -22.5°
+    const deg = n === 7 ? SEAT_7_DEG : n === 8 ? SEAT_8_DEG : FIRST_SEAT_DEG + (n - 1) * SEAT_STEP;
     const a = screenAngle(t) + (deg * Math.PI) / 180;
     return {
       x: c.x + SEAT_RING * Math.cos(a),
@@ -137,7 +142,11 @@
   function removedXY(t) {
     const c = TABLE_POS[t];
     const extra = EXTRA_SEATS[t] || [];
-    const degs = extra.includes(7) ? [22.5] : REMOVED_DEG;
+    const degs = REMOVED_DEG.filter((deg) => {
+      if (deg === SEAT_7_DEG && extra.includes(7)) return false;
+      if (deg === SEAT_8_DEG && extra.includes(8)) return false;
+      return true;
+    });
     return degs.map((deg) => {
       const a = screenAngle(t) + (deg * Math.PI) / 180;
       return { x: c.x + SEAT_RING * Math.cos(a), y: c.y + SEAT_RING * Math.sin(a) };
@@ -146,8 +155,8 @@
 
   /* ---------------- Shared state ---------------- */
   /* Bump version when layout / seat IDs change so ghost caches on phones die. */
-  const LOCAL_KEY = 're_seats_cache_v4';
-  const LEGACY_CACHE_KEYS = ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3', 're_seats_cache_v4'];
+  const LOCAL_KEY = 're_seats_cache_v5';
+  const LEGACY_CACHE_KEYS = ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3', 're_seats_cache_v4', 're_seats_cache_v5'];
   const SEAT_ID_RE = /^[A-E][1-8]$/;
 
   function emptyState() {
@@ -940,7 +949,7 @@
       <rect x="${ROOM.x}" y="${ROOM.y}" width="${ROOM.w}" height="${ROOM.h}" rx="4" fill="rgba(255,255,255,0.015)" stroke="#3c3c44" stroke-width="2"></rect>
       <rect x="${SCREEN.x}" y="${SCREEN.y}" width="${SCREEN.w}" height="${SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
       <text x="${SCREEN.cx}" y="${SCREEN.cy + 5}" text-anchor="middle" font-size="15" letter-spacing="6" fill="#9a9aa4">SCREEN</text>
-      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">Jordan Room · 23 × 31 ft — ✕ chairs removed so every seat faces the screen</text>
+      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">Jordan Room · 23 × 31 ft — ✕ chairs face away from the screen (A7/A8 + C7 restored)</text>
       <rect x="${BUFFET.x}" y="${BUFFET.y}" width="${BUFFET.w}" height="${BUFFET.h}" rx="5" fill="rgba(201,164,74,0.05)" stroke="#4a4a52" stroke-dasharray="6 4"></rect>
       <text x="${BUFFET.x + BUFFET.w / 2}" y="${BUFFET.y + BUFFET.h / 2 + 5}" text-anchor="middle" font-size="14" letter-spacing="5" fill="#8a8a94">BBQ BUFFET</text>
       ${tables}
