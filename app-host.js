@@ -190,7 +190,7 @@ function renderBbqMenuPickReport(orders, loc) {
       </div>
       <p style="font-size:0.85rem;color:var(--muted);margin:0">
         <strong style="color:var(--text)">${adult}</strong> want adult drinks ·
-        <strong style="color:var(--text)">${soft}</strong> fine without (coffee / tea / soda included).
+        <strong style="color:var(--text)">${soft}</strong> fine without (coffee, tea, or water).
         Use the adult count to decide whether to provide a bar package or have guests order from the bar.
       </p>
     </div>
@@ -369,7 +369,7 @@ function renderBuffetReport(orders, loc) {
       <div class="card-box"><div class="stat-label">Votes</div><div class="stat-val">${orders.length}</div></div>
       <div class="card-box"><div class="stat-label">Leading buffet</div><div class="stat-val" style="font-size:0.95rem">${topBuffet ? esc(topBuffet[0]) + ' (' + topBuffet[1] + ')' : '—'}</div></div>
       <div class="card-box"><div class="stat-label">Adult beverages</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
-      <div class="card-box"><div class="stat-label">Coffee / tea / soda</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
+      <div class="card-box"><div class="stat-label">Coffee / tea / water</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
     </div>
     <div class="card-box" style="margin-bottom:16px">
       <h3>Beverage split</h3>
@@ -379,7 +379,7 @@ function renderBuffetReport(orders, loc) {
       </div>
       <p style="font-size:0.85rem;color:var(--muted);margin:0">
         <strong style="color:var(--text)">${adult}</strong> adult ·
-        <strong style="color:var(--text)">${soft}</strong> coffee / tea / soda
+        <strong style="color:var(--text)">${soft}</strong> coffee, tea, or water
       </p>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
@@ -393,7 +393,7 @@ function renderBuffetReport(orders, loc) {
         <tbody>${orders.map((o, i) => {
           const cat = o.drinkCat || (o.drinkId === 'd-adult' ? 'Adult' : 'Soft');
           const ok = orderKeyAttr(o);
-          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee / tea / soda')}</td><td>${new Date(o.ts).toLocaleString()}</td><td><button type="button" class="btn-sm" data-remove-guest="${esc(ok)}" data-remove-name="${esc(o.name || 'this guest')}">Remove</button></td></tr>`;
+          return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee, tea, or water')}</td><td>${new Date(o.ts).toLocaleString()}</td><td><button type="button" class="btn-sm" data-remove-guest="${esc(ok)}" data-remove-name="${esc(o.name || 'this guest')}">Remove</button></td></tr>`;
         }).join('')}</tbody>
       </table>
     </div>`;

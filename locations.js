@@ -563,8 +563,8 @@ window.RETIREMENT_EVEREST = {
           {
             id: 'd-soft',
             name: 'No adult drink for me',
-            blurb: 'Coffee, tea & soda included',
-            desc: 'Coffee, tea, soda, and water are already covered — no adult drink needed',
+            blurb: 'Coffee, tea, or water included',
+            desc: 'Coffee, tea, or water are already covered — no adult drink needed',
             price: 0,
             cat: 'Soft'
           }
@@ -660,7 +660,7 @@ window.RETIREMENT_EVEREST = {
     /**
      * Locked package: Backyard BBQ decided.
      * Guest form: show the locked buffet (no plate picks) · diet restrictions · adult-drink yes/no.
-     * Soft drinks (coffee/tea/soda) are included — only poll who wants alcohol.
+     * Coffee, tea, or water are included — only poll who wants alcohol.
      * Menu items ONLY from the Backyard BBQ buffet (no other packages).
      * Original multi-buffet poll remains at location=kennedy-school (not used for invites).
      */
@@ -737,8 +737,8 @@ window.RETIREMENT_EVEREST = {
           {
             id: 'd-soft',
             name: 'No adult drink for me',
-            blurb: 'Coffee, tea & soda included',
-            desc: 'Coffee, tea, soda, and water are already covered — no adult drink needed',
+            blurb: 'Coffee, tea, or water included',
+            desc: 'Coffee, tea, or water are already covered — no adult drink needed',
             price: 0,
             cat: 'Soft'
           }
@@ -757,7 +757,7 @@ window.RETIREMENT_EVEREST = {
         drinkSoftPp: 4.25,
         drinkAdultPp: 8,
         roomName: 'Classroom (Jordan Room / Mina Parsons) · max ~40',
-        note: 'Backyard BBQ locked. Soft drinks included. Poll adult-drink interest only to decide bar package vs guests order from the bar. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service.',
+        note: 'Backyard BBQ locked. Coffee, tea, or water included. Poll adult-drink interest only to decide bar package vs guests order from the bar. Formula: max($63.50/pp × guests + drink$/pp × guests, F&B min $1,000) × 1.21 service.',
         scenarios: [
           { guests: 30, median: 2523, p10: 2459, p90: 2595, perGuest: 84 },
           { guests: 35, median: 2943, p10: 2869, p90: 3028, perGuest: 84 },

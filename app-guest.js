@@ -298,7 +298,7 @@ function renderBbqMenuPickForm() {
     <div class="section-gap"></div>
     <div class="pick-head"><span class="pick-title">Adult beverage?</span><span class="pick-req">Yes or no</span></div>
     <p class="order-intro" style="margin-top:0;font-size:0.9rem">
-      Coffee, tea, soda, and water are <strong>already included</strong>. We only need to know if you’d like an adult drink (beer, cider, wine, or cocktail) so we can plan the bar — or let you order from the bar on your own.
+      Coffee, tea, or water are <strong>already included</strong>. We only need to know if you’d like an adult drink (beer, cider, wine, or cocktail) so we can plan the bar — or let you order from the bar on your own.
     </p>
     <div class="bev-row" id="drink-cards">
       ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
@@ -639,7 +639,7 @@ function renderFormFields() {
       <div class="err-msg" id="err-starter">Please vote for an appetizer option (or no appetizers).</div>
       <div class="section-gap"></div>
       <div class="pick-head"><span class="pick-title">Adult beverage?</span><span class="pick-req">Yes or no</span></div>
-      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Coffee, tea, soda, and water are <strong>already included</strong>. Tell us only if you’d like an adult drink so we can plan the bar.</p>
+      <p class="order-intro" style="margin-top:0;font-size:0.9rem">Coffee, tea, or water are <strong>already included</strong>. Tell us only if you’d like an adult drink so we can plan the bar.</p>
       <div class="bev-row" id="drink-cards">
         ${LOC.menus.drinks.map(d => bevCardHTML(d)).join('')}
       </div>
@@ -1062,7 +1062,7 @@ async function pushGuestOrderToGHL(order) {
       order.entree ? `Entrée (legacy pick): ${order.entree}` : '',
       order.dessert ? `Dessert (legacy pick): ${order.dessert}` : '',
       !isBbq && order.starter ? `Poll appetizer (ignore): ${order.starter}` : '',
-      order.drink ? `Drink: ${order.drinkCat === 'Adult' ? 'Yes — adult beverage' : 'No — soft drinks included'}` : '',
+      order.drink ? `Drink: ${order.drinkCat === 'Adult' ? 'Yes — adult beverage' : 'No — coffee, tea, or water'}` : '',
       order.notes ? `Notes: ${order.notes}` : '',
       order.joinedPartner
         ? `Party: joined ${order.linkedPartnerName || order.spouse || 'partner'}`
@@ -1352,7 +1352,7 @@ async function submitOrder() {
       <div class="sc-row"><div class="sc-label">Contact</div><div class="sc-val">${esc([email, phone].filter(Boolean).join(' · '))}</div></div>
       <div class="sc-row"><div class="sc-label">Dinner</div><div class="sc-val">${esc(buffetName)} — group buffet, no plate pick</div></div>
       <div class="sc-row"><div class="sc-label">Dietary</div><div class="sc-val">${esc(selDiet === 'yes' ? notes : 'No restrictions')}</div></div>
-      <div class="sc-row"><div class="sc-label">Adult drink</div><div class="sc-val">${drinkBucket === 'Adult' ? 'Yes — interested' : 'No — included coffee / tea / soda is fine'}</div></div>
+      <div class="sc-row"><div class="sc-label">Adult drink</div><div class="sc-val">${drinkBucket === 'Adult' ? 'Yes — interested' : 'No — coffee, tea, or water is fine'}</div></div>
       ${order.joinedPartner
         ? `<div class="sc-row"><div class="sc-label">Joined partner</div><div class="sc-val">${esc(order.linkedPartnerName)} — your seats stay with them</div></div>`
         : (order.spouse ? `<div class="sc-row"><div class="sc-label">Attending with</div><div class="sc-val">${esc(order.spouse)}</div></div>` : '')}
@@ -1380,7 +1380,7 @@ async function submitOrder() {
     successHTML = `<div class="sc-row"><div class="sc-label">Name</div><div class="sc-val">${esc(name)}</div></div>
       <div class="sc-row"><div class="sc-label">Buffet vote</div><div class="sc-val">${esc(buffet.name)}</div></div>
       <div class="sc-row"><div class="sc-label">Appetizers</div><div class="sc-val">${esc(starter.name)}</div></div>
-      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee / tea / soda'})</div></div>`;
+      <div class="sc-row"><div class="sc-label">Beverage</div><div class="sc-val">${esc(drink.name)} (${drinkBucket === 'Adult' ? 'adult' : 'coffee, tea, or water'})</div></div>`;
   } else if (LOC.type === 'preorder') {
     let ok = true;
     if (!selMain) { document.getElementById('err-main').classList.add('show'); ok = false; }
