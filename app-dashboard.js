@@ -361,19 +361,24 @@ function switchHostView(view) {
   document.querySelectorAll('.host-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
   document.querySelectorAll('.host-view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + view).classList.add('active');
-  document.getElementById('loc-toolbar').style.display = view === 'location' ? 'flex' : 'none';
+  document.getElementById('loc-toolbar').style.display =
+    view === 'location' || view === 'waitlist' || view === 'gym' ? 'flex' : 'none';
   document.getElementById('hostTitle').textContent =
     view === 'overview' ? 'Overview'
     : view === 'venues' ? 'Venue research'
     : view === 'contacts' ? 'Contacts · Kennedy School'
     : view === 'planner' ? 'Event Planner'
     : view === 'outreach' ? 'Outreach & Integrations'
+    : view === 'waitlist' ? 'Waitlist · Jordan Room mirror'
+    : view === 'gym' ? 'Gym backup · 40 × 60 ft'
     : `${getLoc().shortName} · Report`;
 
   if (view === 'overview') renderOverview();
   if (view === 'venues') renderVenueCrm();
   if (view === 'planner') renderPlanner();
   if (view === 'location') renderReport();
+  if (view === 'waitlist') renderWaitlistView();
+  if (view === 'gym') renderGymView();
   if (view === 'contacts') renderContacts();
   if (view === 'outreach') renderOutreach();
 }

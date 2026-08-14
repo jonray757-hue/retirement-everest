@@ -19,6 +19,8 @@
       <nav class="host-nav">
         <button type="button" class="host-tab active" data-view="overview">Overview</button>
         <button type="button" class="host-tab" data-view="location">Location Report</button>
+        <button type="button" class="host-tab" data-view="waitlist">Waitlist</button>
+        <button type="button" class="host-tab" data-view="gym">Gym backup</button>
         <button type="button" class="host-tab" data-view="contacts">Contacts</button>
         <button type="button" class="host-tab" data-view="planner">Event Planner</button>
         <button type="button" class="host-tab" data-view="outreach">Outreach</button>
@@ -51,6 +53,12 @@
     <div id="view-venues" class="host-view"></div>
     <div id="view-location" class="host-view">
       <div id="report-body"></div>
+    </div>
+    <div id="view-waitlist" class="host-view">
+      <div id="waitlist-body"></div>
+    </div>
+    <div id="view-gym" class="host-view">
+      <div id="gym-body"></div>
     </div>
     <div id="view-planner" class="host-view"></div>
     <div id="view-contacts" class="host-view"></div>
@@ -134,7 +142,30 @@
   </div>
 </div>
 
-<script src="locations.js?v=20260813a"></script>
+<div class="modal-overlay" id="waitlistAssignModal">
+  <div class="modal-box">
+    <h2>Reserve waitlist hold</h2>
+    <p class="modal-sub" id="wlAssignSeats">This is a hold only — it does not change confirmed Jordan Room seats.</p>
+    <input type="hidden" id="wlSeatIds">
+    <div class="modal-field"><span>Name</span><input type="text" id="wlName" autocomplete="name"></div>
+    <div class="modal-field"><span>Email</span><input type="email" id="wlEmail" autocomplete="email"></div>
+    <div class="modal-field"><span>Phone</span><input type="tel" id="wlPhone" autocomplete="tel"></div>
+    <div class="modal-field"><span>Party</span>
+      <select id="wlParty">
+        <option value="solo">Solo</option>
+        <option value="couple">Couple</option>
+      </select>
+    </div>
+    <div class="modal-field"><span>Spouse / partner (if couple)</span><input type="text" id="wlSpouse"></div>
+    <p class="integration-note">They will be told this is a waitlist hold: we contact them if the seat opens, and they must claim it promptly or it goes to the next person.</p>
+    <div class="modal-actions">
+      <button type="button" class="lock-btn btn-accent" onclick="submitWaitlistAssign()">Save waitlist hold</button>
+      <button type="button" class="lock-btn" onclick="closeWaitlistAssign()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="locations.js?v=20260813b"></script>
 <script src="checklist-defaults.js?v=20260812j"></script>
 <script src="data/venue-crm.js?v=20260812j"></script>
 <script src="integrations.js?v=20260812j"></script>
@@ -143,11 +174,11 @@
 <script src="shared-orders.js?v=20260812j"></script>
 <script src="contacts.js?v=20260812j"></script>
 <script src="contacts-score.js?v=20260812j"></script>
-<script src="seating.js?v=20260813a"></script>
-<script src="app-dashboard.js?v=20260812j"></script>
+<script src="seating.js?v=20260813b"></script>
+<script src="app-dashboard.js?v=20260813b"></script>
 <script src="app-venue-crm.js?v=20260812j"></script>
 <script src="app-contacts.js?v=20260812m"></script>
-<script src="app-host.js?v=20260813a"></script>
+<script src="app-host.js?v=20260813b"></script>
 <script src="host-auth.js?v=20260812j"></script>
 <script>
 initHostLock({

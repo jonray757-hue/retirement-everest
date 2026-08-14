@@ -120,8 +120,22 @@ let selSeats = [];                // e.g. ['A3'] or ['A3','A4']
 let seatState = null;             // last fetched shared seat state
 let seatFriendly = new Set();     // solo-safe seats
 let seatAccomRequested = false;   // "can't find a seat" pressed
+let seatMapMode = 'main';         // 'main' | 'waitlist'
 let joinablePartners = [];        // dropdown options for "partner already reserved"
 let selectedPartnerKey = '';      // key from listJoinablePartners
+
+function waitlistCopy() {
+  return (window.RESeating && RESeating.WAITLIST_CONFIRM) ||
+    'WAITLIST HOLD — this is not a confirmed seat. If that seat opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.';
+}
+
+function viewSeatState() {
+  if (!seatState) return { seats: {} };
+  if (seatMapMode === 'waitlist') {
+    return { ...seatState, seats: (seatState.waitlist && seatState.waitlist.seats) || {} };
+  }
+  return seatState;
+}
 
 function initGuest() {
   const slug = getLocationSlug();
@@ -314,6 +328,15 @@ function renderSeatSection() {
       </div>
       <div class="vote-status" id="seat-status">Tap an open seat to reserve it.</div>
       <div class="err-msg" id="err-seat">Please pick your seat (or tap the button below and we'll arrange one for you).</div>
+      <div id="waitlist-banner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;border:1px solid #c9a44a;background:rgba(201,164,74,0.08);font-size:0.85rem;color:var(--text,#eee);line-height:1.45">
+        <strong style="color:var(--accent,#c9a44a)">Waitlist hold</strong> — you are not confirmed yet. If this seat opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.
+      </div>
+      <div style="margin-top:12px;text-align:center">
+        <button type="button" class="submit-btn" id="waitlistToggleBtn"
+          style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.82rem;padding:10px 16px">
+          Room is full? Join the waitlist instead
+        </button>
+      </div>
       <div style="margin-top:14px;text-align:center">
         <button type="button" class="submit-btn" id="seatHelpBtn"
           style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.85rem;padding:12px 18px">
@@ -330,8 +353,12 @@ function paintSeatMap(state, orderBackup) {
   const box = document.getElementById('seatmap-container');
   if (!box || !window.RESeating) return;
   seatState = state || RESeating.emptyState();
-  seatFriendly = RESeating.soloFriendly(seatState);
-  selSeats = selSeats.filter(id => !seatState.seats?.[id]);
+  const totalN = RESeating.allSeats().length;
+  const mainFull = Object.keys(seatState.seats || {}).length >= totalN;
+  if (mainFull && seatMapMode === 'main') seatMapMode = 'waitlist';
+  const view = viewSeatState();
+  seatFriendly = RESeating.soloFriendly(view);
+  selSeats = selSeats.filter(id => !view.seats?.[id]);
   if (orderBackup) {
     joinablePartners = typeof RESeating.listJoinablePartners === 'function'
       ? RESeating.listJoinablePartners(seatState, orderBackup)
@@ -339,14 +366,23 @@ function paintSeatMap(state, orderBackup) {
     refreshPartnerSelect();
     applyCoupleModeUI();
   }
-  const takenN = Object.keys(seatState.seats || {}).length;
+  const takenN = Object.keys(view.seats || {}).length;
   const takenNote = takenN
-    ? `<div style="margin-bottom:6px;font-size:0.78rem;color:var(--muted,#888)"><strong style="color:var(--text,#ddd)">${takenN}</strong> seat${takenN === 1 ? '' : 's'} already reserved (blacked out)</div>`
+    ? `<div style="margin-bottom:6px;font-size:0.78rem;color:var(--muted,#888)"><strong style="color:var(--text,#ddd)">${takenN}</strong> ${seatMapMode === 'waitlist' ? 'waitlist hold' : 'seat'}${takenN === 1 ? '' : 's'} already taken (blacked out)${seatMapMode === 'main' ? ` · ${totalN - takenN} open` : ''}</div>`
     : '';
   box.innerHTML = takenNote + RESeating.renderMapSVG(seatState, {
-    mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
+    mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType,
+    map: seatMapMode === 'waitlist' ? 'waitlist' : 'main'
   }) + RESeating.legendHTML('guest') +
   `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
+  const banner = document.getElementById('waitlist-banner');
+  if (banner) banner.style.display = seatMapMode === 'waitlist' ? '' : 'none';
+  const wbtn = document.getElementById('waitlistToggleBtn');
+  if (wbtn) {
+    wbtn.textContent = seatMapMode === 'waitlist'
+      ? '← Back to confirmed seating chart'
+      : (mainFull ? 'Jordan Room is full — join the waitlist' : 'Room is full? Join the waitlist instead');
+  }
   updateSeatStatus();
 }
 
@@ -469,6 +505,16 @@ function updateSeatStatus() {
     return;
   }
   if (seatAccomRequested) { el.textContent = "We'll arrange your seating personally — nothing to pick."; return; }
+  if (seatMapMode === 'waitlist') {
+    if (!selSeats.length) {
+      el.textContent = seatPartyType === 'couple'
+        ? 'Waitlist: tap a hold seat — we\'ll grab the seat beside it for your spouse.'
+        : 'Waitlist: tap an open hold seat. This is not a confirmed chair.';
+    } else {
+      el.textContent = `Waitlist hold: ${RESeating.seatLabel(selSeats)} — we will contact you if it opens.`;
+    }
+    return;
+  }
   if (!selSeats.length) {
     el.textContent = seatPartyType === 'couple'
       ? 'Tap an open seat — we\'ll grab the seat beside it for your spouse automatically.'
@@ -479,7 +525,8 @@ function updateSeatStatus() {
 }
 
 function handleSeatClick(id) {
-  if (!seatState || seatState.seats[id]) return;
+  const view = viewSeatState();
+  if (!view || view.seats[id]) return;
   document.getElementById('err-seat')?.classList.remove('show');
   // toggle off
   if (selSeats.includes(id)) { selSeats = []; refreshSeatMapUI(); return; }
@@ -490,7 +537,7 @@ function handleSeatClick(id) {
     }
     selSeats = [id];
   } else {
-    const partner = RESeating.bestPartnerSeat(id, seatState);
+    const partner = RESeating.bestPartnerSeat(id, view);
     if (!partner) {
       alert('No open seat right beside that one. Try another spot with two seats together — or tap the arrangements button and we\'ll make sure you sit together.');
       return;
@@ -506,7 +553,8 @@ function refreshSeatMapUI() {
   const svgWrap = box.querySelector('svg');
   if (svgWrap) {
     svgWrap.outerHTML = RESeating.renderMapSVG(seatState, {
-      mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType
+      mode: 'guest', selected: selSeats, friendly: seatFriendly, partyType: seatPartyType,
+      map: seatMapMode === 'waitlist' ? 'waitlist' : 'main'
     });
   }
   updateSeatStatus();
@@ -707,6 +755,13 @@ function handleCardClick(e) {
   if (seatEl) { handleSeatClick(seatEl.dataset.seat); return; }
   if (e.target.closest('#seatRefreshBtn')) { selSeats = []; loadSeatMap(); return; }
   if (e.target.closest('#seatHelpBtn')) { requestSeatAccommodation(); return; }
+  if (e.target.closest('#waitlistToggleBtn')) {
+    seatMapMode = seatMapMode === 'waitlist' ? 'main' : 'waitlist';
+    selSeats = [];
+    seatAccomRequested = false;
+    paintSeatMap(seatState, []);
+    return;
+  }
 
   const filterBtn = e.target.closest('.filter-btn[data-filter]');
   if (filterBtn) {
@@ -955,7 +1010,8 @@ async function pushGuestOrderToGHL(order) {
   const eventDate = locFields.eventDate || '';
   const isBbq = !!(LOC.bbqMenuPick || order.form === 'bbq-menu-pick');
   const hasSeats = !!(order.seatLabel || (Array.isArray(order.seats) && order.seats.length));
-  const pipelineStage = hasSeats ? 'Seated' : 'Preferences Received';
+  const isWaitlist = !!(order.waitlist || order.waitlistHold);
+  const pipelineStage = isWaitlist ? 'Waitlist' : hasSeats ? 'Seated' : 'Preferences Received';
 
   const payload = {
     // Contact (map these in GHL inbound webhook)
@@ -970,8 +1026,11 @@ async function pushGuestOrderToGHL(order) {
     pipelineName: '08/27/26 - RE Premiere Event',
     pipelineStage,
     pipelineStageName: pipelineStage,
-    status: hasSeats ? 'seated' : 'registered',
-    tag: hasSeats ? 're-seated' : 're-prefs-received',
+    status: isWaitlist ? 'waitlist' : hasSeats ? 'seated' : 'registered',
+    tag: isWaitlist ? 're-waitlist' : hasSeats ? 're-seated' : 're-prefs-received',
+    waitlist: isWaitlist ? 'yes' : '',
+    waitlistHold: isWaitlist ? 'yes' : '',
+    confirmationNote: isWaitlist ? waitlistCopy() : '',
     source: 'retirement-everest-guest',
     brand: RETIREMENT_EVEREST.ghlBrand || 'HAG',
     ghlLocationId: RETIREMENT_EVEREST.ghlLocationId || '',
@@ -1015,7 +1074,8 @@ async function pushGuestOrderToGHL(order) {
       order.joinedPartner
         ? `Party: joined ${order.linkedPartnerName || order.spouse || 'partner'}`
         : (order.partyType === 'couple' ? `Party: couple${order.spouse ? ` with ${order.spouse}` : ''}` : (order.partyType ? 'Party: solo' : '')),
-      order.seatLabel ? `Seats: ${order.seatLabel}` : 'Seats: not picked yet',
+      order.seatLabel ? `${isWaitlist ? 'Waitlist hold' : 'Seats'}: ${order.seatLabel}` : 'Seats: not picked yet',
+      isWaitlist ? waitlistCopy() : '',
       order.seatAccommodation ? 'Seating: host will arrange' : ''
     ].filter(Boolean).join('\n'),
     submittedAt: order.ts || new Date().toISOString()
@@ -1221,7 +1281,8 @@ async function submitOrder() {
       btn0.innerHTML = '<span class="spinner"></span>Reserving your seats…';
       try {
         seatClaim = await RESeating.claimSeats(selSeats, {
-          name, email, phone, partyType: seatPartyType, spouse: spouseNameVal
+          name, email, phone, partyType: seatPartyType, spouse: spouseNameVal,
+          map: seatMapMode === 'waitlist' ? 'waitlist' : 'main'
         });
       } catch (e) {
         console.warn('[RE] seat claim error', e);
@@ -1281,6 +1342,9 @@ async function submitOrder() {
       coupleMode: window.RESeating && seatPartyType === 'couple' ? coupleMode : undefined,
       seats: joinSeats.length ? [...joinSeats] : null,
       seatLabel: joinSeatLabel,
+      waitlist: seatMapMode === 'waitlist' || null,
+      waitlistHold: seatMapMode === 'waitlist' || null,
+      confirmationNote: seatMapMode === 'waitlist' ? waitlistCopy() : '',
       seatAccommodation: (!isJoinPartner && seatAccomRequested) || null,
       buffet: buffetName, buffetId: LOC.lockedBuffetId || 'b-bbq', buffetPrice: LOC.menus.buffetPrice || 63.50,
       buffetLocked: true,
@@ -1304,7 +1368,8 @@ async function submitOrder() {
       ${order.joinedPartner
         ? `<div class="sc-row"><div class="sc-label">Joined partner</div><div class="sc-val">${esc(order.linkedPartnerName)} — your seats stay with them</div></div>`
         : (order.spouse ? `<div class="sc-row"><div class="sc-label">Attending with</div><div class="sc-val">${esc(order.spouse)}</div></div>` : '')}
-      ${order.seatLabel ? `<div class="sc-row"><div class="sc-label">Your seat${(order.seats || []).length > 1 ? 's' : ''}</div><div class="sc-val" style="color:var(--accent,#c9a44a);font-weight:700">${esc(order.seatLabel)}</div></div>` : ''}
+      ${order.seatLabel ? `<div class="sc-row"><div class="sc-label">${order.waitlist ? 'Waitlist hold' : `Your seat${(order.seats || []).length > 1 ? 's' : ''}`}</div><div class="sc-val" style="color:var(--accent,#c9a44a);font-weight:700">${esc(order.seatLabel)}</div></div>` : ''}
+      ${order.waitlist ? `<div class="sc-row"><div class="sc-label">Important</div><div class="sc-val">This is a waitlist hold — not a confirmed seat. If it opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.</div></div>` : ''}
       ${order.seatAccommodation ? `<div class="sc-row"><div class="sc-label">Seating</div><div class="sc-val">We'll personally arrange your seats and confirm with you.</div></div>` : ''}`;
   } else if (LOC.type === 'buffet') {
     let ok = true;
@@ -1435,7 +1500,8 @@ async function submitOrder() {
           order.joinedPartner
             ? `Party: Joined partner — with ${order.linkedPartnerName || order.spouse || ''}`
             : (order.partyType === 'couple' ? `Party: Couple${order.spouse ? ` — with ${order.spouse}` : ''}` : (order.partyType ? 'Party: Solo' : '')),
-          order.seatLabel ? `Seats: ${order.seatLabel}` : '',
+          order.seatLabel ? `${order.waitlist ? 'Waitlist hold' : 'Seats'}: ${order.seatLabel}` : '',
+          order.waitlist ? waitlistCopy() : '',
           order.seatAccommodation ? 'SEATING: needs personal arrangement' : ''
         ].filter(Boolean).join('\n')
       });
@@ -1449,8 +1515,12 @@ async function submitOrder() {
   document.querySelector('.order-section').style.display = 'none';
   document.getElementById('success').classList.add('show');
   document.getElementById('success-card').innerHTML = successHTML;
+  document.getElementById('success').querySelector('h2').textContent =
+    order.waitlist ? "You're on the waitlist." : "You're confirmed.";
   document.getElementById('success').querySelector('p').textContent =
-    `We look forward to hosting you at ${LOC.shortName}. A confirmation will follow shortly if you shared email or mobile.`;
+    order.waitlist
+      ? 'This is not a confirmed seat. If it opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.'
+      : `We look forward to hosting you at ${LOC.shortName}. A confirmation will follow shortly if you shared email or mobile.`;
 }
 
 document.addEventListener('DOMContentLoaded', initGuest);

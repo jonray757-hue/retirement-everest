@@ -1,14 +1,15 @@
 /**
- * Seat reservations — Kennedy School BBQ (Jordan Room).
- * Five 60" round tables (true 5 ft tops). Each is an 8-chair ring; screen-side
- * chairs start X'd out so most guests face the screen. Host can restore them
- * (backs to screen) via EXTRA_SEATS.
- *   Table A — both screen-side chairs restored as A7 + A8
- *   Table C — chair next to seat 6 restored as C7 (one X remains toward seat 1)
- * Tables A–E in an arch facing the screen (33 seats total).
+ * Seat reservations — Kennedy School BBQ.
+ *
+ * Jordan Room (live): five 60" rounds, 8 chairs each (screen-side chairs
+ * bookable — backs to the screen). Arch facing the screen. 40 seats.
+ *
+ * Waitlist: mirrored Jordan chart in state.waitlist — does not touch live seats.
+ *
+ * Gym backup: 40 × 60 ft McMenamins gymnasium, 12 × 60" rounds as 6-tops
+ * (72 seats). Stored in state.gym so a room move never overwrites Jordan.
  *
  * Live shared state: durable Google Apps Script store (RESharedStore) preferred.
- * jsonblob fallback only if sharedStoreUrl is not configured (expires ~24h).
  */
 (function (global) {
   const SEATS_BLOB =
@@ -56,17 +57,17 @@
 
   /* ---------------- Layout ---------------- */
   const TABLES = ['A', 'B', 'C', 'D', 'E'];
-  const SEATS_PER_TABLE = 6;
-  /* Host-restored screen-side chairs.
-     Seat 7 = the X next to seat 6 (-22.5°). Seat 8 = the X next to seat 1 (22.5°). */
-  const EXTRA_SEATS = { A: [7, 8], C: [7] };
+  const SEATS_PER_TABLE = 8;
+  /* All 8 chairs are bookable (screen-side = 7 next to 6, 8 next to 1). */
+  const EXTRA_SEATS = {};
   const SEAT_7_DEG = -22.5;
   const SEAT_8_DEG = 22.5;
+  const WAITLIST_CONFIRM =
+    'WAITLIST HOLD — this is not a confirmed seat. If that seat opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.';
   /* Jordan Room, drawn to scale: 23 ft wide × 31 ft deep (713 sq ft), 34 px/ft.
      Screen on the short wall; BBQ buffet on the opposite short wall.
-     Tables are true 60" (5 ft) rounds — venue 8-tops. Screen-side chairs start
-     removed so most guests face the screen (6-tops). A7/A8 and C7 restored.
-     Footprint ≈ 8 ft with chairs. */
+     Tables are true 60" (5 ft) rounds — venue 8-tops. Screen-side chairs (7 & 8)
+     are bookable (backs to the screen). Footprint ≈ 8 ft with chairs. */
   const PXFT = 34, M = 13;
   const VIEW = { w: 23 * PXFT + 2 * M, h: 31 * PXFT + 2 * M }; // 808 × 1080
   const ROOM = { x: M, y: M, w: 23 * PXFT, h: 31 * PXFT };
@@ -138,35 +139,97 @@
     };
   }
 
-  /** Positions of remaining REMOVED screen-side chairs (rendered as ghosts). */
-  function removedXY(t) {
-    const c = TABLE_POS[t];
-    const extra = EXTRA_SEATS[t] || [];
-    const degs = REMOVED_DEG.filter((deg) => {
-      if (deg === SEAT_7_DEG && extra.includes(7)) return false;
-      if (deg === SEAT_8_DEG && extra.includes(8)) return false;
-      return true;
+  /** No ghost chairs — every screen-side seat is bookable. */
+  function removedXY(/* t */) {
+    return [];
+  }
+
+  /* ---------------- Gym backup (40 × 60 ft, 12 × 6-tops) ---------------- */
+  const GYM_TABLES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const GYM_SEATS_PER = 6;
+  const GYM_PXFT = 18;
+  const GYM_M = 16;
+  const GYM_FT = { w: 40, d: 60 };
+  const GYM_VIEW = { w: GYM_FT.w * GYM_PXFT + 2 * GYM_M, h: GYM_FT.d * GYM_PXFT + 2 * GYM_M };
+  const GYM_ROOM = { x: GYM_M, y: GYM_M, w: GYM_FT.w * GYM_PXFT, h: GYM_FT.d * GYM_PXFT };
+  const GYM_SCREEN = { x: GYM_M + 80, y: GYM_M + 6, w: GYM_FT.w * GYM_PXFT - 160, h: 26, cx: GYM_M + (GYM_FT.w * GYM_PXFT) / 2, cy: GYM_M + 19 };
+  const GYM_BUFFET = {
+    x: GYM_M + Math.round(4 * GYM_PXFT),
+    y: GYM_M + GYM_FT.d * GYM_PXFT - Math.round(2.4 * GYM_PXFT),
+    w: 32 * GYM_PXFT,
+    h: Math.round(2 * GYM_PXFT)
+  };
+  const GYM_TABLE_R = Math.round(2.5 * GYM_PXFT);
+  const GYM_SEAT_RING = Math.round(3.2 * GYM_PXFT);
+  const GYM_SEAT_R = 18;
+  /* 3 rows × 4 cols. Front row (A–D) nearest screen. */
+  const GYM_TABLE_POS = (function () {
+    const cols = [6, 15.5, 24.5, 34];
+    const rows = [12, 30, 48];
+    const letters = GYM_TABLES;
+    const pos = {};
+    letters.forEach((t, i) => {
+      const col = i % 4;
+      const row = Math.floor(i / 4);
+      pos[t] = {
+        x: GYM_M + Math.round(cols[col] * GYM_PXFT),
+        y: GYM_M + Math.round(rows[row] * GYM_PXFT)
+      };
     });
-    return degs.map((deg) => {
-      const a = screenAngle(t) + (deg * Math.PI) / 180;
-      return { x: c.x + SEAT_RING * Math.cos(a), y: c.y + SEAT_RING * Math.sin(a) };
+    return pos;
+  })();
+
+  function gymSeatXY(t, n) {
+    const c = GYM_TABLE_POS[t];
+    const a = Math.atan2(GYM_SCREEN.cy - c.y, GYM_SCREEN.cx - c.x) + ((30 + (n - 1) * 60) * Math.PI) / 180;
+    return {
+      x: c.x + GYM_SEAT_RING * Math.cos(a),
+      y: c.y + GYM_SEAT_RING * Math.sin(a)
+    };
+  }
+
+  function gymAllSeats() {
+    const out = [];
+    GYM_TABLES.forEach((t) => {
+      for (let n = 1; n <= GYM_SEATS_PER; n++) out.push(t + n);
     });
+    return out;
+  }
+
+  function isGymSeatId(id) {
+    const m = String(id || '').match(/^([A-L])([1-6])$/);
+    return !!(m && GYM_TABLES.includes(m[1]));
   }
 
   /* ---------------- Shared state ---------------- */
   /* Bump version when layout / seat IDs change so ghost caches on phones die. */
-  const LOCAL_KEY = 're_seats_cache_v5';
-  const LEGACY_CACHE_KEYS = ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3', 're_seats_cache_v4', 're_seats_cache_v5'];
-  const SEAT_ID_RE = /^[A-E][1-8]$/;
+  const LOCAL_KEY = 're_seats_cache_v6';
+  const LEGACY_CACHE_KEYS = ['re_seats_cache_v1', 're_seats_cache_v2', 're_seats_cache_v3', 're_seats_cache_v4', 're_seats_cache_v5', 're_seats_cache_v6'];
+  const SEAT_ID_RE = /^[A-L][1-8]$/;
+
+  function emptyBucket() {
+    return { seats: {}, couples: [] };
+  }
 
   function emptyState() {
     return {
-      v: 1,
+      v: 2,
       event: 'kennedy-school-bbq',
       seats: {},
       couples: [],
       accommodations: [],
+      waitlist: emptyBucket(),
+      gym: { seats: {}, couples: [], transferredAt: null },
       offline: false
+    };
+  }
+
+  function normBucket(raw) {
+    const b = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    return {
+      seats: b.seats && typeof b.seats === 'object' && !Array.isArray(b.seats) ? b.seats : {},
+      couples: Array.isArray(b.couples) ? b.couples : [],
+      transferredAt: b.transferredAt || null
     };
   }
 
@@ -176,11 +239,13 @@
     const seats =
       st.seats && typeof st.seats === 'object' && !Array.isArray(st.seats) ? st.seats : {};
     return {
-      v: 1,
+      v: 2,
       event: st.event || 'kennedy-school-bbq',
       seats,
       couples: Array.isArray(st.couples) ? st.couples : [],
       accommodations: Array.isArray(st.accommodations) ? st.accommodations : [],
+      waitlist: normBucket(st.waitlist),
+      gym: normBucket(st.gym),
       offline: !!st.offline
     };
   }
@@ -206,6 +271,7 @@
     const seats = {};
     (orders || []).forEach((o) => {
       if (!o || typeof o !== 'object') return;
+      if (o.waitlist || o.waitlistHold || o.form === 'waitlist-seat' || o.form === 'host-waitlist') return;
       let ids = Array.isArray(o.seats) ? o.seats.filter((id) => isValidSeatId(String(id))) : [];
       if (!ids.length) ids = parseSeatLabel(o.seatLabel);
       ids.forEach((id, i) => {
@@ -254,6 +320,26 @@
           out.accommodations.push(a);
         }
       });
+      const mergeBucket = (key) => {
+        const src = st[key] || {};
+        Object.entries(src.seats || {}).forEach(([id, claim]) => {
+          if (!claim) return;
+          const prev = out[key].seats[id];
+          if (!prev || String(claim.ts || '') >= String(prev.ts || '')) {
+            out[key].seats[id] = { ...claim, seatId: id };
+          }
+        });
+        (src.couples || []).forEach((c) => {
+          if (!out[key].couples.some((x) => JSON.stringify(x) === JSON.stringify(c))) {
+            out[key].couples.push(c);
+          }
+        });
+        if (src.transferredAt && (!out[key].transferredAt || src.transferredAt > out[key].transferredAt)) {
+          out[key].transferredAt = src.transferredAt;
+        }
+      };
+      mergeBucket('waitlist');
+      mergeBucket('gym');
     });
     return out;
   }
@@ -377,20 +463,35 @@
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  function getBucket(st, map) {
+    if (map === 'waitlist') {
+      if (!st.waitlist) st.waitlist = emptyBucket();
+      return st.waitlist;
+    }
+    if (map === 'gym') {
+      if (!st.gym) st.gym = { seats: {}, couples: [], transferredAt: null };
+      return st.gym;
+    }
+    return st;
+  }
+
   /**
    * Claim seats atomically-ish: write, wait, verify our claim survived.
+   * info.map = 'main' | 'waitlist' | 'gym'
    * Returns { ok, taken[], groupId, state }.
    */
   async function claimSeats(seatIds, info) {
+    const map = (info && info.map) || 'main';
     const groupId =
       'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     for (let attempt = 1; attempt <= 2; attempt++) {
       // healRemote false during claim loop — we putState ourselves after merge
       const st = await fetchState({ healRemote: false });
-      const taken = seatIds.filter((id) => st.seats[id]);
+      const bucket = getBucket(st, map);
+      const taken = seatIds.filter((id) => bucket.seats[id]);
       if (taken.length) return { ok: false, taken, state: st };
       seatIds.forEach((id, i) => {
-        st.seats[id] = {
+        bucket.seats[id] = {
           seatId: id,
           name: info.name || '',
           email: info.email || '',
@@ -401,6 +502,7 @@
           groupId,
           orderId: info.orderId || null,
           partnerJoined: false,
+          waitlist: map === 'waitlist',
           ts: new Date().toISOString()
         };
       });
@@ -411,18 +513,19 @@
           b: { name: info.spouse || '', email: '', phone: '' },
           seats: seatIds.slice(),
           groupId,
-          source: 'guest-reserve',
+          source: map === 'waitlist' ? 'waitlist-reserve' : 'guest-reserve',
           pendingPartner: true,
           ts: new Date().toISOString()
         };
         const pe = (info.email || '').toLowerCase();
-        const exists = (st.couples || []).some((c) => {
+        const exists = (bucket.couples || []).some((c) => {
           const ae = (c.a?.email || '').toLowerCase();
           return (pe && ae && pe === ae) || (c.groupId && c.groupId === groupId);
         });
         if (!exists) {
-          st.couples.unshift(pending);
-          st.couples = st.couples.slice(0, 200);
+          bucket.couples = bucket.couples || [];
+          bucket.couples.unshift(pending);
+          bucket.couples = bucket.couples.slice(0, 200);
         }
       }
       await putState(st);
@@ -431,9 +534,10 @@
       await sleep(180 + Math.random() * 120);
       if (global.RESharedStore?.memInvalidate) global.RESharedStore.memInvalidate('seats');
       const verify = await fetchState({ healRemote: false, orders: [] });
-      const lost = seatIds.filter((id) => verify.seats[id]?.groupId !== groupId);
-      if (!lost.length) return { ok: true, groupId, state: verify };
-      if (attempt === 2) return { ok: false, taken: lost, state: verify };
+      const vBucket = getBucket(verify, map);
+      const lost = seatIds.filter((id) => vBucket.seats[id]?.groupId !== groupId);
+      if (!lost.length) return { ok: true, groupId, state: verify, map };
+      if (attempt === 2) return { ok: false, taken: lost, state: verify, map };
     }
   }
 
@@ -442,18 +546,22 @@
    * healRemote:false + no order re-merge so a released seat is not immediately
    * re-healed from preference logs (host must strip seats from orders separately).
    */
-  async function releaseSeats(seatIds) {
-    const ids = (seatIds || []).map(String).filter((id) => isValidSeatId(id));
+  async function releaseSeats(seatIds, opts = {}) {
+    const map = opts.map || 'main';
+    const ids = (seatIds || []).map(String).filter((id) =>
+      map === 'gym' ? isGymSeatId(id) : isValidSeatId(id)
+    );
     if (!ids.length) return emptyState();
 
     // Read remote + local only (do not re-seed from orders here)
     const st = await fetchState({ healRemote: false, orders: [] });
+    const bucket = getBucket(st, map);
     ids.forEach((id) => {
-      delete st.seats[id];
+      delete bucket.seats[id];
     });
     // Drop couple rows that only referenced released seats
-    if (Array.isArray(st.couples)) {
-      st.couples = st.couples.filter((cp) => {
+    if (Array.isArray(bucket.couples)) {
+      bucket.couples = bucket.couples.filter((cp) => {
         const seats = Array.isArray(cp.seats) ? cp.seats.map(String) : [];
         if (!seats.length) return true;
         return !seats.every((s) => ids.includes(s));
@@ -463,10 +571,11 @@
     // Verify remote accepted the release (last-seat bug was local cache refusing empty)
     try {
       const verify = await fetchState({ healRemote: false, orders: [] });
-      const stillThere = ids.filter((id) => verify.seats[id]);
+      const vBucket = getBucket(verify, map);
+      const stillThere = ids.filter((id) => vBucket.seats[id]);
       if (stillThere.length) {
         stillThere.forEach((id) => {
-          delete verify.seats[id];
+          delete vBucket.seats[id];
         });
         return await putState(verify);
       }
@@ -881,24 +990,110 @@
       .map((w) => w[0].toUpperCase()).join('');
   }
 
+  /**
+   * Copy live Jordan claims onto the gym backup chart (does not touch Jordan seats).
+   * Keeps table-mates and couples together; overflow goes to the next gym table.
+   */
+  function transferJordanToGym(state) {
+    const st = normalize(state);
+    const gymSeats = {};
+    const gymCouples = [];
+    let ti = 0;
+    let n = 1;
+    const nextTable = () => {
+      ti += 1;
+      n = 1;
+    };
+    const place = (claim) => {
+      if (n > GYM_SEATS_PER) nextTable();
+      if (ti >= GYM_TABLES.length) return null;
+      const id = GYM_TABLES[ti] + n;
+      n += 1;
+      return {
+        ...claim,
+        seatId: id,
+        fromSeat: claim.seatId,
+        source: claim.source || 'gym-transfer'
+      };
+    };
+    TABLES.forEach((jt) => {
+      if (n > 1) nextTable();
+      const people = Object.values(st.seats || {})
+        .filter((c) => String(c.seatId || '').charAt(0) === jt)
+        .sort((a, b) => parseInt(String(a.seatId).slice(1), 10) - parseInt(String(b.seatId).slice(1), 10));
+      const groups = [];
+      const seen = new Set();
+      people.forEach((p) => {
+        const gid = p.groupId || p.seatId;
+        if (seen.has(gid)) return;
+        seen.add(gid);
+        groups.push(people.filter((x) => (x.groupId || x.seatId) === gid));
+      });
+      groups.forEach((g) => {
+        if (n - 1 + g.length > GYM_SEATS_PER) nextTable();
+        const placedIds = [];
+        g.forEach((p) => {
+          const placed = place(p);
+          if (placed) {
+            gymSeats[placed.seatId] = placed;
+            placedIds.push(placed.seatId);
+          }
+        });
+        if (placedIds.length >= 2 || g.some((p) => p.partyType === 'couple')) {
+          gymCouples.push({
+            a: { name: g[0].person || g[0].name, email: g[0].email || '', phone: g[0].phone || '' },
+            b: {
+              name: (g[1] && (g[1].person || g[1].name)) || g[0].spouse || '',
+              email: (g[1] && g[1].email) || '',
+              phone: (g[1] && g[1].phone) || ''
+            },
+            seats: placedIds,
+            groupId: g[0].groupId || null,
+            source: 'gym-transfer',
+            ts: new Date().toISOString()
+          });
+        }
+      });
+    });
+    return {
+      seats: gymSeats,
+      couples: gymCouples,
+      transferredAt: new Date().toISOString()
+    };
+  }
+
+  async function applyGymTransfer(state) {
+    const st = state ? normalize(state) : await fetchState({ healRemote: false, orders: [] });
+    st.gym = transferJordanToGym(st);
+    return putState(st);
+  }
+
   /* ---------------- SVG map ---------------- */
   /**
    * opts: { mode: 'guest'|'host', selected: [], friendly: Set|null (solo mode),
-   *         partyType: 'solo'|'couple' }
+   *         partyType: 'solo'|'couple', layout: 'jordan'|'gym', map: 'main'|'waitlist'|'gym' }
    * Interactivity is handled by the embedding page via [data-seat] clicks.
    */
   function renderMapSVG(state, opts = {}) {
+    const layout = opts.layout || (opts.map === 'gym' ? 'gym' : 'jordan');
+    if (layout === 'gym') return renderGymSVG(state, opts);
+
     const mode = opts.mode || 'guest';
     const selected = new Set(opts.selected || []);
     const friendly = opts.friendly || null;
     const restrict = mode === 'guest' && opts.partyType === 'solo' && friendly;
+    const claims =
+      opts.map === 'waitlist'
+        ? (state && state.waitlist && state.waitlist.seats) || {}
+        : (state && state.seats) || {};
+    const waitlist = opts.map === 'waitlist';
 
     let seats = '';
     TABLES.forEach((t) => {
       seatsOnTable(t).forEach((n) => {
         const id = seatKey(t, n);
         const p = seatXY(t, n);
-        const claim = state && state.seats ? state.seats[id] : null;
+        const claim = claims[id] || null;
         const isSel = selected.has(id);
         let cls = 'seat-open', fill = 'transparent', stroke = 'var(--accent, #c9a44a)',
           label = String(n), lblFill = 'var(--accent, #c9a44a)', extra = '', title = `Table ${t} · Seat ${n}`;
@@ -908,8 +1103,8 @@
           fill = '#2c2c32'; stroke = '#6a6a72'; lblFill = '#d0d0d6';
           label = mode === 'host' ? (xesc(initials(claim.person || claim.name)) || '✕') : '✕';
           title = mode === 'host'
-            ? `Table ${t} · Seat ${n} — ${xesc(claim.person || claim.name)}${claim.partyType === 'couple' ? ' (couple)' : ''}`
-            : `Table ${t} · Seat ${n} — reserved`;
+            ? `Table ${t} · Seat ${n} — ${xesc(claim.person || claim.name)}${claim.partyType === 'couple' ? ' (couple)' : ''}${waitlist ? ' · waitlist' : ''}`
+            : `Table ${t} · Seat ${n} — ${waitlist ? 'waitlist hold' : 'reserved'}`;
         } else if (isSel) {
           cls = 'seat-selected';
           fill = 'var(--accent, #c9a44a)'; lblFill = '#141414';
@@ -949,9 +1144,59 @@
       <rect x="${ROOM.x}" y="${ROOM.y}" width="${ROOM.w}" height="${ROOM.h}" rx="4" fill="rgba(255,255,255,0.015)" stroke="#3c3c44" stroke-width="2"></rect>
       <rect x="${SCREEN.x}" y="${SCREEN.y}" width="${SCREEN.w}" height="${SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
       <text x="${SCREEN.cx}" y="${SCREEN.cy + 5}" text-anchor="middle" font-size="15" letter-spacing="6" fill="#9a9aa4">SCREEN</text>
-      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">Jordan Room · 23 × 31 ft — ✕ chairs face away from the screen (A7/A8 + C7 restored)</text>
+      <text x="${SCREEN.cx}" y="${SCREEN.y + SCREEN.h + 24}" text-anchor="middle" font-size="13" fill="#8a8a94">${waitlist ? 'WAITLIST · mirrored Jordan Room — holds only, does not change confirmed seats' : 'Jordan Room · 23 × 31 ft · 8-tops (screen-side chairs face away from the screen)'}</text>
       <rect x="${BUFFET.x}" y="${BUFFET.y}" width="${BUFFET.w}" height="${BUFFET.h}" rx="5" fill="rgba(201,164,74,0.05)" stroke="#4a4a52" stroke-dasharray="6 4"></rect>
       <text x="${BUFFET.x + BUFFET.w / 2}" y="${BUFFET.y + BUFFET.h / 2 + 5}" text-anchor="middle" font-size="14" letter-spacing="5" fill="#8a8a94">BBQ BUFFET</text>
+      ${tables}
+      ${seats}
+    </svg>`;
+  }
+
+  function renderGymSVG(state, opts = {}) {
+    const mode = opts.mode || 'guest';
+    const selected = new Set(opts.selected || []);
+    const claims = (state && state.gym && state.gym.seats) || (state && state.seats) || {};
+    let seats = '';
+    GYM_TABLES.forEach((t) => {
+      for (let n = 1; n <= GYM_SEATS_PER; n++) {
+        const id = t + n;
+        const p = gymSeatXY(t, n);
+        const claim = claims[id] || null;
+        const isSel = selected.has(id);
+        let fill = 'transparent', stroke = 'var(--accent, #c9a44a)',
+          label = String(n), lblFill = 'var(--accent, #c9a44a)',
+          title = `Gym Table ${t} · Seat ${n}`;
+        if (claim) {
+          fill = '#2c2c32'; stroke = '#6a6a72'; lblFill = '#d0d0d6';
+          label = mode === 'host' ? (xesc(initials(claim.person || claim.name)) || '✕') : '✕';
+          title = mode === 'host'
+            ? `Gym Table ${t} · Seat ${n} — ${xesc(claim.person || claim.name)}${claim.fromSeat ? ` (from ${claim.fromSeat})` : ''}`
+            : `Gym Table ${t} · Seat ${n} — reserved`;
+        } else if (isSel) {
+          fill = 'var(--accent, #c9a44a)'; lblFill = '#141414';
+        }
+        seats += `<g class="seat ${claim ? 'seat-taken' : isSel ? 'seat-selected' : 'seat-open'}" data-seat="${id}" style="cursor:${claim ? 'not-allowed' : 'pointer'}">
+          <title>${title}</title>
+          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${GYM_SEAT_R}" fill="${fill}" stroke="${stroke}" stroke-width="2"></circle>
+          <text x="${p.x.toFixed(1)}" y="${(p.y + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="800" fill="${lblFill}">${label}</text>
+        </g>`;
+      }
+    });
+    const tables = GYM_TABLES.map((t) => {
+      const c = GYM_TABLE_POS[t];
+      return `<g>
+        <circle cx="${c.x}" cy="${c.y}" r="${GYM_TABLE_R}" fill="rgba(201,164,74,0.07)" stroke="var(--accent, #c9a44a)" stroke-width="1.5" stroke-opacity="0.5"></circle>
+        <text x="${c.x}" y="${c.y + 2}" text-anchor="middle" font-size="28" font-weight="800" fill="var(--accent, #c9a44a)" fill-opacity="0.9">${t}</text>
+        <text x="${c.x}" y="${c.y + 20}" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--accent, #c9a44a)" fill-opacity="0.55">6 SEATS</text>
+      </g>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${GYM_VIEW.w} ${GYM_VIEW.h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">
+      <rect x="${GYM_ROOM.x}" y="${GYM_ROOM.y}" width="${GYM_ROOM.w}" height="${GYM_ROOM.h}" rx="4" fill="rgba(255,255,255,0.015)" stroke="#3c3c44" stroke-width="2"></rect>
+      <rect x="${GYM_SCREEN.x}" y="${GYM_SCREEN.y}" width="${GYM_SCREEN.w}" height="${GYM_SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
+      <text x="${GYM_SCREEN.cx}" y="${GYM_SCREEN.cy + 5}" text-anchor="middle" font-size="14" letter-spacing="5" fill="#9a9aa4">SCREEN</text>
+      <text x="${GYM_SCREEN.cx}" y="${GYM_SCREEN.y + GYM_SCREEN.h + 20}" text-anchor="middle" font-size="12" fill="#8a8a94">Gymnasium backup · 40 × 60 ft (2,400 sq ft) · 12 × 60″ 6-tops · does not change Jordan Room</text>
+      <rect x="${GYM_BUFFET.x}" y="${GYM_BUFFET.y}" width="${GYM_BUFFET.w}" height="${GYM_BUFFET.h}" rx="5" fill="rgba(201,164,74,0.05)" stroke="#4a4a52" stroke-dasharray="6 4"></rect>
+      <text x="${GYM_BUFFET.x + GYM_BUFFET.w / 2}" y="${GYM_BUFFET.y + GYM_BUFFET.h / 2 + 4}" text-anchor="middle" font-size="13" letter-spacing="4" fill="#8a8a94">BBQ BUFFET</text>
       ${tables}
       ${seats}
     </svg>`;
@@ -969,11 +1214,11 @@
     </div>`;
   }
 
-  function seatLabel(ids) {
+  function seatLabel(ids, prefix) {
     if (!ids || !ids.length) return '';
-    const t = ids[0][0];
-    const nums = ids.map((id) => id.slice(1)).join(' & ');
-    return `Table ${t} · Seat${ids.length > 1 ? 's' : ''} ${nums}`;
+    const t = String(ids[0]).charAt(0);
+    const nums = ids.map((id) => String(id).slice(1)).join(' & ');
+    return `${prefix || 'Table'} ${t} · Seat${ids.length > 1 ? 's' : ''} ${nums}`;
   }
 
   /* ---------------- GHL push (shared by guest + host pages) ---------------- */
@@ -1004,9 +1249,14 @@
     TABLES,
     SEATS_PER_TABLE,
     EXTRA_SEATS,
+    GYM_TABLES,
+    GYM_SEATS_PER,
+    WAITLIST_CONFIRM,
     seatsOnTable,
     isValidSeatId,
+    isGymSeatId,
     allSeats,
+    gymAllSeats,
     emptyState,
     normalize,
     mergeStates,
@@ -1027,6 +1277,9 @@
     adjacentOpen,
     bestPartnerSeat,
     pairCapacity,
+    transferJordanToGym,
+    applyGymTransfer,
+    getBucket,
     renderMapSVG,
     legendHTML,
     seatLabel,

@@ -58,7 +58,7 @@ function initHost() {
 
   const p = new URLSearchParams(location.search);
   // Default to Location Report for the live event (not a multi-venue overview hunt)
-  const startView = ['overview', 'venues', 'location', 'planner', 'contacts', 'outreach'].includes(
+  const startView = ['overview', 'venues', 'location', 'waitlist', 'gym', 'planner', 'contacts', 'outreach'].includes(
     p.get('view')
   )
     ? p.get('view')
@@ -809,9 +809,11 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
     <div class="section-gap"></div>
     <h3 style="font-family:var(--heading-font);color:var(--accent);margin-bottom:4px">Seating Chart — Jordan Room</h3>
     <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">
-      Arch layout facing the screen · five 60″ rounds (Table A seats 7 & 8 + Table C seat 7 restored, backs to screen) ·
+      Arch layout facing the screen · five 60″ 8-tops (screen-side chairs open) ·
       <strong style="color:var(--text)">${seatsTaken}/${totalSeats}</strong> seats reserved
       <button class="btn-sm" style="margin-left:8px" id="btnRefreshSeats">↻ Refresh</button>
+      <button class="btn-sm" style="margin-left:6px" id="btnOpenWaitlist">Waitlist chart →</button>
+      <button class="btn-sm" style="margin-left:6px" id="btnOpenGym">Gym backup →</button>
     </div>
     ${offlineBanner}
     <div class="card-box" style="padding:10px;min-height:280px">${RESeating.renderMapSVG(st, { mode: 'host' })}${RESeating.legendHTML('host')}</div>
@@ -840,6 +842,12 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
     if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
     if (window.RESeating?.clearLocalCache) RESeating.clearLocalCache();
     loadSeatingPanel(loc, null);
+  });
+  panel.querySelector('#btnOpenWaitlist')?.addEventListener('click', () => {
+    if (typeof switchHostView === 'function') switchHostView('waitlist');
+  });
+  panel.querySelector('#btnOpenGym')?.addEventListener('click', () => {
+    if (typeof switchHostView === 'function') switchHostView('gym');
   });
   panel.querySelector('#btnRetrySeats')?.addEventListener('click', () => {
     if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
@@ -1367,5 +1375,234 @@ function renderOutreach() {
     } else {
       alert('Shared store NOT ready.\n\n' + (h.error || 'unknown') + '\n\nOpen Shared store setup and deploy tools/re-shared-store.gs as a Web app (Anyone).');
     }
+  });
+}
+
+/* ================= Waitlist (mirrored Jordan chart) ================= */
+
+let wlPick = [];
+
+async function renderWaitlistView() {
+  const body = document.getElementById('waitlist-body');
+  if (!body || !window.RESeating) return;
+  body.innerHTML = '<div class="empty">Loading waitlist chart…</div>';
+  let st;
+  try {
+    st = await RESeating.fetchState({ healRemote: false, orders: [] });
+  } catch (e) {
+    st = RESeating.emptyState();
+    st.offline = true;
+  }
+  const claims = Object.values((st.waitlist && st.waitlist.seats) || {}).sort((a, b) =>
+    String(a.seatId).localeCompare(String(b.seatId))
+  );
+  const total = RESeating.allSeats().length;
+  const rows = claims.map((c) => `
+    <tr>
+      <td style="font-weight:700;color:var(--accent)">${esc(c.seatId)}</td>
+      <td>${esc(c.person || c.name)}</td>
+      <td>${esc(c.partyType === 'couple' ? `Couple${c.spouse ? ` · ${c.spouse}` : ''}` : 'Solo')}</td>
+      <td style="font-size:0.78rem;color:var(--muted)">${esc([c.email, c.phone].filter(Boolean).join(' · '))}</td>
+      <td><button class="btn-sm" data-wl-release="${esc(c.seatId)}">Release hold</button></td>
+    </tr>`).join('');
+  body.innerHTML = `
+    <div class="rate-note" style="margin-top:8px">
+      <strong>Separate waitlist chart.</strong> Holds here do not change confirmed Jordan Room seats.
+      If a confirmed seat opens, contact the person on the matching waitlist chair so they can claim it.
+      They must claim it promptly or the hold goes to the next person.
+    </div>
+    <h3 style="font-family:var(--heading-font);color:var(--accent);margin-bottom:4px">Waitlist — Jordan Room mirror</h3>
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">
+      <strong style="color:var(--text)">${claims.length}/${total}</strong> waitlist holds
+      <button class="btn-sm" style="margin-left:8px" id="btnWlRefresh">↻ Refresh</button>
+      <button class="btn-sm" style="margin-left:6px" id="btnWlToJordan">← Jordan Room</button>
+    </div>
+    <div class="card-box" style="padding:10px;min-height:280px" id="wl-map">${RESeating.renderMapSVG(st, { mode: 'host', map: 'waitlist' })}${RESeating.legendHTML('host')}</div>
+    <p style="color:var(--muted);font-size:0.8rem;margin:8px 0 16px">Tap an open chair to place a waitlist hold${wlPick.length ? ` · selected <strong>${esc(wlPick.join(', '))}</strong>` : ''}.</p>
+    ${claims.length ? `
+      <h4 style="color:var(--text);margin-bottom:8px">Waitlist holds</h4>
+      <div class="card-box" style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
+        <thead><tr><th>Seat</th><th>Guest</th><th>Party</th><th>Contact</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : '<p style="color:var(--muted);font-size:0.85rem">No waitlist holds yet.</p>'}`;
+
+  body.querySelector('#btnWlRefresh')?.addEventListener('click', () => {
+    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
+    renderWaitlistView();
+  });
+  body.querySelector('#btnWlToJordan')?.addEventListener('click', () => switchHostView('location'));
+  body.querySelectorAll('[data-seat]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-seat');
+      if (!id) return;
+      if ((st.waitlist && st.waitlist.seats && st.waitlist.seats[id])) return;
+      if (wlPick.includes(id)) wlPick = wlPick.filter((x) => x !== id);
+      else wlPick = [...wlPick, id].slice(-2);
+      openWaitlistAssign(wlPick);
+    });
+  });
+  body.querySelectorAll('[data-wl-release]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.wlRelease;
+      if (!confirm(`Release waitlist hold on ${id}?`)) return;
+      btn.disabled = true;
+      try {
+        await RESeating.releaseSeats([id], { map: 'waitlist' });
+      } catch (e) {
+        alert('Release failed: ' + e);
+      }
+      renderWaitlistView();
+    });
+  });
+}
+
+function openWaitlistAssign(ids) {
+  const modal = document.getElementById('waitlistAssignModal');
+  if (!modal) return;
+  document.getElementById('wlSeatIds').value = (ids || []).join(',');
+  document.getElementById('wlAssignSeats').textContent =
+    `Hold ${RESeating.seatLabel(ids)} — not a confirmed Jordan Room seat.`;
+  document.getElementById('wlParty').value = ids.length > 1 ? 'couple' : 'solo';
+  modal.classList.add('open');
+}
+
+function closeWaitlistAssign() {
+  document.getElementById('waitlistAssignModal')?.classList.remove('open');
+  wlPick = [];
+}
+
+async function submitWaitlistAssign() {
+  const ids = (document.getElementById('wlSeatIds').value || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const name = document.getElementById('wlName').value.trim();
+  const email = document.getElementById('wlEmail').value.trim();
+  const phone = document.getElementById('wlPhone').value.trim();
+  const partyType = document.getElementById('wlParty').value;
+  const spouse = document.getElementById('wlSpouse').value.trim();
+  if (!ids.length) return alert('Pick a seat on the waitlist chart first.');
+  if (!name || (!email && !phone)) return alert('Add a name and an email or phone.');
+  try {
+    const result = await RESeating.claimSeats(ids, {
+      name, email, phone, partyType, spouse: spouse || null, map: 'waitlist'
+    });
+    if (!result.ok) {
+      alert('Those waitlist seats were just taken. Refresh and try another chair.');
+      closeWaitlistAssign();
+      return renderWaitlistView();
+    }
+    const order = {
+      id: Date.now(),
+      locationId: 'kennedy-school-bbq',
+      name, email, phone,
+      form: 'host-waitlist',
+      partyType,
+      partySize: ids.length,
+      spouse: spouse || null,
+      seats: ids,
+      seatLabel: RESeating.seatLabel(ids),
+      waitlist: true,
+      waitlistHold: true,
+      confirmationNote: RESeating.WAITLIST_CONFIRM,
+      ts: new Date().toISOString(),
+      location: 'kennedy-school-bbq',
+      source: 'retirement-everest-host'
+    };
+    if (window.RESharedOrders?.appendSharedOrder) {
+      await RESharedOrders.appendSharedOrder(order);
+    }
+    await RESeating.pushSeatEventToGHL({
+      event: 'waitlist_hold',
+      form: 'host-waitlist',
+      name, email, phone,
+      seats: ids.join(', '),
+      seatLabel: order.seatLabel,
+      waitlist: 'yes',
+      waitlistHold: 'yes',
+      confirmationNote: RESeating.WAITLIST_CONFIRM,
+      tag: 're-waitlist',
+      status: 'waitlist',
+      pipelineStage: 'Waitlist',
+      preferencesSummary: `WAITLIST HOLD (host)\n${name}\n${order.seatLabel}\n${RESeating.WAITLIST_CONFIRM}`
+    });
+  } catch (e) {
+    alert('Waitlist save failed: ' + e);
+  }
+  document.getElementById('wlName').value = '';
+  document.getElementById('wlEmail').value = '';
+  document.getElementById('wlPhone').value = '';
+  document.getElementById('wlSpouse').value = '';
+  closeWaitlistAssign();
+  renderWaitlistView();
+}
+
+/* ================= Gym backup (40 × 60 ft, 12 × 6) ================= */
+
+async function renderGymView() {
+  const body = document.getElementById('gym-body');
+  if (!body || !window.RESeating) return;
+  body.innerHTML = '<div class="empty">Loading gym backup chart…</div>';
+  let st;
+  try {
+    st = await RESeating.fetchState({ healRemote: false, orders: [] });
+  } catch (e) {
+    st = RESeating.emptyState();
+    st.offline = true;
+  }
+  const gym = st.gym || { seats: {}, couples: [] };
+  if (!Object.keys(gym.seats || {}).length && Object.keys(st.seats || {}).length) {
+    try {
+      st = await RESeating.applyGymTransfer(st);
+    } catch (e) {
+      console.warn('[RE] gym auto-transfer failed', e);
+    }
+  }
+  const claims = Object.values((st.gym && st.gym.seats) || {}).sort((a, b) =>
+    String(a.seatId).localeCompare(String(b.seatId))
+  );
+  const total = RESeating.gymAllSeats().length;
+  const rows = claims.map((c) => `
+    <tr>
+      <td style="font-weight:700;color:var(--accent)">${esc(c.seatId)}</td>
+      <td>${esc(c.person || c.name)}</td>
+      <td style="font-size:0.78rem;color:var(--muted)">${esc(c.fromSeat || '—')}</td>
+      <td>${esc(c.partyType === 'couple' ? `Couple${c.spouse ? ` · ${c.spouse}` : ''}` : 'Solo')}</td>
+      <td style="font-size:0.78rem;color:var(--muted)">${esc([c.email, c.phone].filter(Boolean).join(' · '))}</td>
+    </tr>`).join('');
+  const when = st.gym && st.gym.transferredAt
+    ? new Date(st.gym.transferredAt).toLocaleString()
+    : 'not yet';
+  body.innerHTML = `
+    <div class="rate-note" style="margin-top:8px">
+      <strong>Backup only.</strong> McMenamins Gymnasium is 40 × 60 ft (2,400 sq ft) — from the Kennedy School color map / venue sheet.
+      Twelve 60″ rounds as 6-tops (72 seats). This chart does <em>not</em> change the live Jordan Room reservations.
+    </div>
+    <h3 style="font-family:var(--heading-font);color:var(--accent);margin-bottom:4px">Gymnasium backup layout</h3>
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">
+      <strong style="color:var(--text)">${claims.length}/${total}</strong> placed · last sync ${esc(when)}
+      <button class="btn-sm btn-accent" style="margin-left:8px" id="btnGymSync">Place current Jordan guests here</button>
+      <button class="btn-sm" style="margin-left:6px" id="btnGymRefresh">↻ Refresh</button>
+      <button class="btn-sm" style="margin-left:6px" id="btnGymToJordan">← Jordan Room</button>
+    </div>
+    <div class="card-box" style="padding:10px;min-height:280px">${RESeating.renderMapSVG(st, { mode: 'host', layout: 'gym' })}${RESeating.legendHTML('host')}</div>
+    ${claims.length ? `
+      <div class="section-gap"></div>
+      <h4 style="color:var(--text);margin-bottom:8px">Guests on gym chart</h4>
+      <div class="card-box" style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
+        <thead><tr><th>Gym seat</th><th>Guest</th><th>From Jordan</th><th>Party</th><th>Contact</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : '<p style="color:var(--muted);font-size:0.85rem">No guests placed yet — tap <strong>Place current Jordan guests here</strong>.</p>'}`;
+
+  body.querySelector('#btnGymRefresh')?.addEventListener('click', () => {
+    if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
+    renderGymView();
+  });
+  body.querySelector('#btnGymToJordan')?.addEventListener('click', () => switchHostView('location'));
+  body.querySelector('#btnGymSync')?.addEventListener('click', async () => {
+    if (!confirm('Rebuild the gym backup from the current Jordan Room guest list? This only updates the gym chart.')) return;
+    const btn = body.querySelector('#btnGymSync');
+    if (btn) { btn.disabled = true; btn.textContent = 'Placing…'; }
+    try {
+      await RESeating.applyGymTransfer();
+    } catch (e) {
+      alert('Gym sync failed: ' + e);
+    }
+    renderGymView();
   });
 }
