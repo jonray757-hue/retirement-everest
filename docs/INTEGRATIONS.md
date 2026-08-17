@@ -58,11 +58,13 @@ On any **Location Report**:
 
 | Export option | What it does |
 |---------------|--------------|
-| Orders → CSV download | Full order detail file |
-| Orders → copy for Sheets | Tab-separated — paste directly into a sheet |
-| Guest list → CSV | Names + RSVP links only |
-| Cost summary → CSV | Estimated totals for planning |
-| Push orders to Google Sheet | POSTs rows to your Apps Script webhook |
+| Full guest sheet → CSV | Name, email, phone, status, seats, party, drink, diet, waitlist |
+| Call list → CSV | Name / phone / seat / status for calling |
+| Waitlist holds → CSV | Standby seats only, in list order |
+| Kitchen / diet → CSV | Seats + adult drink + dietary notes |
+| Cost summary → CSV | Headcount, seated vs waitlist, drink mix, estimated F&B |
+| Copy table for Sheets | Tab-separated — paste with Cmd/Ctrl+V |
+| Push to Google Sheet | POSTs the full guest sheet to your Apps Script webhook |
 
 Each location can use its own tab — the push uses the location short name as the sheet tab.
 

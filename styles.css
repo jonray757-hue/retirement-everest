@@ -1046,9 +1046,34 @@ th { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: v
 }
 .mkt-modal .mkt-canvas { transform: none !important; margin: 0 !important; }
 @media print {
-  body * { visibility: hidden; }
-  .mkt-canvas, .mkt-canvas * { visibility: visible; }
-  .mkt-canvas { position: absolute; left: 0; top: 0; }
+  /* Marketing kit: print the flyer canvas only */
+  body.mkt-page * { visibility: hidden; }
+  body.mkt-page .mkt-canvas,
+  body.mkt-page .mkt-canvas * { visibility: visible; }
+  body.mkt-page .mkt-canvas { position: absolute; left: 0; top: 0; }
+
+  /* Command center: Print was blank because the rule above hid the whole page */
+  body.theme-hub:not(.mkt-page) {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  body.theme-hub:not(.mkt-page) .host-topbar,
+  body.theme-hub:not(.mkt-page) .export-menu,
+  body.theme-hub:not(.mkt-page) .modal-overlay,
+  body.theme-hub:not(.mkt-page) .host-nav,
+  body.theme-hub:not(.mkt-page) #lock-screen {
+    display: none !important;
+  }
+  body.theme-hub:not(.mkt-page) #report,
+  body.theme-hub:not(.mkt-page) .host-view.active {
+    display: block !important;
+    visibility: visible !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+  body.theme-hub:not(.mkt-page) .host-view:not(.active) {
+    display: none !important;
+  }
 }
 /* ── VENUE CRM ── */
 .crm-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }

@@ -1113,29 +1113,111 @@ document.addEventListener('click', () => {
   document.getElementById('exportDropdown')?.classList.remove('open');
 });
 
-function exportData(type) {
-  document.getElementById('exportDropdown')?.classList.remove('open');
-  const loc = getLoc();
-  const orders = getOrders();
-  if (type !== 'cost-summary' && !orders.length) return alert('No orders to export yet.');
+function exportRowKind(type) {
+  if (type === 'guest-list') return 'guest-list';
+  if (type === 'cost-summary') return 'cost-summary';
+  if (type === 'waitlist') return 'waitlist';
+  if (type === 'kitchen') return 'kitchen';
+  return 'orders';
+}
 
-  const rows = type === 'guest-list' ? buildExportRows(loc, orders, 'guest-list')
-    : type === 'cost-summary' ? buildExportRows(loc, orders, 'cost-summary')
-    : buildExportRows(loc, orders, 'orders');
+function exportFileSuffix(type) {
+  if (type === 'guest-list') return 'guests';
+  if (type === 'cost-summary') return 'cost-summary';
+  if (type === 'waitlist') return 'waitlist';
+  if (type === 'kitchen') return 'kitchen-diet';
+  return 'orders';
+}
+
+async function collectExportOrders() {
+  const loc = getLoc();
+  const reportLoc = getReportLoc();
+  let orders = [];
+  try {
+    const result = await refreshOrdersFromShared();
+    orders = Array.isArray(result) ? result : (result?.orders || getOrders());
+  } catch (_) {
+    orders = getOrders();
+  }
+  orders = Array.isArray(orders) ? orders.slice() : [];
+
+  if (reportLoc?.bbqMenuPick && window.RESeating?.fetchState) {
+    try {
+      const st = await RESeating.fetchState({ healRemote: false, orders });
+      const claims = Object.values((st.waitlist && st.waitlist.seats) || {});
+      claims.forEach((c) => {
+        const email = String(c.email || '').toLowerCase();
+        const phone = String(c.phone || '');
+        const name = c.person || c.name || '';
+        const match = orders.find((o) =>
+          (email && String(o.email || '').toLowerCase() === email) ||
+          (phone && String(o.phone || '') === phone) ||
+          (name && String(o.name || '').toLowerCase() === name.toLowerCase() && (o.waitlist || o.waitlistHold))
+        );
+        if (match) {
+          match.waitlist = match.waitlist || true;
+          match.waitlistHold = match.waitlistHold || true;
+          if (!match.seatLabel) match.seatLabel = c.seatId;
+          return;
+        }
+        orders.push({
+          name,
+          email: c.email || '',
+          phone: c.phone || '',
+          partyType: c.partyType,
+          spouse: c.spouse || '',
+          seats: c.seatId ? [c.seatId] : [],
+          seatLabel: c.seatId || '',
+          waitlist: true,
+          waitlistHold: true,
+          ts: c.ts || c.claimedAt || '',
+          source: 'waitlist-chart'
+        });
+      });
+    } catch (e) {
+      console.warn('[RE] waitlist merge for export failed', e);
+    }
+  }
+  return { loc, reportLoc, orders };
+}
+
+async function exportData(type) {
+  document.getElementById('exportDropdown')?.classList.remove('open');
+  let loc, reportLoc, orders;
+  try {
+    ({ loc, reportLoc, orders } = await collectExportOrders());
+  } catch (e) {
+    console.warn('[RE] export collect failed', e);
+    return alert('Could not load guest data for export. Refresh the page and try again.');
+  }
+  const kind = exportRowKind(type);
+  if (kind === 'waitlist') {
+    const holds = orders.filter((o) => o.waitlist || o.waitlistHold);
+    if (!holds.length) return alert('No waitlist holds to export yet.');
+  } else if (kind !== 'cost-summary' && !orders.length) {
+    return alert('No guest data to export yet. Open the location report (so the shared log can load), then try again.');
+  }
+
+  const rows = buildExportRows(reportLoc || loc, kind === 'waitlist' ? orders.filter((o) => o.waitlist || o.waitlistHold) : orders, kind);
+  const dataRows = Math.max(0, rows.length - 1);
 
   if (type === 'orders-tsv') {
-    copyText(rowsToTSV(rows)).then(() => alert('Copied! Paste into Google Sheets with Cmd/Ctrl+V.'));
+    copyText(rowsToTSV(rows)).then(() =>
+      alert(`Copied ${dataRows} row${dataRows === 1 ? '' : 's'}. Paste into Google Sheets with Cmd/Ctrl+V.`)
+    );
     return;
   }
   if (type === 'sheets-push') {
-    pushToGoogleSheets(rows, { location: loc.shortName, exportType: 'orders', sheetName: loc.shortName })
-      .then(() => alert(`Sent to Google Sheet. Check tab "${loc.shortName}" (may take a few seconds).`))
-      .catch(err => alert(err.message));
+    pushToGoogleSheets(rows, { location: loc.shortName, exportType: kind, sheetName: loc.shortName })
+      .then(() => alert(`Sent ${dataRows} row${dataRows === 1 ? '' : 's'} to Google Sheet tab "${loc.shortName}".`))
+      .catch((err) => alert(err.message));
     return;
   }
   const csv = rowsToCSV(rows);
-  const suffix = type === 'guest-list' ? 'guests' : type === 'cost-summary' ? 'cost-summary' : 'orders';
-  downloadText(`${loc.slug}_${suffix}.csv`, csv, 'text/csv;charset=utf-8');
+  const suffix = exportFileSuffix(type);
+  const filename = `${(reportLoc || loc).slug}_${suffix}.csv`;
+  downloadText(filename, csv, 'text/csv;charset=utf-8');
+  alert(`Downloaded ${filename} — ${dataRows} row${dataRows === 1 ? '' : 's'}.`);
 }
 
 function exportCSV() { exportData('orders-csv'); }

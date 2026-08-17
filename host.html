@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Retirement Everest — Command Center</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<link rel="stylesheet" href="styles.css?v=20260812j">
+<link rel="stylesheet" href="styles.css?v=20260817a">
 </head>
 <body class="theme-hub">
 <div id="report" style="display:none">
@@ -34,11 +34,13 @@
         <div class="export-menu">
           <button class="btn-sm" type="button" onclick="toggleExportMenu(event)">Export ▾</button>
           <div class="export-dropdown" id="exportDropdown">
-            <button type="button" onclick="exportData('orders-csv')">Orders → CSV download</button>
-            <button type="button" onclick="exportData('orders-tsv')">Orders → copy for Sheets</button>
-            <button type="button" onclick="exportData('guest-list')">Guest list → CSV</button>
+            <button type="button" onclick="exportData('orders-csv')">Full guest sheet → CSV</button>
+            <button type="button" onclick="exportData('guest-list')">Call list (name/phone/seat) → CSV</button>
+            <button type="button" onclick="exportData('waitlist')">Waitlist holds → CSV</button>
+            <button type="button" onclick="exportData('kitchen')">Kitchen / diet → CSV</button>
             <button type="button" onclick="exportData('cost-summary')">Cost summary → CSV</button>
-            <button type="button" onclick="exportData('sheets-push')">Push orders to Google Sheet</button>
+            <button type="button" onclick="exportData('orders-tsv')">Copy table for Sheets</button>
+            <button type="button" onclick="exportData('sheets-push')">Push to Google Sheet</button>
           </div>
         </div>
         <button class="btn-sm" onclick="clearAll()">Clear</button>
@@ -168,7 +170,7 @@
 <script src="locations.js?v=20260813b"></script>
 <script src="checklist-defaults.js?v=20260812j"></script>
 <script src="data/venue-crm.js?v=20260812j"></script>
-<script src="integrations.js?v=20260814a"></script>
+<script src="integrations.js?v=20260817a"></script>
 <script src="shared.js?v=20260812j"></script>
 <script src="shared-store.js?v=20260812j"></script>
 <script src="shared-orders.js?v=20260812j"></script>
@@ -178,7 +180,7 @@
 <script src="app-dashboard.js?v=20260813b"></script>
 <script src="app-venue-crm.js?v=20260812j"></script>
 <script src="app-contacts.js?v=20260814a"></script>
-<script src="app-host.js?v=20260814d"></script>
+<script src="app-host.js?v=20260817a"></script>
 <script src="host-auth.js?v=20260812j"></script>
 <script>
 initHostLock({

@@ -92,30 +92,165 @@ function buildInviteSms(loc, guestLink, event, guestName) {
   return `Hi ${name} — you're invited to Retirement Everest at ${loc.shortName} on ${dateLine}. Dinner included (Backyard BBQ). Share preferences here: ${guestLink} — ${sign}`;
 }
 
-function buildExportRows(loc, orders, type) {
-  if (type === 'guest-list') {
-    return [['Location', 'Guest Name', 'Order Time', 'Guest Link'],
-      ...orders.map(o => [loc.shortName, o.name, new Date(o.ts).toLocaleString(), absoluteGuestLink(loc.slug)])];
+function exportReportLoc(loc) {
+  if (loc?.guestSlug && RETIREMENT_EVEREST?.locations?.[loc.guestSlug]) {
+    return RETIREMENT_EVEREST.locations[loc.guestSlug];
   }
+  return loc;
+}
+
+function exportStatus(o) {
+  if (o.waitlist || o.waitlistHold) return 'Waitlist hold';
+  if (o.seatLabel || (Array.isArray(o.seats) && o.seats.length)) return 'Seated';
+  if (o.seatAccommodation) return 'Needs arranging';
+  return 'Preferences only';
+}
+
+function exportDrinkLabel(o) {
+  if (o.drinkCat === 'Adult' || o.drinkId === 'd-adult') return 'Yes — adult drink';
+  if (o.drink || o.drinkId || o.drinkCat) return 'No adult drink (coffee/tea/water)';
+  return '';
+}
+
+function exportWhen(o) {
+  if (!o?.ts && !o?.claimedAt) return '';
+  const d = new Date(o.ts || o.claimedAt);
+  return Number.isNaN(d.getTime()) ? String(o.ts || o.claimedAt) : d.toLocaleString();
+}
+
+function exportParty(o) {
+  if (o.joinedPartner) return `Joined · ${o.linkedPartnerName || o.spouse || 'partner'}`;
+  if (o.partyType === 'couple' || (o.partySize && o.partySize > 1)) {
+    return `Couple${o.spouse ? ` · ${o.spouse}` : ''}`;
+  }
+  return 'Solo';
+}
+
+function isBbqExport(loc) {
+  const report = exportReportLoc(loc);
+  return !!(report?.bbqMenuPick || loc?.bbqMenuPick);
+}
+
+function buildExportRows(loc, orders, type) {
+  const reportLoc = exportReportLoc(loc);
+  const list = Array.isArray(orders) ? orders : [];
+  const evSlug = loc?.guestOnly ? (Object.values(RETIREMENT_EVEREST?.locations || {}).find((l) => l.guestSlug === loc.slug)?.slug || loc.slug) : loc.slug;
+  const ev = typeof getLocationEvent === 'function' ? getLocationEvent(evSlug) || getLocationEvent(loc.slug) : null;
+
+  if (type === 'guest-list') {
+    return [
+      ['Location', 'Name', 'Email', 'Phone', 'Status', 'Seats', 'Party', 'Spouse / guest', 'Adult drink', 'Dietary notes', 'Time'],
+      ...list.map((o) => [
+        loc.shortName || reportLoc.shortName || '',
+        o.name || '',
+        o.email || '',
+        o.phone || '',
+        exportStatus(o),
+        o.seatLabel || (Array.isArray(o.seats) ? o.seats.join(' ') : ''),
+        exportParty(o),
+        o.spouse || o.linkedPartnerName || '',
+        exportDrinkLabel(o),
+        o.notes || (o.dietHasRestrictions ? 'Restriction noted' : ''),
+        exportWhen(o)
+      ])
+    ];
+  }
+
+  if (type === 'waitlist') {
+    const holds = list.filter((o) => o.waitlist || o.waitlistHold);
+    return [
+      ['#', 'Name', 'Email', 'Phone', 'Waitlist seat', 'Party', 'Spouse / guest', 'Dietary notes', 'Claimed', 'Source'],
+      ...holds.map((o, i) => [
+        i + 1,
+        o.name || '',
+        o.email || '',
+        o.phone || '',
+        o.seatLabel || (Array.isArray(o.seats) ? o.seats.join(' ') : ''),
+        exportParty(o),
+        o.spouse || '',
+        o.notes || '',
+        exportWhen(o),
+        o.source || o.form || ''
+      ])
+    ];
+  }
+
+  if (type === 'kitchen') {
+    return [
+      ['Name', 'Seats', 'Status', 'Adult drink', 'Dietary notes', 'Restrictions?', 'Phone'],
+      ...list.map((o) => [
+        o.name || '',
+        o.seatLabel || (Array.isArray(o.seats) ? o.seats.join(' ') : ''),
+        exportStatus(o),
+        exportDrinkLabel(o),
+        o.notes || '',
+        o.dietHasRestrictions || (o.notes && !/^no restrictions$/i.test(String(o.notes).trim())) ? 'Yes' : 'No',
+        o.phone || ''
+      ])
+    ];
+  }
+
   if (type === 'cost-summary') {
-    const roomRates = getRoomRates();
-    const est = estimateCostForLocation(loc, orders, roomRates);
-    const guests = countGuestsForLocation(loc, orders);
-    const ev = getLocationEvent(loc.slug);
+    const roomRates = typeof getRoomRates === 'function' ? getRoomRates() : {};
+    const costLoc = loc.guestSlug ? loc : (Object.values(RETIREMENT_EVEREST?.locations || {}).find((l) => l.guestSlug === loc.slug) || loc);
+    const est = typeof estimateCostForLocation === 'function' ? estimateCostForLocation(costLoc, list, roomRates) : 0;
+    const guests = typeof countGuestsForLocation === 'function' ? countGuestsForLocation(costLoc, list) : list.length;
+    const seated = list.filter((o) => exportStatus(o) === 'Seated').length;
+    const waitlist = list.filter((o) => o.waitlist || o.waitlistHold).length;
+    const prefsOnly = list.length - seated - waitlist;
+    const adult = list.filter((o) => o.drinkCat === 'Adult' || o.drinkId === 'd-adult').length;
+    const soft = list.filter((o) => exportDrinkLabel(o).startsWith('No')).length;
+    const diet = list.filter((o) => o.dietHasRestrictions || (o.notes && !/^no restrictions$/i.test(String(o.notes).trim()))).length;
+    const pkg = reportLoc.menus?.buffetPrice || '';
     return [
       ['Field', 'Value'],
-      ['Location', loc.name],
-      ['City', loc.city],
-      ['Event Type', loc.type],
-      ['Event Date', ev?.eventDate || 'Not set'],
-      ['Guest Goal', ev?.guestGoal || ''],
-      ['Orders', orders.length],
-      ['Guests', guests],
-      ['Estimated Cost', est.toFixed(2)],
-      ['Avg per Guest', guests ? (est / guests).toFixed(2) : '0'],
+      ['Location', loc.name || reportLoc.name || ''],
+      ['Venue', loc.venue || reportLoc.venue || ''],
+      ['City', loc.city || ''],
+      ['Event Type', loc.type || ''],
+      ['Event Date', ev?.eventDate || loc.defaultEvent?.eventDate || 'Not set'],
+      ['Doors / show', [ev?.doorsTime, ev?.showTime].filter(Boolean).join(' / ') || ''],
+      ['Guest Goal', ev?.guestGoal ?? loc.defaultEvent?.guestGoal ?? ''],
+      ['Preference submissions', list.length],
+      ['Guest count (party-adjusted)', guests],
+      ['Seated (confirmed chair)', seated],
+      ['Waitlist holds', waitlist],
+      ['Preferences only (no chair)', Math.max(0, prefsOnly)],
+      ['Want adult drink', adult],
+      ['No adult drink (coffee/tea/water)', soft],
+      ['Dietary restrictions noted', diet],
+      ['Dinner package $ / guest', pkg],
+      ['Estimated cost', typeof est === 'number' ? est.toFixed(2) : est],
+      ['Avg per guest', guests ? (est / guests).toFixed(2) : '0'],
       ['Exported', new Date().toLocaleString()]
     ];
   }
+
+  if (isBbqExport(loc)) {
+    return [
+      ['#', 'Name', 'Email', 'Phone', 'Status', 'Seats', 'Party', 'Spouse / guest', 'Guest email', 'Adult drink', 'Dietary notes', 'Restrictions?', 'Waitlist', 'Joined partner', 'Linked partner', 'Time', 'Source'],
+      ...list.map((o, i) => [
+        i + 1,
+        o.name || '',
+        o.email || '',
+        o.phone || '',
+        exportStatus(o),
+        o.seatLabel || (Array.isArray(o.seats) ? o.seats.join(' ') : ''),
+        exportParty(o),
+        o.spouse || '',
+        o.linkedPartnerEmail || '',
+        exportDrinkLabel(o),
+        o.notes || '',
+        o.dietHasRestrictions || (o.notes && !/^no restrictions$/i.test(String(o.notes).trim())) ? 'Yes' : 'No',
+        o.waitlist || o.waitlistHold ? 'Yes' : 'No',
+        o.joinedPartner ? 'Yes' : 'No',
+        o.linkedPartnerName || '',
+        exportWhen(o),
+        o.source || o.form || ''
+      ])
+    ];
+  }
+
   if (loc.type === 'screening') {
     const hasDrinks = !!loc.menus.drinks?.length;
     if (hasDrinks) {
@@ -153,10 +288,22 @@ function rowsToTSV(rows) {
 }
 
 function downloadText(filename, content, mime) {
+  const type = mime || 'text/plain;charset=utf-8';
+  const isCsv = /csv/i.test(type) || /\.csv$/i.test(filename);
+  const body = (isCsv ? '\uFEFF' : '') + String(content ?? '');
+  const blob = new Blob([body], { type: isCsv ? 'text/csv;charset=utf-8' : type });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = `data:${mime},${encodeURIComponent(content)}`;
-  a.download = filename;
+  a.href = url;
+  a.download = filename || 'download.txt';
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 2000);
 }
 
 function copyText(text) {
