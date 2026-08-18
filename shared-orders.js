@@ -123,6 +123,51 @@
     return body;
   }
 
+  /**
+   * Patch one existing preference row (host assigning a seat later).
+   * Does not append a new row — avoids a second confirmation text/email.
+   */
+  async function updateSharedOrder(loc, key, patch) {
+    const keys = [String(key || '')].filter(Boolean);
+    if (!keys.length || !patch || typeof patch !== 'object') return { ok: false, reason: 'missing-key' };
+
+    const apply = (list) => {
+      let found = false;
+      const next = (list || []).map((o) => {
+        if (!matchesRemoveKey(o, keys)) return o;
+        found = true;
+        return { ...o, ...patch };
+      });
+      return { found, next };
+    };
+
+    if (loc?.storageKey) {
+      try {
+        const local = JSON.parse(localStorage.getItem(loc.storageKey) || '[]');
+        const { next } = apply(local);
+        localStorage.setItem(loc.storageKey, JSON.stringify(next));
+      } catch (_) {}
+    }
+
+    try {
+      if (global.RESharedStore?.memInvalidate) global.RESharedStore.memInvalidate('orders');
+      const all = await fetchSharedOrders();
+      const { found, next } = apply(all);
+      if (!found) return { ok: false, reason: 'not-found' };
+      await putSharedOrders(next);
+      if (loc?.storageKey) {
+        try {
+          const forLoc = next.filter((o) => matchesLocation(o, loc));
+          localStorage.setItem(loc.storageKey, JSON.stringify(forLoc));
+        } catch (_) {}
+      }
+      return { ok: true };
+    } catch (e) {
+      console.warn('[RE] updateSharedOrder failed', e);
+      return { ok: false, reason: String(e) };
+    }
+  }
+
   async function appendSharedOrder(order) {
     if (useDurableStore()) {
       await global.RESharedStore.appendOrder(order);
@@ -553,6 +598,7 @@
     fetchSharedOrders,
     putSharedOrders,
     appendSharedOrder,
+    updateSharedOrder,
     publishLocalOrdersForLocation,
     emailHostReport,
     loadOrdersForLocation,

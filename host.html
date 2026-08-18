@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Retirement Everest — Command Center</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<link rel="stylesheet" href="styles.css?v=20260817a">
+<link rel="stylesheet" href="styles.css?v=20260818a">
 </head>
 <body class="theme-hub">
 <div id="report" style="display:none">
@@ -149,6 +149,12 @@
     <h2>Reserve waitlist hold</h2>
     <p class="modal-sub" id="wlAssignSeats">This is a hold only — it does not change confirmed Jordan Room seats.</p>
     <input type="hidden" id="wlSeatIds">
+    <input type="hidden" id="wlExistingKey">
+    <div class="modal-field"><span>Already submitted? (no new text/email)</span>
+      <select id="wlExisting">
+        <option value="">New person — will send confirmation</option>
+      </select>
+    </div>
     <div class="modal-field"><span>Name</span><input type="text" id="wlName" autocomplete="name"></div>
     <div class="modal-field"><span>Email</span><input type="email" id="wlEmail" autocomplete="email"></div>
     <div class="modal-field"><span>Phone</span><input type="tel" id="wlPhone" autocomplete="tel"></div>
@@ -173,14 +179,14 @@
 <script src="integrations.js?v=20260817a"></script>
 <script src="shared.js?v=20260812j"></script>
 <script src="shared-store.js?v=20260812j"></script>
-<script src="shared-orders.js?v=20260812j"></script>
+<script src="shared-orders.js?v=20260818a"></script>
 <script src="contacts.js?v=20260814a"></script>
 <script src="contacts-score.js?v=20260812j"></script>
 <script src="seating.js?v=20260813b"></script>
 <script src="app-dashboard.js?v=20260813b"></script>
 <script src="app-venue-crm.js?v=20260812j"></script>
 <script src="app-contacts.js?v=20260814a"></script>
-<script src="app-host.js?v=20260817a"></script>
+<script src="app-host.js?v=20260818a"></script>
 <script src="host-auth.js?v=20260812j"></script>
 <script>
 initHostLock({

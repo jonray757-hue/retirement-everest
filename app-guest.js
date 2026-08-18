@@ -147,6 +147,133 @@ function toggleSeatMapMode(mode, ev) {
 }
 window.toggleSeatMapMode = toggleSeatMapMode;
 
+function viewHasOpenPair(view) {
+  if (!window.RESeating || !view) return false;
+  const all = RESeating.allSeats();
+  for (let i = 0; i < all.length; i++) {
+    const id = all[i];
+    if (view.seats && view.seats[id]) continue;
+    const partner = RESeating.bestPartnerSeat(id, view);
+    if (partner) return true;
+  }
+  return false;
+}
+
+function viewHasOpenSolo(view) {
+  if (!window.RESeating || !view) return false;
+  const all = RESeating.allSeats();
+  const friendly = seatFriendly && seatFriendly.size ? seatFriendly : null;
+  return all.some((id) => {
+    if (view.seats && view.seats[id]) return false;
+    if (friendly && !friendly.has(id)) return false;
+    return true;
+  });
+}
+
+function clearNeedSeatGuide() {
+  const banner = document.getElementById('seat-need-banner');
+  if (banner) {
+    banner.hidden = true;
+    banner.classList.remove('show');
+  }
+  document.getElementById('err-seat')?.classList.remove('show');
+  document.getElementById('seatmap-container')?.classList.remove('seatmap-needs-pick');
+}
+
+function showNeedSeatBanner(title, body) {
+  const banner = document.getElementById('seat-need-banner');
+  const titleEl = document.getElementById('seat-need-title');
+  const bodyEl = document.getElementById('seat-need-body');
+  if (titleEl) titleEl.textContent = title;
+  if (bodyEl) bodyEl.textContent = body;
+  if (banner) {
+    banner.hidden = false;
+    banner.classList.add('show');
+  }
+  document.getElementById('seatmap-container')?.classList.add('seatmap-needs-pick');
+}
+
+function updateSubmitSeatHint() {
+  const el = document.getElementById('submit-seat-hint');
+  if (!el || !LOC?.bbqMenuPick) return;
+  if (seatPartyType === 'couple' && coupleMode === 'join') {
+    const p = getSelectedPartner();
+    el.textContent = p
+      ? `Joining ${p.name} — their reserved seats cover you. You can submit.`
+      : 'Select your partner who already reserved, then submit. You do not pick a new chair.';
+    return;
+  }
+  if (selSeats.length) {
+    const label = window.RESeating ? RESeating.seatLabel(selSeats) : selSeats.join(', ');
+    el.textContent = seatMapMode === 'waitlist'
+      ? `Waitlist hold selected: ${label}. Scroll down if needed and submit.`
+      : `Seat selected: ${label}. Scroll down if needed and submit.`;
+    return;
+  }
+  el.textContent = seatMapMode === 'waitlist'
+    ? 'You still need to tap a waitlist chair so it highlights gold. We cannot submit without a hold.'
+    : 'You still need to tap a chair on the seating chart so it highlights gold. We cannot submit without a seat.';
+}
+
+/** Block submit, scroll to the chart, and tell them exactly what to tap. */
+function guideGuestToSeats() {
+  if (!window.RESeating) return;
+  const total = RESeating.allSeats().length;
+  const mainView = { seats: (seatState && seatState.seats) || {} };
+  const wlView = { seats: (seatState && seatState.waitlist && seatState.waitlist.seats) || {} };
+  const couple = seatPartyType === 'couple';
+  const mainHasSpot = couple ? viewHasOpenPair(mainView) : viewHasOpenSolo(mainView);
+  const wlHasSpot = couple ? viewHasOpenPair(wlView) : viewHasOpenSolo(wlView);
+  const mainFull = total && Object.keys(mainView.seats).length >= total;
+
+  if (seatMapMode !== 'waitlist' && (!mainHasSpot || mainFull)) {
+    seatMapUserPicked = true;
+    seatMapMode = 'waitlist';
+    selSeats = [];
+    paintSeatMap(seatState, null);
+  }
+
+  let title;
+  let body;
+  if (seatMapMode === 'waitlist') {
+    if (!wlHasSpot) {
+      title = 'No waitlist chairs left';
+      body = 'The room and the waitlist chart are both full. Please contact Johnny Harris — we cannot submit without a chair.';
+    } else if (mainFull || !mainHasSpot) {
+      title = couple
+        ? 'No two seats together in the room — pick a waitlist chair'
+        : 'The reserved room is full — pick a waitlist chair';
+      body = couple
+        ? 'You are on the standby waitlist chart. Tap one open chair so it fills gold — we will hold the seat beside it for your partner. Then scroll down and submit.'
+        : 'You are on the standby waitlist chart. Tap one open chair so it fills gold. That is your waitlist hold. Then scroll down and submit.';
+    } else {
+      title = 'Tap a waitlist chair so it highlights gold';
+      body = couple
+        ? 'Tap one open waitlist chair — we will hold the seat beside it for your partner. Then scroll down and submit.'
+        : 'Tap one open waitlist chair so it fills gold. Then scroll down and submit.';
+    }
+  } else {
+    title = 'Tap a chair on the chart so it highlights gold';
+    body = couple
+      ? 'Open chairs have a gold outline. Tap one — we automatically take the seat beside it for your spouse. Then scroll down and submit.'
+      : 'Open chairs have a gold outline. Tap one so it fills gold. That is your reserved seat. Then scroll down and submit.';
+  }
+
+  showNeedSeatBanner(title, body);
+  const err = document.getElementById('err-seat');
+  if (err) {
+    err.textContent = title;
+    err.classList.add('show');
+  }
+  const target =
+    document.getElementById('seat-need-banner') ||
+    document.getElementById('seat-pick-block') ||
+    document.getElementById('seatmap-container');
+  target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  updateSeatStatus();
+  updateSubmitSeatHint();
+}
+
 function viewSeatState() {
   if (!seatState) return { seats: {} };
   if (seatMapMode === 'waitlist') {
@@ -227,8 +354,8 @@ function renderPage() {
       </div>
       <div class="submit-area">
         <button class="submit-btn" id="submitBtn">${LOC.bbqMenuPick ? 'Submit Diet &amp; Drink Notes' : (LOC.type === 'preorder' || LOC.type === 'buffet' ? 'Confirm My Preferences' : 'Confirm My Reservation')}</button>
-        <p class="submit-legal">${LOC.bbqMenuPick
-          ? 'Submitting this page does not reserve a seat. Johnny Harris confirms every seat personally. Use this form only after he has spoken with you.'
+        <p class="submit-legal" id="submit-seat-hint">${LOC.bbqMenuPick
+          ? 'You must tap a chair on the seating chart so it highlights gold before this will go through. If the room is full, tap Standby waitlist and pick a waitlist chair.'
           : `Your selections help us prepare for your ${LOC.type === 'retreat' ? 'stay' : 'evening'}. By submitting, you confirm your intent to attend.`}</p>
       </div>
     </div>
@@ -326,10 +453,11 @@ function renderBbqMenuPickForm() {
 function renderSeatSection() {
   return `
     <div class="section-gap"></div>
-    <div class="pick-head"><span class="pick-title">Reserve Your Seats</span><span class="pick-req">Tables A–E · facing the screen</span></div>
+    <div class="pick-head"><span class="pick-title">Reserve Your Seats</span><span class="pick-req">Required · tap a chair</span></div>
     <p class="order-intro" style="margin-top:0;font-size:0.9rem">
       Round tables of eight, arranged so <strong>no one's back is to the screen</strong>.
-      Pick your seat now and it's yours — reserved seats are blacked out for everyone else.
+      Tap an open chair so it <strong>highlights gold</strong> — that is how you reserve it.
+      You cannot submit this form until a seat is highlighted. Taken chairs are blacked out.
     </p>
     <div class="field-wrap"><label class="field-label">Who's attending?</label>
       <div class="party-toggle">
@@ -361,11 +489,15 @@ function renderSeatSection() {
       </div>
     </div>
     <div id="seat-pick-block">
+      <div id="seat-need-banner" class="seat-need-banner" hidden>
+        <strong id="seat-need-title">Tap a chair so it highlights gold</strong>
+        <p id="seat-need-body">Open chairs have a gold outline. Tap one — it fills gold. That is your seat. Then scroll down and submit. If the room is full, tap <em>Standby waitlist</em> and pick a waitlist chair the same way.</p>
+      </div>
       <div id="seatmap-container" style="background:rgba(0,0,0,0.25);border:1px solid var(--border,#333);border-radius:12px;padding:14px">
         <div class="empty" style="padding:30px;text-align:center;color:var(--muted,#888)">Loading live seat map…</div>
       </div>
-      <div class="vote-status" id="seat-status">Tap an open seat to reserve it.</div>
-      <div class="err-msg" id="err-seat">Please pick your seat (or tap the button below and we'll arrange one for you).</div>
+      <div class="vote-status" id="seat-status">Tap an open seat so it highlights gold — then submit below.</div>
+      <div class="err-msg" id="err-seat">Please tap a chair on the chart so it highlights gold. We cannot submit without a seat.</div>
       <div id="waitlist-banner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;border:1px solid #c9a44a;background:rgba(201,164,74,0.08);font-size:0.85rem;color:var(--text,#eee);line-height:1.45">
         <strong style="color:var(--accent,#c9a44a)">Waitlist hold</strong> — you are not confirmed yet. If this seat opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.
       </div>
@@ -384,11 +516,8 @@ function renderSeatSection() {
       <div style="margin-top:14px;text-align:center">
         <button type="button" class="submit-btn" id="seatHelpBtn"
           style="background:transparent;border:1px solid var(--accent,#c9a44a);color:var(--accent,#c9a44a);font-size:0.85rem;padding:12px 18px">
-          Can't find seats that work? Tap here — we'll make arrangements for you
+          Room looks full, or no two seats together? Open the standby waitlist
         </button>
-        <div id="seat-help-note" style="display:none;margin-top:10px;color:var(--accent,#c9a44a);font-size:0.85rem">
-          ✓ Got it — submit your preferences below and we'll personally arrange seating that works for you.
-        </div>
       </div>
     </div>`;
 }
@@ -420,6 +549,7 @@ function paintSeatMap(state, orderBackup) {
   `<div style="text-align:right;margin-top:4px"><button type="button" class="submit-btn" id="seatRefreshBtn" style="background:transparent;border:none;color:var(--muted,#888);font-size:0.75rem;padding:4px;text-decoration:underline">↻ Refresh map</button></div>`;
   const banner = document.getElementById('waitlist-banner');
   if (banner) banner.style.display = seatMapMode === 'waitlist' ? '' : 'none';
+  updateSubmitSeatHint();
   const mainBtn = document.getElementById('seatMapMainBtn');
   const waitBtn = document.getElementById('seatMapWaitlistBtn');
   const on = 'var(--accent,#c9a44a)';
@@ -556,44 +686,46 @@ function updateSeatStatus() {
     el.textContent = p
       ? `Joining ${p.name} at ${p.seatLabel || 'their reserved seats'} — no seat pick needed.`
       : 'Select your partner who already reserved from the dropdown above.';
+    updateSubmitSeatHint();
     return;
   }
-  if (seatAccomRequested) { el.textContent = "We'll arrange your seating personally — nothing to pick."; return; }
   if (seatMapMode === 'waitlist') {
     if (!selSeats.length) {
       el.textContent = seatPartyType === 'couple'
-        ? 'Waitlist: tap a hold seat — we\'ll grab the seat beside it for your spouse.'
-        : 'Waitlist: tap an open hold seat. This is not a confirmed chair.';
+        ? 'Waitlist: tap an open chair so it highlights gold — we\'ll hold the seat beside it for your spouse.'
+        : 'Waitlist: tap an open chair so it highlights gold. This is not a confirmed chair.';
     } else {
-      el.textContent = `Waitlist hold: ${RESeating.seatLabel(selSeats)} — we will contact you if it opens.`;
+      el.textContent = `Waitlist hold selected: ${RESeating.seatLabel(selSeats)} — now submit below.`;
     }
+    updateSubmitSeatHint();
     return;
   }
   if (!selSeats.length) {
     el.textContent = seatPartyType === 'couple'
-      ? 'Tap an open seat — we\'ll grab the seat beside it for your spouse automatically.'
-      : 'Tap an open seat to reserve it.';
+      ? 'Tap an open chair so it highlights gold — we\'ll grab the seat beside it for your spouse.'
+      : 'Tap an open chair so it highlights gold — then submit below.';
   } else {
-    el.textContent = `Your pick: ${RESeating.seatLabel(selSeats)}${seatPartyType === 'couple' ? ' (side by side)' : ''}`;
+    el.textContent = `Your pick: ${RESeating.seatLabel(selSeats)}${seatPartyType === 'couple' ? ' (side by side)' : ''} — now submit below.`;
   }
+  updateSubmitSeatHint();
 }
 
 function handleSeatClick(id) {
   const view = viewSeatState();
   if (!view || view.seats[id]) return;
-  document.getElementById('err-seat')?.classList.remove('show');
+  clearNeedSeatGuide();
   // toggle off
-  if (selSeats.includes(id)) { selSeats = []; refreshSeatMapUI(); return; }
+  if (selSeats.includes(id)) { selSeats = []; refreshSeatMapUI(); updateSubmitSeatHint(); return; }
   if (seatPartyType === 'solo') {
     if (seatFriendly.size && !seatFriendly.has(id)) {
-      alert('That seat is being held so a couple can sit together. Please pick one of the solid-outline seats — or tap the arrangements button and we\'ll take care of you.');
+      alert('That seat is being held so a couple can sit together. Please pick one of the solid-outline chairs, or tap “Open the standby waitlist” if the room is full.');
       return;
     }
     selSeats = [id];
   } else {
     const partner = RESeating.bestPartnerSeat(id, view);
     if (!partner) {
-      alert('No open seat right beside that one. Try another spot with two seats together — or tap the arrangements button and we\'ll make sure you sit together.');
+      alert('No open seat right beside that one. Try another spot with two chairs together, or tap “Open the standby waitlist” if nothing is left side by side.');
       return;
     }
     selSeats = [id, partner].sort();
@@ -614,35 +746,17 @@ function refreshSeatMapUI() {
   updateSeatStatus();
 }
 
-async function requestSeatAccommodation() {
-  const name = document.getElementById('guestName')?.value.trim();
-  const email = (document.getElementById('guestEmail')?.value || '').trim();
-  const phone = (document.getElementById('guestPhone')?.value || '').trim();
-  if (!name || (!email && !phone)) {
-    alert('Add your name and an email or mobile number first, so we know who to arrange seating for.');
-    document.getElementById('guestName')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
+function requestSeatAccommodation() {
+  /* Used to skip seating and vanish from the command center. Now it only
+     opens the waitlist chart and requires a highlighted chair. */
+  seatAccomRequested = false;
+  if (seatMapMode !== 'waitlist') {
+    seatMapUserPicked = true;
+    seatMapMode = 'waitlist';
+    selSeats = [];
+    paintSeatMap(seatState, null);
   }
-  const btn = document.getElementById('seatHelpBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-  const spouse = (document.getElementById('spouseName')?.value || '').trim() || null;
-  const req = { name, email, phone, partyType: seatPartyType, spouse, locationId: LOC.id };
-  try { await RESeating.addAccommodation(req); } catch (e) { console.warn('[RE] accommodation log failed', e); }
-  RESeating.pushSeatEventToGHL({
-    event: 'seat_accommodation_requested',
-    form: 'seat-accommodation',
-    name, email, phone,
-    partyType: seatPartyType, spouse: spouse || '',
-    location: LOC.id, locationName: LOC.name,
-    preferencesSummary: `SEATING HELP NEEDED\nName: ${name}\nParty: ${seatPartyType}${spouse ? ` (with ${spouse})` : ''}\nCouldn't find suitable open seats — please arrange.`
-  });
-  seatAccomRequested = true;
-  selSeats = [];
-  if (btn) { btn.style.display = 'none'; }
-  const note = document.getElementById('seat-help-note');
-  if (note) note.style.display = 'block';
-  document.getElementById('err-seat')?.classList.remove('show');
-  refreshSeatMapUI();
+  guideGuestToSeats();
 }
 
 function renderFormFields() {
@@ -1248,12 +1362,9 @@ async function submitOrder() {
       return;
     }
 
-    if (window.RESeating && !isJoinPartner && !selSeats.length && !seatAccomRequested) {
-      document.getElementById('err-seat')?.classList.add('show');
-      if (!confirm('You haven\'t reserved a seat yet. Continue without one? (We\'ll seat you on arrival.)')) {
-        document.getElementById('seatmap-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
+    if (window.RESeating && !isJoinPartner && !selSeats.length) {
+      guideGuestToSeats();
+      return;
     }
 
     let seatClaim = null;
@@ -1311,7 +1422,7 @@ async function submitOrder() {
       if (!seatClaim.ok) {
         btn0.disabled = false;
         btn0.textContent = 'Submit Diet & Drink Notes';
-        alert('So sorry — one of those seats was just taken by another guest. The map has been refreshed; please pick again (or tap the arrangements button).');
+        alert('So sorry — one of those seats was just taken by another guest. The map has been refreshed; please tap another open chair so it highlights gold.');
         selSeats = [];
         await loadSeatMap();
         document.getElementById('seatmap-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1365,7 +1476,7 @@ async function submitOrder() {
       waitlist: seatMapMode === 'waitlist' || null,
       waitlistHold: seatMapMode === 'waitlist' || null,
       confirmationNote: seatMapMode === 'waitlist' ? waitlistCopy() : '',
-      seatAccommodation: (!isJoinPartner && seatAccomRequested) || null,
+      seatAccommodation: null,
       buffet: buffetName, buffetId: LOC.lockedBuffetId || 'b-bbq', buffetPrice: LOC.menus.buffetPrice || 63.50,
       buffetLocked: true,
       sides: [],
@@ -1387,8 +1498,7 @@ async function submitOrder() {
         ? `<div class="sc-row"><div class="sc-label">Joined partner</div><div class="sc-val">${esc(order.linkedPartnerName)} — your seats stay with them</div></div>`
         : (order.spouse ? `<div class="sc-row"><div class="sc-label">Attending with</div><div class="sc-val">${esc(order.spouse)}</div></div>` : '')}
       ${order.seatLabel ? `<div class="sc-row"><div class="sc-label">${order.waitlist ? 'Waitlist hold' : `Your seat${(order.seats || []).length > 1 ? 's' : ''}`}</div><div class="sc-val" style="color:var(--accent,#c9a44a);font-weight:700">${esc(order.seatLabel)}</div></div>` : ''}
-      ${order.waitlist ? `<div class="sc-row"><div class="sc-label">Important</div><div class="sc-val">This is a waitlist hold — not a confirmed seat. If it opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.</div></div>` : ''}
-      ${order.seatAccommodation ? `<div class="sc-row"><div class="sc-label">Seating</div><div class="sc-val">We'll personally arrange your seats and confirm with you.</div></div>` : ''}`;
+      ${order.waitlist ? `<div class="sc-row"><div class="sc-label">Important</div><div class="sc-val">This is a waitlist hold — not a confirmed seat. If it opens we will contact you so you can claim it. You must claim it promptly when we reach you, or it will be offered to the next person on the list.</div></div>` : ''}`;
   } else if (LOC.type === 'buffet') {
     let ok = true;
     if (!selBuffet) { document.getElementById('err-buffet')?.classList.add('show'); ok = false; }

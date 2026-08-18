@@ -471,6 +471,39 @@ select {
 .err-msg { font-size: 0.75rem; color: var(--red); margin-top: 6px; display: none; }
 .err-msg.show { display: block; }
 
+.seat-need-banner {
+  display: none;
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--accent, #c9a44a);
+  background: rgba(201, 164, 74, 0.16);
+  color: var(--text, #eee);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.seat-need-banner.show {
+  display: block;
+}
+.seat-need-banner strong {
+  display: block;
+  color: var(--accent, #c9a44a);
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+.seat-need-banner p {
+  margin: 0;
+}
+.seatmap-needs-pick {
+  outline: 2px solid var(--accent, #c9a44a);
+  box-shadow: 0 0 0 6px rgba(201, 164, 74, 0.2);
+  animation: seatmapPulse 1.2s ease-in-out 4;
+}
+@keyframes seatmapPulse {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(201, 164, 74, 0.12); }
+  50% { box-shadow: 0 0 0 10px rgba(201, 164, 74, 0.32); }
+}
+
 /* Buffet accordion (Kennedy School style) */
 .accordion { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
 .acc-item {

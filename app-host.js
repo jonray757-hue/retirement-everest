@@ -227,7 +227,11 @@ function renderBbqMenuPickReport(orders, loc) {
             );
             party = `Couple${o.spouse ? ` · ${esc(o.spouse)}` : ''}${partnerIn ? ' ✓ linked' : ' · awaiting partner form'}`;
           }
-          const seatCol = o.seatLabel ? `<strong style="color:var(--accent)">${esc(o.seatLabel)}</strong>` : (o.seatAccommodation ? '<span style="color:var(--red,#e05252)">Needs arranging</span>' : '—');
+          const seatCol = o.seatLabel
+            ? `<strong style="color:var(--accent)">${esc(o.seatLabel)}</strong>`
+            : (o.seatAccommodation
+              ? '<span style="color:var(--red,#e05252)">Needs arranging</span>'
+              : '<span style="color:var(--red,#e05252);font-weight:700">No seat picked</span>');
           const ok = orderKeyAttr(o);
           return `<tr>
             <td>${i + 1}</td>
@@ -241,6 +245,98 @@ function renderBbqMenuPickReport(orders, loc) {
         }).join('')}</tbody>
       </table>
     </div>`;
+}
+
+/** Preference rows that never landed on the Jordan or waitlist chart. */
+function unseatedPreferenceOrders(orders, st) {
+  const claimed = new Set();
+  const addClaim = (c) => {
+    if (!c) return;
+    const email = String(c.email || '').toLowerCase().trim();
+    const name = String(c.person || c.name || '').toLowerCase().trim();
+    if (email) claimed.add('e:' + email);
+    if (name) claimed.add('n:' + name);
+  };
+  Object.values((st && st.seats) || {}).forEach(addClaim);
+  Object.values((st && st.waitlist && st.waitlist.seats) || {}).forEach(addClaim);
+  return (orders || []).filter((o) => {
+    if (!o || o.joinedPartner) return false;
+    if ((Array.isArray(o.seats) && o.seats.length) || o.seatLabel) return false;
+    const email = String(o.email || '').toLowerCase().trim();
+    const name = String(o.name || '').toLowerCase().trim();
+    if (email && claimed.has('e:' + email)) return false;
+    if (name && claimed.has('n:' + name)) return false;
+    return true;
+  });
+}
+
+function renderUnseatedGuestBox(unseated, opts = {}) {
+  if (!unseated.length) return '';
+  const waitlist = !!opts.waitlist;
+  const rows = unseated.map((o) => {
+    const key = orderKeyAttr(o);
+    const party = o.partyType === 'couple'
+      ? `Couple${o.spouse ? ` · ${esc(o.spouse)}` : ''}`
+      : 'Solo';
+    return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">
+      <div>
+        <strong>${esc(o.name || 'Guest')}</strong>
+        <div style="font-size:0.75rem;color:var(--muted)">${esc([o.email, o.phone].filter(Boolean).join(' · ') || 'no contact')}${o.waitlist || o.waitlistHold ? ' · marked waitlist' : ''} · ${party}</div>
+      </div>
+      <button type="button" class="btn-sm btn-accent" data-place-unseated="${esc(key)}">${waitlist ? 'Hold a waitlist chair' : 'Place on waitlist chart'}</button>
+    </div>`;
+  }).join('');
+  return `
+    <div class="card-box" style="margin:12px 0;border:1px solid #c9a44a;background:rgba(201,164,74,0.08)">
+      <h4 style="color:var(--accent);margin:0 0 6px">⚠ Submitted without a seat (${unseated.length})</h4>
+      <p style="color:var(--muted);font-size:0.8rem;margin:0 0 8px">
+        These people got through the form without highlighting a chair, so they never appeared on the chart.
+        Place them here — that does <strong>not</strong> send another text or email.
+      </p>
+      ${rows}
+    </div>`;
+}
+
+let pendingWaitlistGuest = null;
+let wlUnseated = [];
+
+function startWaitlistHoldForOrder(order) {
+  pendingWaitlistGuest = order || null;
+  fillWaitlistAssignFromOrder(order);
+  const already = document.getElementById('view-waitlist')?.classList.contains('active');
+  if (already) {
+    renderWaitlistView();
+    return;
+  }
+  if (typeof switchHostView === 'function') switchHostView('waitlist');
+}
+
+function fillWaitlistAssignFromOrder(order) {
+  if (!order) return;
+  const nameEl = document.getElementById('wlName');
+  const emailEl = document.getElementById('wlEmail');
+  const phoneEl = document.getElementById('wlPhone');
+  const partyEl = document.getElementById('wlParty');
+  const spouseEl = document.getElementById('wlSpouse');
+  const keyEl = document.getElementById('wlExistingKey');
+  const sel = document.getElementById('wlExisting');
+  if (nameEl) nameEl.value = order.name || '';
+  if (emailEl) emailEl.value = order.email || '';
+  if (phoneEl) phoneEl.value = order.phone || '';
+  if (partyEl) partyEl.value = order.partyType === 'couple' ? 'couple' : 'solo';
+  if (spouseEl) spouseEl.value = order.spouse || '';
+  if (keyEl) keyEl.value = orderKeyAttr(order);
+  if (sel) sel.value = orderKeyAttr(order);
+}
+
+function wireUnseatedPlaceButtons(root, unseated) {
+  (root || document).querySelectorAll('[data-place-unseated]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.placeUnseated;
+      const order = (unseated || []).find((o) => orderKeyAttr(o) === key);
+      startWaitlistHoldForOrder(order || null);
+    });
+  });
 }
 
 /** Stable key for a preference row (matches RESharedOrders.orderKey). */
@@ -762,6 +858,7 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
   const claims = Object.values(st.seats || {}).sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)));
   const seatsTaken = claims.length;
   const totalSeats = RESeating.allSeats().length;
+  const unseated = unseatedPreferenceOrders(orderList, st);
   const offlineBanner = st.offline
     ? `<div class="empty" style="margin-bottom:10px">Live seat sync offline — showing local chart. <button class="btn-sm" id="btnRetrySeats">Retry sync</button></div>`
     : '';
@@ -824,6 +921,7 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
       <button class="btn-sm" style="margin-left:6px" id="btnOpenGym">Gym backup →</button>
     </div>
     ${offlineBanner}
+    ${renderUnseatedGuestBox(unseated, { waitlist: false })}
     <div class="card-box" style="padding:10px;min-height:280px">${RESeating.renderMapSVG(st, { mode: 'host' })}${RESeating.legendHTML('host')}</div>
     ${claims.length ? `
       <div class="section-gap"></div>
@@ -846,6 +944,7 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
       <button class="btn-sm btn-accent" id="btnLinkCouple" ${seatLinkPicks.length === 2 ? '' : 'disabled'}>♥ Link as couple${seatLinkPicks.length === 2 ? `: ${esc(contacts[seatLinkPicks[0]].name)} + ${esc(contacts[seatLinkPicks[1]].name)}` : ' (pick two names)'}</button>
     </div>`;
 
+  wireUnseatedPlaceButtons(panel, unseated);
   panel.querySelector('#btnRefreshSeats')?.addEventListener('click', () => {
     if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
     if (window.RESeating?.clearLocalCache) RESeating.clearLocalCache();
@@ -1487,6 +1586,18 @@ async function renderWaitlistView() {
     String(a.seatId).localeCompare(String(b.seatId))
   );
   const total = RESeating.allSeats().length;
+  let orderList = [];
+  try {
+    const loc = typeof getReportLoc === 'function' ? getReportLoc() : null;
+    if (loc && window.RESharedOrders?.loadOrdersForLocation) {
+      orderList = await RESharedOrders.loadOrdersForLocation(loc);
+    } else {
+      orderList = typeof getOrders === 'function' ? getOrders() : [];
+    }
+  } catch (_) {
+    orderList = typeof getOrders === 'function' ? getOrders() : [];
+  }
+  wlUnseated = unseatedPreferenceOrders(orderList, st);
   const rows = claims.map((c) => `
     <tr>
       <td style="font-weight:700;color:var(--accent)">${esc(c.seatId)}</td>
@@ -1507,6 +1618,7 @@ async function renderWaitlistView() {
       <button class="btn-sm" style="margin-left:8px" id="btnWlRefresh">↻ Refresh</button>
       <button class="btn-sm" style="margin-left:6px" id="btnWlToJordan">← Jordan Room</button>
     </div>
+    ${renderUnseatedGuestBox(wlUnseated, { waitlist: true })}
     <div class="card-box" style="padding:10px;min-height:280px" id="wl-map">${RESeating.renderMapSVG(st, { mode: 'host', map: 'waitlist' })}${RESeating.legendHTML('host')}</div>
     <p style="color:var(--muted);font-size:0.8rem;margin:8px 0 16px">Tap an open chair to place a waitlist hold${wlPick.length ? ` · selected <strong>${esc(wlPick.join(', '))}</strong>` : ''}.</p>
     ${claims.length ? `
@@ -1515,6 +1627,28 @@ async function renderWaitlistView() {
         <thead><tr><th>Seat</th><th>Guest</th><th>Party</th><th>Contact</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div>` : '<p style="color:var(--muted);font-size:0.85rem">No waitlist holds yet.</p>'}`;
 
+  wireUnseatedPlaceButtons(body, wlUnseated);
+  const existingSel = document.getElementById('wlExisting');
+  if (existingSel) {
+    existingSel.innerHTML =
+      '<option value="">New person — will send confirmation</option>' +
+      wlUnseated.map((o) =>
+        `<option value="${esc(orderKeyAttr(o))}">${esc(o.name || 'Guest')}${o.phone || o.email ? ` · ${esc(o.phone || o.email)}` : ''}</option>`
+      ).join('');
+    existingSel.onchange = () => {
+      const key = existingSel.value;
+      const order = wlUnseated.find((o) => orderKeyAttr(o) === key);
+      if (order) fillWaitlistAssignFromOrder(order);
+      else {
+        const keyEl = document.getElementById('wlExistingKey');
+        if (keyEl) keyEl.value = '';
+      }
+    };
+  }
+  if (pendingWaitlistGuest) {
+    fillWaitlistAssignFromOrder(pendingWaitlistGuest);
+    pendingWaitlistGuest = null;
+  }
   body.querySelector('#btnWlRefresh')?.addEventListener('click', () => {
     if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
     renderWaitlistView();
@@ -1578,40 +1712,54 @@ async function submitWaitlistAssign() {
       closeWaitlistAssign();
       return renderWaitlistView();
     }
-    const order = {
-      id: Date.now(),
-      locationId: 'kennedy-school-bbq',
-      name, email, phone,
-      form: 'host-waitlist',
-      partyType,
-      partySize: ids.length,
-      spouse: spouse || null,
+    const existingKey = (document.getElementById('wlExistingKey')?.value || '').trim();
+    const seatPatch = {
       seats: ids,
       seatLabel: RESeating.seatLabel(ids),
       waitlist: true,
       waitlistHold: true,
       confirmationNote: RESeating.WAITLIST_CONFIRM,
-      ts: new Date().toISOString(),
-      location: 'kennedy-school-bbq',
-      source: 'retirement-everest-host'
+      partyType,
+      spouse: spouse || null
     };
-    if (window.RESharedOrders?.appendSharedOrder) {
-      await RESharedOrders.appendSharedOrder(order);
+    if (existingKey && window.RESharedOrders?.updateSharedOrder) {
+      const loc = typeof getReportLoc === 'function' ? getReportLoc() : { id: 'kennedy-school-bbq', slug: 'kennedy-school-bbq', storageKey: 'kennedyschool_bbq_prefs_v5' };
+      const updated = await RESharedOrders.updateSharedOrder(loc, existingKey, seatPatch);
+      if (!updated.ok) {
+        alert('Seat is held on the chart, but the original form row could not be updated. They will still show on the waitlist chart — no extra text was sent.');
+      }
+    } else {
+      const order = {
+        id: Date.now(),
+        locationId: 'kennedy-school-bbq',
+        name, email, phone,
+        form: 'host-waitlist',
+        partyType,
+        partySize: ids.length,
+        spouse: spouse || null,
+        ...seatPatch,
+        ts: new Date().toISOString(),
+        location: 'kennedy-school-bbq',
+        source: 'retirement-everest-host'
+      };
+      if (window.RESharedOrders?.appendSharedOrder) {
+        await RESharedOrders.appendSharedOrder(order);
+      }
+      await RESeating.pushSeatEventToGHL({
+        event: 'waitlist_hold',
+        form: 'host-waitlist',
+        name, email, phone,
+        seats: ids.join(', '),
+        seatLabel: order.seatLabel,
+        waitlist: 'yes',
+        waitlistHold: 'yes',
+        confirmationNote: RESeating.WAITLIST_CONFIRM,
+        tag: 're-waitlist',
+        status: 'waitlist',
+        pipelineStage: 'Waitlist',
+        preferencesSummary: `WAITLIST HOLD (host)\n${name}\n${order.seatLabel}\n${RESeating.WAITLIST_CONFIRM}`
+      });
     }
-    await RESeating.pushSeatEventToGHL({
-      event: 'waitlist_hold',
-      form: 'host-waitlist',
-      name, email, phone,
-      seats: ids.join(', '),
-      seatLabel: order.seatLabel,
-      waitlist: 'yes',
-      waitlistHold: 'yes',
-      confirmationNote: RESeating.WAITLIST_CONFIRM,
-      tag: 're-waitlist',
-      status: 'waitlist',
-      pipelineStage: 'Waitlist',
-      preferencesSummary: `WAITLIST HOLD (host)\n${name}\n${order.seatLabel}\n${RESeating.WAITLIST_CONFIRM}`
-    });
   } catch (e) {
     alert('Waitlist save failed: ' + e);
   }
@@ -1619,6 +1767,10 @@ async function submitWaitlistAssign() {
   document.getElementById('wlEmail').value = '';
   document.getElementById('wlPhone').value = '';
   document.getElementById('wlSpouse').value = '';
+  const existingKeyEl = document.getElementById('wlExistingKey');
+  const existingSel = document.getElementById('wlExisting');
+  if (existingKeyEl) existingKeyEl.value = '';
+  if (existingSel) existingSel.value = '';
   closeWaitlistAssign();
   renderWaitlistView();
 }
