@@ -764,6 +764,78 @@ th { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: v
 .host-tab.active { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); border-color: var(--accent); }
 .host-view { display: none; }
 .host-view.active { display: block; }
+
+.report-fold-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.report-fold-toolbar-label {
+  margin-right: auto;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.report-fold {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.report-fold[open] {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.report-fold-alert {
+  border-color: color-mix(in srgb, #c9a44a 70%, var(--border));
+}
+.report-fold-head {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.report-fold-head::-webkit-details-marker,
+.report-fold-head::marker { display: none; }
+.report-fold-chevron {
+  color: var(--accent);
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.report-fold[open] .report-fold-chevron { transform: rotate(90deg); }
+.report-fold-title {
+  font-family: var(--heading-font);
+  font-size: 1rem;
+  color: var(--text);
+  flex: 1;
+}
+.report-fold-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.report-fold-body {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.report-fold-body h3 {
+  font-size: 0.68rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.report-fold-body .card-box { margin-bottom: 12px; }
+@media (max-width: 700px) {
+  .stats-row { grid-template-columns: 1fr 1fr !important; }
+  .report-fold-meta { white-space: normal; text-align: right; max-width: 45%; }
+}
 .dash-section-title { font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
 .dash-loc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 32px; }
 .dash-loc-card {

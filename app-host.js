@@ -158,6 +158,67 @@ function mealWeight(o, orders) {
   return joined ? 1 : 2;
 }
 
+const REPORT_FOLD_KEY = 're_report_folds_v1';
+const REPORT_FOLD_DEFAULTS = {
+  'loc-share': false,
+  'loc-kitchen': false,
+  'loc-guests': false,
+  'loc-seats': true,
+  'loc-reserved': false,
+  'loc-help': true,
+  'loc-couples': false
+};
+
+function reportFoldState() {
+  try {
+    return { ...REPORT_FOLD_DEFAULTS, ...JSON.parse(localStorage.getItem(REPORT_FOLD_KEY) || '{}') };
+  } catch (_) {
+    return { ...REPORT_FOLD_DEFAULTS };
+  }
+}
+
+function setReportFold(id, open) {
+  const st = reportFoldState();
+  st[id] = !!open;
+  try {
+    localStorage.setItem(REPORT_FOLD_KEY, JSON.stringify(st));
+  } catch (_) {}
+}
+
+function reportFoldHTML(id, title, meta, inner, opts = {}) {
+  const open = opts.forceOpen != null ? !!opts.forceOpen : !!reportFoldState()[id];
+  const tone = opts.tone ? ` report-fold-${opts.tone}` : '';
+  return `<details class="report-fold${tone}" data-report-fold="${esc(id)}"${open ? ' open' : ''}>
+    <summary class="report-fold-head">
+      <span class="report-fold-chevron" aria-hidden="true">▸</span>
+      <span class="report-fold-title">${title}</span>
+      ${meta ? `<span class="report-fold-meta">${meta}</span>` : ''}
+    </summary>
+    <div class="report-fold-body">${inner}</div>
+  </details>`;
+}
+
+function wireReportFolds(root) {
+  (root || document).querySelectorAll('details[data-report-fold]').forEach((el) => {
+    el.addEventListener('toggle', () => setReportFold(el.dataset.reportFold, el.open));
+  });
+}
+
+function setAllReportFolds(root, open) {
+  (root || document).querySelectorAll('details[data-report-fold]').forEach((el) => {
+    el.open = open;
+    setReportFold(el.dataset.reportFold, open);
+  });
+}
+
+function reportFoldToolbarHTML() {
+  return `<div class="report-fold-toolbar">
+    <span class="report-fold-toolbar-label">Tap a row to expand</span>
+    <button type="button" class="btn-sm" data-folds="open">Expand all</button>
+    <button type="button" class="btn-sm" data-folds="close">Collapse all</button>
+  </div>`;
+}
+
 function renderBbqMenuPickReport(orders, loc) {
   const sideCounts = {}, entreeCounts = {}, dessertCounts = {};
   let adult = 0, soft = 0, guests = 0;
@@ -175,14 +236,17 @@ function renderBbqMenuPickReport(orders, loc) {
   const adultPct = Math.round((adult / bevTotal) * 100);
   const softPct = Math.round((soft / bevTotal) * 100);
   const buffetName = loc.menus?.buffetName || 'Backyard Barbecue Buffet';
-  return `
-    <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-      <div class="card-box"><div class="stat-label">Preferences</div><div class="stat-val">${orders.length} <span style="font-size:0.75rem;color:var(--muted)">(${guests} guest${guests === 1 ? '' : 's'})</span></div></div>
-      <div class="card-box"><div class="stat-label">Dinner package</div><div class="stat-val" style="font-size:0.95rem">${esc(buffetName)}</div></div>
-      <div class="card-box"><div class="stat-label">Want adult drinks</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
-      <div class="card-box"><div class="stat-label">No adult drink</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
-    </div>
-    <div class="card-box" style="margin-bottom:16px">
+  const flagged = orders.filter(o => o.dietHasRestrictions || (o.notes && !/^no restrictions$/i.test(String(o.notes).trim())));
+  const hasLegacy = Object.keys(sideCounts).length || Object.keys(entreeCounts).length || Object.keys(dessertCounts).length;
+  const statsHTML = `
+    <div class="stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
+      <div class="card-box" style="margin-bottom:0"><div class="stat-label">Preferences</div><div class="stat-val">${orders.length} <span style="font-size:0.75rem;color:var(--muted)">(${guests} guest${guests === 1 ? '' : 's'})</span></div></div>
+      <div class="card-box" style="margin-bottom:0"><div class="stat-label">Dinner package</div><div class="stat-val" style="font-size:0.95rem">${esc(buffetName)}</div></div>
+      <div class="card-box" style="margin-bottom:0"><div class="stat-label">Want adult drinks</div><div class="stat-val">${adult} <span style="font-size:0.75rem;color:var(--muted)">(${adultPct}%)</span></div></div>
+      <div class="card-box" style="margin-bottom:0"><div class="stat-label">No adult drink</div><div class="stat-val">${soft} <span style="font-size:0.75rem;color:var(--muted)">(${softPct}%)</span></div></div>
+    </div>`;
+  const kitchenHTML = `
+    <div style="margin-bottom:12px">
       <h3>Adult drink interest</h3>
       <div style="display:flex;height:14px;border-radius:8px;overflow:hidden;background:var(--border);margin:8px 0 10px">
         <div style="width:${adultPct}%;background:var(--accent)" title="Want adult drink"></div>
@@ -194,24 +258,23 @@ function renderBbqMenuPickReport(orders, loc) {
         Use the adult count to decide whether to provide a bar package or have guests order from the bar.
       </p>
     </div>
-    <div class="card-box" style="margin-bottom:16px">
+    <div style="margin-bottom:12px">
       <h3>Dietary restrictions</h3>
-      ${(() => {
-        const flagged = orders.filter(o => o.dietHasRestrictions || (o.notes && !/^no restrictions$/i.test(String(o.notes).trim())));
-        if (!flagged.length) return '<p style="color:var(--muted);font-size:0.8rem;margin:0">No restrictions reported yet.</p>';
-        return `<ul style="margin:8px 0 0;padding-left:18px">${flagged.map(o =>
-          `<li style="margin-bottom:6px"><strong>${esc(o.name)}</strong> — ${esc(o.notes || 'restriction noted')}</li>`
-        ).join('')}</ul>`;
-      })()}
+      ${!flagged.length
+        ? '<p style="color:var(--muted);font-size:0.8rem;margin:0">No restrictions reported yet.</p>'
+        : `<ul style="margin:8px 0 0;padding-left:18px">${flagged.map(o =>
+            `<li style="margin-bottom:6px"><strong>${esc(o.name)}</strong> — ${esc(o.notes || 'restriction noted')}</li>`
+          ).join('')}</ul>`}
     </div>
-    ${Object.keys(sideCounts).length || Object.keys(entreeCounts).length || Object.keys(dessertCounts).length ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="card-box"><h3>Legacy side picks</h3>${rankBars(sideCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
-      <div class="card-box"><h3>Legacy entrée picks</h3>${rankBars(entreeCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
-      <div class="card-box"><h3>Legacy dessert picks</h3>${rankBars(dessertCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
+    ${hasLegacy ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div><h3>Legacy side picks</h3>${rankBars(sideCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
+      <div><h3>Legacy entrée picks</h3>${rankBars(entreeCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
+      <div><h3>Legacy dessert picks</h3>${rankBars(dessertCounts) || '<p style="color:var(--muted);font-size:0.8rem">None</p>'}</div>
     </div>` : ''}
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Guests no longer pick plates. Kitchen serves the full BBQ buffet — use diet notes + adult-drink counts to plan.</p>
-    <div class="card-box" style="overflow:auto">
+    <p style="color:var(--muted);font-size:0.85rem;margin:0">Guests no longer pick plates. Kitchen serves the full BBQ buffet — use diet notes + adult-drink counts to plan.</p>`;
+  const guestsHTML = `
+    <div style="overflow:auto">
       <table class="data-table">
         <thead><tr><th>#</th><th>Name</th><th>Party</th><th>Seats</th><th>Adult drink?</th><th>Dietary notes</th><th>Time</th><th></th></tr></thead>
         <tbody>${orders.map((o, i) => {
@@ -245,6 +308,15 @@ function renderBbqMenuPickReport(orders, loc) {
         }).join('')}</tbody>
       </table>
     </div>`;
+  return {
+    statsHTML,
+    kitchenHTML,
+    guestsHTML,
+    adult,
+    soft,
+    dietN: flagged.length,
+    guests
+  };
 }
 
 /** Preference rows that never landed on the Jordan or waitlist chart. */
@@ -445,7 +517,10 @@ function wireGuestRemoveButtons(root) {
 }
 
 function renderBuffetReport(orders, loc) {
-  if (loc.bbqMenuPick) return renderBbqMenuPickReport(orders, loc);
+  if (loc.bbqMenuPick) {
+    const p = renderBbqMenuPickReport(orders, loc);
+    return (p.statsHTML || '') + (p.kitchenHTML || '') + (p.guestsHTML || '');
+  }
   const buffetCounts = {}, starterCounts = {};
   let adult = 0, soft = 0;
   orders.forEach(o => {
@@ -483,7 +558,7 @@ function renderBuffetReport(orders, loc) {
       <div class="card-box"><h3>Appetizer package votes</h3>${rankBars(starterCounts) || '<p style="color:var(--muted);font-size:0.8rem">No votes yet.</p>'}</div>
     </div>
     <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">Leading starter: <strong>${topStarter ? esc(topStarter[0]) : '—'}</strong>. Lock winning buffet + apps with McMenamins sales.</p>
-    <div class="card-box" style="overflow:auto">
+    ${reportFoldHTML('loc-guests', 'Guest list', `${orders.length} vote${orders.length === 1 ? '' : 's'}`, `<div style="overflow:auto">
       <table class="data-table">
         <thead><tr><th>#</th><th>Name</th><th>Buffet</th><th>Appetizers</th><th>Beverage bucket</th><th>Time</th><th></th></tr></thead>
         <tbody>${orders.map((o, i) => {
@@ -492,7 +567,7 @@ function renderBuffetReport(orders, loc) {
           return `<tr><td>${i + 1}</td><td><strong>${esc(o.name)}</strong></td><td>${esc(o.buffet || '—')}</td><td>${esc(o.starter || '—')}</td><td>${esc(cat === 'Adult' ? 'Adult beverage' : 'Coffee, tea, or water')}</td><td>${new Date(o.ts).toLocaleString()}</td><td><button type="button" class="btn-sm" data-remove-guest="${esc(ok)}" data-remove-name="${esc(o.name || 'this guest')}">Remove</button></td></tr>`;
         }).join('')}</tbody>
       </table>
-    </div>`;
+    </div>`)}`;
 }
 
 function renderPreorderReport(orders, loc) {
@@ -716,21 +791,50 @@ function paintLocationReport(loc, reportLoc, orders, opts = {}) {
     <p style="margin:10px 0 0;font-size:0.78rem">Cloud list is the source of truth. <strong>Remove</strong> on a guest row deletes that person only. <strong>Clear</strong> (toolbar) wipes everyone.</p>
   </div>`;
 
-  if (!orders.length) {
-    body.innerHTML = `${share}${syncNote}<div class="empty">${loading ? 'Loading preferences…' : `No preferences yet for ${esc(loc.shortName)}. Use <strong>Email / text guest link</strong>, then hit <strong>Refresh from cloud</strong> after guests submit.`}</div>`;
-  } else {
+  const emptyMsg = `<div class="empty">${loading ? 'Loading preferences…' : `No preferences yet for ${esc(loc.shortName)}. Use <strong>Email / text guest link</strong>, then hit <strong>Refresh from cloud</strong> after guests submit.`}</div>`;
+
+  if (reportLoc.bbqMenuPick) {
+    const parts = orders.length ? renderBbqMenuPickReport(orders, reportLoc) : null;
+    const kitchenMeta = parts
+      ? `${parts.adult} adult · ${parts.soft} no drink · ${parts.dietN} diet note${parts.dietN === 1 ? '' : 's'}`
+      : '';
     body.innerHTML =
-      share +
-      syncNote +
-      (reportLoc.type === 'screening'
+      reportFoldToolbarHTML() +
+      (parts ? parts.statsHTML : '') +
+      '<div id="unseated-slot"></div>' +
+      reportFoldHTML(
+        'loc-seats',
+        'Seating chart — Jordan Room',
+        seatsOnline
+          ? `${seatClaimN} reserved`
+          : loading
+            ? 'loading…'
+            : 'offline',
+        `<div id="seating-panel">${loading && !opts.seatsReady ? '<div class="empty">Loading live seating chart…</div>' : ''}</div>`
+      ) +
+      (parts
+        ? reportFoldHTML('loc-kitchen', 'Kitchen &amp; drinks', kitchenMeta, parts.kitchenHTML) +
+          reportFoldHTML('loc-guests', 'Guest list', `${orders.length} submission${orders.length === 1 ? '' : 's'}`, parts.guestsHTML)
+        : emptyMsg) +
+      reportFoldHTML('loc-share', 'Guest link &amp; sync', `${orders.length} in cloud log`, share + syncNote);
+  } else if (!orders.length) {
+    body.innerHTML = `${share}${syncNote}${emptyMsg}`;
+  } else {
+    const reportHTML =
+      reportLoc.type === 'screening'
         ? renderScreeningReport(orders, reportLoc)
         : reportLoc.type === 'preorder'
           ? renderPreorderReport(orders, reportLoc)
           : reportLoc.type === 'buffet'
             ? renderBuffetReport(orders, reportLoc)
-            : renderRetreatReport(orders, reportLoc));
+            : renderRetreatReport(orders, reportLoc);
+    body.innerHTML = reportFoldToolbarHTML() + share + syncNote + reportHTML;
   }
 
+  wireReportFolds(body);
+  body.querySelectorAll('[data-folds]').forEach((btn) => {
+    btn.addEventListener('click', () => setAllReportFolds(body, btn.dataset.folds === 'open'));
+  });
   body.querySelector('[data-copy-link]')?.addEventListener('click', (e) => {
     copyText(e.target.dataset.copyLink).then(() => alert('Link copied!'));
   });
@@ -757,19 +861,6 @@ function paintLocationReport(loc, reportLoc, orders, opts = {}) {
     renderReport({ forceCloud: true });
   });
   wireGuestRemoveButtons(body);
-
-  // Seating panel shell
-  if (reportLoc.bbqMenuPick && window.RESeating) {
-    let seatDiv = document.getElementById('seating-panel');
-    if (!seatDiv) {
-      seatDiv = document.createElement('div');
-      seatDiv.id = 'seating-panel';
-      body.appendChild(seatDiv);
-    }
-    if (loading && !opts.seatsReady) {
-      seatDiv.innerHTML = '<div class="empty">Loading live seating chart…</div>';
-    }
-  }
 }
 
 async function renderReport(opts = {}) {
@@ -910,41 +1001,54 @@ async function loadSeatingPanel(loc, orders, opts = {}) {
       style="margin:0 6px 6px 0;${on ? 'background:var(--accent);color:#141414;font-weight:700' : ''}">${esc(c.name)}</button>`;
   }).join('');
 
+  const unseatedSlot = document.getElementById('unseated-slot');
+  if (unseatedSlot) {
+    unseatedSlot.innerHTML = renderUnseatedGuestBox(unseated, { waitlist: false });
+    wireUnseatedPlaceButtons(unseatedSlot, unseated);
+  }
+
   panel.innerHTML = `
-    <div class="section-gap"></div>
-    <h3 style="font-family:var(--heading-font);color:var(--accent);margin-bottom:4px">Seating Chart — Jordan Room</h3>
     <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">
-      Arch layout facing the screen · five 60″ 8-tops (screen-side chairs open) ·
-      <strong style="color:var(--text)">${seatsTaken}/${totalSeats}</strong> seats reserved
+      Arch layout facing the screen · five 60″ 8-tops ·
+      <strong style="color:var(--text)">${seatsTaken}/${totalSeats}</strong> reserved
       <button class="btn-sm" style="margin-left:8px" id="btnRefreshSeats">↻ Refresh</button>
       <button class="btn-sm" style="margin-left:6px" id="btnOpenWaitlist">Waitlist chart →</button>
       <button class="btn-sm" style="margin-left:6px" id="btnOpenGym">Gym backup →</button>
     </div>
     ${offlineBanner}
-    ${renderUnseatedGuestBox(unseated, { waitlist: false })}
-    <div class="card-box" style="padding:10px;min-height:280px">${RESeating.renderMapSVG(st, { mode: 'host' })}${RESeating.legendHTML('host')}</div>
-    ${claims.length ? `
-      <div class="section-gap"></div>
-      <h4 style="color:var(--text);margin-bottom:8px">Reserved seats</h4>
-      <div class="card-box" style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
+    <div class="card-box" style="padding:10px;margin-bottom:10px">${RESeating.renderMapSVG(st, { mode: 'host' })}${RESeating.legendHTML('host')}</div>
+    ${claims.length ? reportFoldHTML(
+      'loc-reserved',
+      'Reserved seats',
+      `${claims.length} chair${claims.length === 1 ? '' : 's'}`,
+      `<div style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
         <thead><tr><th>Seat</th><th>Guest</th><th>Party</th><th>Contact</th><th></th></tr></thead>
-        <tbody>${rows}</tbody></table></div>` : ''}
-    ${accom ? `<div class="section-gap"></div>
-      <h4 style="color:var(--red,#e05252);margin-bottom:8px">⚠ Seating help requested</h4>${accom}` : ''}
-    <div class="section-gap"></div>
-    <h4 style="color:var(--text);margin-bottom:4px">Couples</h4>
-    <p style="color:var(--muted);font-size:0.8rem;margin-bottom:10px">
-      Couples link automatically when someone reserves for a spouse, or when the spouse submits via
-      <strong>Partner already reserved</strong> on the guest form (GHL events <code>couple_reserved</code> /
-      <code>couple_linked</code>). You can also tap two names below and <strong>Link as couple</strong> manually.
-    </p>
-    ${linked}
-    <div class="card-box" style="padding:12px">
-      <div style="margin-bottom:8px">${contactChips || '<span style="color:var(--muted);font-size:0.85rem">No contacts yet — they appear as guests submit preferences or reserve seats.</span>'}</div>
-      <button class="btn-sm btn-accent" id="btnLinkCouple" ${seatLinkPicks.length === 2 ? '' : 'disabled'}>♥ Link as couple${seatLinkPicks.length === 2 ? `: ${esc(contacts[seatLinkPicks[0]].name)} + ${esc(contacts[seatLinkPicks[1]].name)}` : ' (pick two names)'}</button>
-    </div>`;
+        <tbody>${rows}</tbody></table></div>`
+    ) : ''}
+    ${accom ? reportFoldHTML(
+      'loc-help',
+      '⚠ Seating help requested',
+      `${st.accommodations.length}`,
+      accom,
+      { tone: 'alert', forceOpen: true }
+    ) : ''}
+    ${reportFoldHTML(
+      'loc-couples',
+      'Couples',
+      `${(st.couples || []).length} linked`,
+      `<p style="color:var(--muted);font-size:0.8rem;margin:0 0 10px">
+        Couples link automatically when someone reserves for a spouse, or when the spouse submits via
+        <strong>Partner already reserved</strong>. You can also tap two names and <strong>Link as couple</strong>.
+      </p>
+      ${linked}
+      <div style="padding-top:4px">
+        <div style="margin-bottom:8px">${contactChips || '<span style="color:var(--muted);font-size:0.85rem">No contacts yet — they appear as guests submit preferences or reserve seats.</span>'}</div>
+        <button class="btn-sm btn-accent" id="btnLinkCouple" ${seatLinkPicks.length === 2 ? '' : 'disabled'}>♥ Link as couple${seatLinkPicks.length === 2 ? `: ${esc(contacts[seatLinkPicks[0]].name)} + ${esc(contacts[seatLinkPicks[1]].name)}` : ' (pick two names)'}</button>
+      </div>`
+    )}`;
 
-  wireUnseatedPlaceButtons(panel, unseated);
+  wireReportFolds(panel);
+  if (!unseatedSlot) wireUnseatedPlaceButtons(panel, unseated);
   panel.querySelector('#btnRefreshSeats')?.addEventListener('click', () => {
     if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
     if (window.RESeating?.clearLocalCache) RESeating.clearLocalCache();
