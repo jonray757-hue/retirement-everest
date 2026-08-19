@@ -1918,12 +1918,12 @@ async function renderGymView() {
   body.innerHTML = `
     <div class="rate-note" style="margin-top:8px">
       <strong>Backup only.</strong> McMenamins Gymnasium is 40 × 60 ft (2,400 sq ft) — from the Kennedy School color map / venue sheet.
-      Twelve 60″ rounds as 6-tops (72 seats). This chart does <em>not</em> change the live Jordan Room reservations.
+      Twelve 60″ rounds as 6-tops (72 seats). Jordan confirmed guests first, then waitlist overflow (gold chairs). This does <em>not</em> change Jordan or waitlist reservations.
     </div>
     <h3 style="font-family:var(--heading-font);color:var(--accent);margin-bottom:4px">Gymnasium backup layout</h3>
     <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">
       <strong style="color:var(--text)">${claims.length}/${total}</strong> placed · last sync ${esc(when)}
-      <button class="btn-sm btn-accent" style="margin-left:8px" id="btnGymSync">Place current Jordan guests here</button>
+      <button class="btn-sm btn-accent" style="margin-left:8px" id="btnGymSync">Place Jordan + waitlist here</button>
       <button class="btn-sm" style="margin-left:6px" id="btnGymRefresh">↻ Refresh</button>
       <button class="btn-sm" style="margin-left:6px" id="btnGymToJordan">← Jordan Room</button>
     </div>
@@ -1932,8 +1932,8 @@ async function renderGymView() {
       <div class="section-gap"></div>
       <h4 style="color:var(--text);margin-bottom:8px">Guests on gym chart</h4>
       <div class="card-box" style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
-        <thead><tr><th>Gym seat</th><th>Guest</th><th>From Jordan</th><th>Party</th><th>Contact</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>` : '<p style="color:var(--muted);font-size:0.85rem">No guests placed yet — tap <strong>Place current Jordan guests here</strong>.</p>'}`;
+        <thead><tr><th>Gym seat</th><th>Guest</th><th>From</th><th>Party</th><th>Contact</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : '<p style="color:var(--muted);font-size:0.85rem">No guests placed yet — tap <strong>Place Jordan + waitlist here</strong>.</p>'}`;
 
   body.querySelector('#btnGymRefresh')?.addEventListener('click', () => {
     if (window.RESharedStore?.memInvalidate) RESharedStore.memInvalidate();
@@ -1941,7 +1941,7 @@ async function renderGymView() {
   });
   body.querySelector('#btnGymToJordan')?.addEventListener('click', () => switchHostView('location'));
   body.querySelector('#btnGymSync')?.addEventListener('click', async () => {
-    if (!confirm('Rebuild the gym backup from the current Jordan Room guest list? This only updates the gym chart.')) return;
+    if (!confirm('Rebuild the gym backup from Jordan confirmed guests plus the waitlist? This only updates the gym chart.')) return;
     const btn = body.querySelector('#btnGymSync');
     if (btn) { btn.disabled = true; btn.textContent = 'Placing…'; }
     try {

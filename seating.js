@@ -991,8 +991,8 @@
   }
 
   /**
-   * Copy live Jordan claims onto the gym backup chart (does not touch Jordan seats).
-   * Keeps table-mates and couples together; overflow goes to the next gym table.
+   * Copy Jordan confirmed guests onto the gym backup, then overflow waitlist
+   * holds onto remaining gym chairs. Does not touch Jordan or waitlist charts.
    */
   function transferJordanToGym(state) {
     const st = normalize(state);
@@ -1004,7 +1004,7 @@
       ti += 1;
       n = 1;
     };
-    const place = (claim) => {
+    const place = (claim, extra) => {
       if (n > GYM_SEATS_PER) nextTable();
       if (ti >= GYM_TABLES.length) return null;
       const id = GYM_TABLES[ti] + n;
@@ -1012,15 +1012,23 @@
       return {
         ...claim,
         seatId: id,
-        fromSeat: claim.seatId,
-        source: claim.source || 'gym-transfer'
+        fromSeat: extra.fromSeat || claim.seatId,
+        waitlist: !!extra.waitlist,
+        source: extra.source || claim.source || 'gym-transfer'
       };
     };
-    TABLES.forEach((jt) => {
-      if (n > 1) nextTable();
-      const people = Object.values(st.seats || {})
-        .filter((c) => String(c.seatId || '').charAt(0) === jt)
-        .sort((a, b) => parseInt(String(a.seatId).slice(1), 10) - parseInt(String(b.seatId).slice(1), 10));
+    const alreadyOnGym = (claim) => {
+      const em = String(claim.email || '').trim().toLowerCase();
+      const ph = String(claim.phone || '').replace(/\D/g, '').slice(-10);
+      return Object.values(gymSeats).some((g) => {
+        const gem = String(g.email || '').trim().toLowerCase();
+        const gph = String(g.phone || '').replace(/\D/g, '').slice(-10);
+        if (em && gem && em === gem) return true;
+        if (ph.length === 10 && gph.length === 10 && ph === gph) return true;
+        return false;
+      });
+    };
+    const placeGroups = (people, extra) => {
       const groups = [];
       const seen = new Set();
       people.forEach((p) => {
@@ -1033,7 +1041,7 @@
         if (n - 1 + g.length > GYM_SEATS_PER) nextTable();
         const placedIds = [];
         g.forEach((p) => {
-          const placed = place(p);
+          const placed = place(p, extra(p));
           if (placed) {
             gymSeats[placed.seatId] = placed;
             placedIds.push(placed.seatId);
@@ -1049,12 +1057,33 @@
             },
             seats: placedIds,
             groupId: g[0].groupId || null,
-            source: 'gym-transfer',
+            source: extra(g[0]).source || 'gym-transfer',
+            waitlist: !!extra(g[0]).waitlist,
             ts: new Date().toISOString()
           });
         }
       });
-    });
+    };
+    const jordanPeople = TABLES.flatMap((jt) =>
+      Object.values(st.seats || {})
+        .filter((c) => String(c.seatId || '').charAt(0) === jt)
+        .sort((a, b) => parseInt(String(a.seatId).slice(1), 10) - parseInt(String(b.seatId).slice(1), 10))
+    );
+    placeGroups(jordanPeople, (p) => ({
+      fromSeat: p.seatId,
+      waitlist: false,
+      source: 'gym-transfer'
+    }));
+    const waitPeople = TABLES.flatMap((jt) =>
+      Object.values((st.waitlist && st.waitlist.seats) || {})
+        .filter((c) => String(c.seatId || '').charAt(0) === jt)
+        .sort((a, b) => parseInt(String(a.seatId).slice(1), 10) - parseInt(String(b.seatId).slice(1), 10))
+    );
+    placeGroups(waitPeople, (p) => ({
+      fromSeat: 'WL ' + p.seatId,
+      waitlist: true,
+      source: 'gym-waitlist'
+    }));
     return {
       seats: gymSeats,
       couples: gymCouples,
@@ -1167,10 +1196,13 @@
           label = String(n), lblFill = 'var(--accent, #c9a44a)',
           title = `Gym Table ${t} · Seat ${n}`;
         if (claim) {
-          fill = '#2c2c32'; stroke = '#6a6a72'; lblFill = '#d0d0d6';
+          const wl = !!(claim.waitlist || (claim.fromSeat && String(claim.fromSeat).indexOf('WL') === 0));
+          fill = wl ? 'rgba(201,164,74,0.35)' : '#2c2c32';
+          stroke = wl ? 'var(--accent, #c9a44a)' : '#6a6a72';
+          lblFill = wl ? '#f0e2b8' : '#d0d0d6';
           label = mode === 'host' ? (xesc(initials(claim.person || claim.name)) || '✕') : '✕';
           title = mode === 'host'
-            ? `Gym Table ${t} · Seat ${n} — ${xesc(claim.person || claim.name)}${claim.fromSeat ? ` (from ${claim.fromSeat})` : ''}`
+            ? `Gym Table ${t} · Seat ${n} — ${xesc(claim.person || claim.name)}${claim.fromSeat ? ` (from ${claim.fromSeat})` : ''}${wl ? ' · waitlist' : ''}`
             : `Gym Table ${t} · Seat ${n} — reserved`;
         } else if (isSel) {
           fill = 'var(--accent, #c9a44a)'; lblFill = '#141414';
@@ -1194,7 +1226,7 @@
       <rect x="${GYM_ROOM.x}" y="${GYM_ROOM.y}" width="${GYM_ROOM.w}" height="${GYM_ROOM.h}" rx="4" fill="rgba(255,255,255,0.015)" stroke="#3c3c44" stroke-width="2"></rect>
       <rect x="${GYM_SCREEN.x}" y="${GYM_SCREEN.y}" width="${GYM_SCREEN.w}" height="${GYM_SCREEN.h}" rx="6" fill="#26262c" stroke="#4a4a52"></rect>
       <text x="${GYM_SCREEN.cx}" y="${GYM_SCREEN.cy + 5}" text-anchor="middle" font-size="14" letter-spacing="5" fill="#9a9aa4">SCREEN</text>
-      <text x="${GYM_SCREEN.cx}" y="${GYM_SCREEN.y + GYM_SCREEN.h + 20}" text-anchor="middle" font-size="12" fill="#8a8a94">Gymnasium backup · 40 × 60 ft (2,400 sq ft) · 12 × 60″ 6-tops · does not change Jordan Room</text>
+      <text x="${GYM_SCREEN.cx}" y="${GYM_SCREEN.y + GYM_SCREEN.h + 20}" text-anchor="middle" font-size="12" fill="#8a8a94">Gymnasium backup · Jordan confirmed (dark) + waitlist overflow (gold) · does not change live seats</text>
       <rect x="${GYM_BUFFET.x}" y="${GYM_BUFFET.y}" width="${GYM_BUFFET.w}" height="${GYM_BUFFET.h}" rx="5" fill="rgba(201,164,74,0.05)" stroke="#4a4a52" stroke-dasharray="6 4"></rect>
       <text x="${GYM_BUFFET.x + GYM_BUFFET.w / 2}" y="${GYM_BUFFET.y + GYM_BUFFET.h / 2 + 4}" text-anchor="middle" font-size="13" letter-spacing="4" fill="#8a8a94">BBQ BUFFET</text>
       ${tables}
