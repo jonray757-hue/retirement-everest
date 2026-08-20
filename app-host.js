@@ -1551,7 +1551,7 @@ function guestFlyerShortcutsHTML(opts = {}) {
   const full = `
     <div class="flyer-shortcut">
       <h4>Not confirmed / no seat</h4>
-      <p>Thursday is full. Send the clickable PDF (as a file) or the live page. Do not flatten to a photo.</p>
+      <p>Next Thursday, August 27 is full. Send the clickable PDF (as a file) or the live page. Do not flatten to a photo.</p>
       <div class="flyer-shortcut-actions">
         <a class="btn-sm btn-accent" href="next.html" target="_blank" rel="noopener">Live page</a>
         <a class="btn-sm" href="flyers/Thursday-is-full.pdf" target="_blank" rel="noopener">Clickable PDF</a>
