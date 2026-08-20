@@ -16,8 +16,9 @@ let connectDraft = null; // { contact, channel, purpose }
 
 const CRM_STAGES = [
   { id: 'invited', label: 'Registered', hint: 'On the list — still needs prefs' },
-  { id: 'registered', label: 'Preferences received', hint: 'Menu in — seat still open' },
-  { id: 'seated', label: 'Seated', hint: 'Prefs + chair reserved' },
+  { id: 'registered', label: 'Preferences received', hint: 'Menu in — no chair' },
+  { id: 'waitlist', label: 'Waitlist', hint: 'Hold chart — not a confirmed seat' },
+  { id: 'seated', label: 'Seated', hint: 'Jordan Room chair reserved' },
   { id: 'talking', label: 'Talking', hint: 'Manual follow-up' }
 ];
 
@@ -282,6 +283,7 @@ function paintContactsView() {
     talking: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'talking').length,
     invited: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'invited').length,
     registered: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'registered').length,
+    waitlist: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'waitlist').length,
     seated: contactsCache.filter((c) => (REContacts?.contactPipelineStatus?.(c) || c.status) === 'seated').length,
     couple: contactsCache.filter((c) => c.priorityCategory === 'couple').length,
     singleWoman: contactsCache.filter((c) => c.priorityCategory === 'singleWoman').length,
@@ -306,6 +308,7 @@ function paintContactsView() {
     ['all', 'All stages'],
     ['invited', 'Registered'],
     ['registered', 'Preferences received'],
+    ['waitlist', 'Waitlist'],
     ['seated', 'Seated'],
     ['talking', 'Talking']
   ]
@@ -361,8 +364,8 @@ function paintContactsView() {
           <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px">EVENT CRM · AUG 27 BBQ</div>
           <h3 style="margin:0 0 6px">Kennedy School pipeline</h3>
           <p class="integration-note" style="margin:0;max-width:680px">
-            Same stages as Producer Autopilot: <strong>Registered</strong> → <strong>Preferences received</strong> → <strong>Seated</strong>.
-            Guest form submits move the card. Call order is still here if you need it.
+            Same stages as GHL: <strong>Registered</strong> → <strong>Preferences received</strong> → <strong>Waitlist</strong> → <strong>Seated</strong>.
+            Waitlist holds are not seated. Guest form submits move the card.
           </p>
           <p id="crmSyncBanner" style="margin:8px 0 0;font-size:0.8rem;color:var(--accent)"></p>
         </div>
@@ -381,6 +384,7 @@ function paintContactsView() {
         <div class="card-box contact-stat"><div class="stat-label">All</div><div class="stat-val">${counts.all}</div></div>
         <div class="card-box contact-stat"><div class="stat-label">Registered</div><div class="stat-val">${counts.invited}</div></div>
         <div class="card-box contact-stat"><div class="stat-label">Prefs in</div><div class="stat-val accent">${counts.registered}</div></div>
+        <div class="card-box contact-stat"><div class="stat-label">Waitlist</div><div class="stat-val">${counts.waitlist}</div></div>
         <div class="card-box contact-stat"><div class="stat-label">Seated</div><div class="stat-val">${counts.seated}</div></div>
         <div class="card-box contact-stat"><div class="stat-label">Couples</div><div class="stat-val">${counts.couple}</div></div>
       </div>

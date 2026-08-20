@@ -255,9 +255,12 @@
         ? global.REContacts.contactPipelineStatus(contact)
         : contact.status) || '';
 
-    if (pipeline === 'seated' || prefs.seatLabel || (prefs.seats && prefs.seats.length)) {
+    if (pipeline === 'seated') {
       total += 15;
       breakdown.push({ label: 'Has seat reserved', pts: 15 });
+    } else if (pipeline === 'waitlist') {
+      total += 8;
+      breakdown.push({ label: 'Waitlist hold', pts: 8 });
     } else if (pipeline === 'registered' || prefs.preferencesSummary) {
       total += 10;
       breakdown.push({ label: 'Preferences in', pts: 10 });

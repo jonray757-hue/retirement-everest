@@ -293,6 +293,8 @@ function prefsFromOrder(o) {
     coupleMode: o.coupleMode || '',
     seats: Array.isArray(o.seats) ? o.seats : [],
     seatLabel: o.seatLabel || '',
+    waitlist: !!(o.waitlist || o.waitlistHold),
+    waitlistHold: !!o.waitlistHold,
     salad: o.salad || '',
     starter: o.starter || '',
     main: o.main || '',
@@ -345,9 +347,10 @@ function contactFromOrder(o) {
     partyType: o.partyType || '',
     spouse: o.spouse || '',
     joinedPartner: !!o.joinedPartner,
-    /* Pipeline: registered (prefs) → seated (prefs + seat map claim) */
-    status:
-      (Array.isArray(o.seats) && o.seats.length) || o.seatLabel || o.seatAccommodation
+    /* Pipeline: registered (prefs) → waitlist hold → seated (Jordan chart) */
+    status: o.waitlist || o.waitlistHold
+      ? 'waitlist'
+      : (Array.isArray(o.seats) && o.seats.length) || o.seatLabel || o.seatAccommodation
         ? 'seated'
         : 'registered',
     preferences: prefsFromOrder(o),
@@ -389,12 +392,19 @@ function contactFromInvite(inv) {
 function contactPipelineStatus(rec) {
   if (!rec) return 'prospect';
   const prefs = rec.preferences || {};
+  const onWaitlist = !!(
+    rec.status === 'waitlist' ||
+    prefs.waitlist ||
+    prefs.waitlistHold
+  );
   const hasSeats =
     (Array.isArray(prefs.seats) && prefs.seats.length) ||
     !!prefs.seatLabel ||
     rec.status === 'seated';
   const hasPrefs = !!(prefs.preferencesSummary || prefs.entree || prefs.buffet || prefs.sides?.length);
-  if (hasSeats) return 'seated';
+  // Waitlist holds also have a seatLabel on the hold chart — that is not seated.
+  if (hasSeats && !onWaitlist) return 'seated';
+  if (onWaitlist) return 'waitlist';
   if (hasPrefs || rec.status === 'registered' || (rec.sources || []).includes('guest')) return 'registered';
   if (rec.status === 'invited' || (rec.sources || []).includes('invite')) return 'invited';
   if (rec.status === 'talking') return 'talking';
@@ -404,8 +414,8 @@ function contactPipelineStatus(rec) {
 function mergeContactRecords(a, b) {
   const sources = uniqueSources([...(a.sources || []), ...(b.sources || [])]);
   let status = a.status || b.status || 'prospect';
-  // seated > registered (prefs) > invited > talking > prospect
-  const rank = { seated: 5, registered: 4, invited: 3, talking: 2, prospect: 1 };
+  // seated > waitlist > registered (prefs) > invited > talking > prospect
+  const rank = { seated: 6, waitlist: 5, registered: 4, invited: 3, talking: 2, prospect: 1 };
   if ((rank[b.status] || 0) > (rank[status] || 0)) status = b.status;
 
   const prefs = a.preferences?.preferencesSummary
@@ -761,17 +771,21 @@ async function importEventCrmSeed(opts = {}) {
     const seatLabel = row.seatLabel || '';
     const status =
       row.status ||
-      (seats.length || seatLabel
-        ? 'seated'
-        : prefsSummary
-          ? 'registered'
-          : 'invited');
+      (row.waitlist || row.waitlistHold
+        ? 'waitlist'
+        : seats.length || seatLabel
+          ? 'seated'
+          : prefsSummary
+            ? 'registered'
+            : 'invited');
     const prefs =
-      prefsSummary || seats.length || seatLabel
+      prefsSummary || seats.length || seatLabel || row.waitlist || row.waitlistHold
         ? {
             preferencesSummary: prefsSummary || (seatLabel ? `Seats: ${seatLabel}` : ''),
             seats,
             seatLabel,
+            waitlist: !!(row.waitlist || row.waitlistHold),
+            waitlistHold: !!row.waitlistHold,
             submittedAt: row.dateAdded || row.ts || ''
           }
         : null;

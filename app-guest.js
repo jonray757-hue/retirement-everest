@@ -1147,6 +1147,7 @@ async function pushGuestOrderToGHL(order) {
   const hasSeats = !!(order.seatLabel || (Array.isArray(order.seats) && order.seats.length));
   const isWaitlist = !!(order.waitlist || order.waitlistHold);
   const pipelineStage = isWaitlist ? 'Waitlist' : hasSeats ? 'Seated' : 'Preferences Received';
+  const hagStage = isWaitlist ? 'on-waitlist' : hasSeats ? 'Seat-confirmed' : 'seat-not-confirmed';
 
   const payload = {
     // Contact (map these in GHL inbound webhook)
@@ -1161,6 +1162,8 @@ async function pushGuestOrderToGHL(order) {
     pipelineName: '08/27/26 - RE Premiere Event',
     pipelineStage,
     pipelineStageName: pipelineStage,
+    hagPipeline: 'RE EVENT',
+    hagPipelineStage: hagStage,
     status: isWaitlist ? 'waitlist' : hasSeats ? 'seated' : 'registered',
     tag: isWaitlist ? 're-waitlist' : hasSeats ? 're-seated' : 're-prefs-received',
     waitlist: isWaitlist ? 'yes' : '',
