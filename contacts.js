@@ -20,7 +20,7 @@ function contactMatchKey(c) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ');
-  // Include name with email so partners sharing one inbox stay separate (Milton / Anav)
+  // Include name with email so partners sharing one inbox stay separate (Milton / Anava)
   if (email && name) return 'e:' + email + '|n:' + name;
   if (email) return 'e:' + email;
   const phone = normalizePhone(c.phone);

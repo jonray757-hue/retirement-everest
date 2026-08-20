@@ -8,14 +8,14 @@
     "phone": "(503) 975-4612",
     "locationSlug": "kennedy-school",
     "locationName": "Kennedy School",
-    "preferencesSummary": "Dinner: Backyard Barbecue Buffet\\nSides: Dad's Moonshine baked beans \u00b7 Buttermilk coleslaw\\nEntr\u00e9e: Red Eye BBQ beef brisket\\nDessert: Northwest berry bars\\nDrink: No adult drink for me\\nSeats: Table C \u00b7 Seats 1 & 2\\nParty: couple\\nSpouse: Envida torres",
+    "preferencesSummary": "Dinner: Backyard Barbecue Buffet\\nSides: Dad's Moonshine baked beans \u00b7 Buttermilk coleslaw\\nEntr\u00e9e: Red Eye BBQ beef brisket\\nDessert: Northwest berry bars\\nDrink: No adult drink for me\\nSeats: Table C \u00b7 Seats 1 & 2\\nParty: couple\\nSpouse: Anava Torres",
     "seatLabel": "Table C \u00b7 Seats 1 & 2",
     "seats": [
       "C1",
       "C2"
     ],
     "partyType": "couple",
-    "spouse": "Anav Torres",
+    "spouse": "Anava Torres",
     "status": "seated",
     "sources": [
       "guest",
@@ -816,9 +816,9 @@
   },
   {
     "ghlId": "",
-    "firstName": "Anav",
+    "firstName": "Anava",
     "lastName": "Torres",
-    "name": "Anav Torres",
+    "name": "Anava Torres",
     "email": "alvarezmilton@yahoo.com",
     "phone": "(503) 975-4612",
     "locationSlug": "kennedy-school",
