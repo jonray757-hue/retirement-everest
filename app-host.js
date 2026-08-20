@@ -1561,7 +1561,7 @@ function guestFlyerShortcutsHTML(opts = {}) {
   const wait = `
     <div class="flyer-shortcut">
       <h4>Waitlist</h4>
-      <p>You raised your hand. Talk now, or promise a seat at the next night if Thursday does not open.</p>
+      <p>You raised your hand. Talk now, or promise a seat at the next movie night if Thursday does not open.</p>
       <div class="flyer-shortcut-actions">
         <a class="btn-sm btn-accent" href="waitlist.html" target="_blank" rel="noopener">Live page</a>
         <a class="btn-sm" href="flyers/Waitlist-you-raised-your-hand.pdf" target="_blank" rel="noopener">Clickable PDF</a>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>You're on the waitlist — pick your next step</title>
-<meta name="description" content="You are on the waitlist for Thursday. Talk about your plan now, or lock a promised seat at the next night.">
+<meta name="description" content="You are on the waitlist for next Thursday. Talk about your plan now, or lock a promised seat at the next movie night.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -86,7 +86,7 @@
         <h1>You raised<br>your hand</h1>
         <div class="rule"></div>
         <p class="lede">There was a reason you wanted to be in that room. You are on the waitlist for next Thursday, August 27 — not a confirmed seat. If a chair opens, I will call you.</p>
-        <p class="sorry">We can only hold so many waitlist names. If that call does not come, I will promise you a seat at the next night. And if you would rather not wait on a maybe to talk about your current plan, we can do that now.</p>
+        <p class="sorry">We can only hold so many waitlist names. If that call does not come, I will promise you a seat at the next movie night. And if you would rather not wait on a maybe to talk about your current plan, we can do that now.</p>
 
         <div id="pick">
           <p class="ask">What would you like while you wait?</p>
@@ -96,8 +96,8 @@
             <div class="go">Click here →</div>
           </button>
           <button class="choice" type="button" data-intent="seat">
-            <h2>Promise my seat at the next night</h2>
-            <p>Stay on Thursday’s waitlist. If a chair does not open, your seat at the next dinner is yours.</p>
+            <h2>Promise my seat at the next movie night</h2>
+            <p>Stay on next Thursday’s waitlist. If a chair does not open, your seat at the next movie night is yours.</p>
             <div class="go">Click here →</div>
           </button>
         </div>
@@ -169,9 +169,9 @@
     form.hidden = false;
     thanks.hidden = true;
     var seat = which === 'seat';
-    document.getElementById('formAsk').textContent = seat ? 'Next night' : 'Let’s talk';
+    document.getElementById('formAsk').textContent = seat ? 'Next movie night' : 'Let’s talk';
     document.getElementById('formLead').textContent = seat
-      ? 'You stay on Thursday’s waitlist. If a chair does not open, we will hold a seat for you at the next night and confirm the date with you.'
+      ? 'You stay on next Thursday’s waitlist. If a chair does not open, we will hold a seat for you at the next movie night and confirm the date with you.'
       : 'Tell us how to reach you. We can look at your current plan before the next event — you do not have to wait on a Thursday seat.';
     document.getElementById('submit').textContent = seat ? 'Promise my seat' : 'Please call me';
     reviewExtras.hidden = seat;
@@ -213,7 +213,7 @@
       urgent: urgent ? 'yes' : 'no',
       notes: note,
       message: seat
-        ? 'Waitlist guest: promise a seat at the next night if Thursday Aug 27 does not open. Stays on waitlist.'
+        ? 'Waitlist guest: promise a seat at the next movie night if Thursday Aug 27 does not open. Stays on waitlist.'
         : ('Waitlist guest: wants to talk about their plan before the next event. Urgent: ' + (urgent ? 'yes' : 'no') + (note ? '. ' + note : '')),
       brand: 'HAG',
       ghlLocationId: '24UgqDfh5TcJs5IPnA25',
@@ -242,7 +242,7 @@
         ? 'Your next-night seat is promised.'
         : 'We will reach out.';
       document.getElementById('thanksBody').textContent = seat
-        ? 'You stay on Thursday’s waitlist. If a chair opens I will call. If it does not, your seat at the next night is yours — we will confirm the date with you.'
+        ? 'You stay on next Thursday’s waitlist. If a chair opens I will call. If it does not, your seat at the next movie night is yours — we will confirm the date with you.'
         : 'Thank you. Someone from our team will be in touch to look at your current plan. You also stay on Thursday’s waitlist.';
     }).catch(function () {
       btn.disabled = false;

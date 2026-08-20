@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Next Thursday is full — pick your next step</title>
-<meta name="description" content="Next Thursday, August 27 at Kennedy School is full. Save a spot for the next dinner, or ask us to review your retirement.">
+<meta name="description" content="Next Thursday, August 27 at Kennedy School is full. Save a spot for the next movie night, or ask us to review your retirement.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -158,8 +158,8 @@
         <div id="pick">
           <p class="ask">What would you like next?</p>
           <button class="choice" type="button" data-intent="next">
-            <h2>Save my spot for the next dinner</h2>
-            <p>When we set the next night, you will be on that list first. No seat is reserved until we confirm it with you.</p>
+            <h2>Save my spot for the next movie night</h2>
+            <p>When we set the next movie night, you will be on that list first. No seat is reserved until we confirm it with you.</p>
             <div class="go">Click here →</div>
           </button>
           <button class="choice" type="button" data-intent="review">
@@ -236,10 +236,10 @@
     form.hidden = false;
     thanks.hidden = true;
     var next = which === 'next';
-    document.getElementById('formAsk').textContent = next ? 'Next dinner' : 'Retirement review';
+    document.getElementById('formAsk').textContent = next ? 'Next movie night' : 'Retirement review';
     document.getElementById('formLead').textContent = next
-      ? 'We will put you on the list for the next Retirement Everest dinner. No seat is reserved until we confirm it with you.'
-      : 'Tell us how to reach you. If this cannot wait for the next dinner, check the box and we will treat it that way.';
+      ? 'We will put you on the list for the next Retirement Everest movie night. No seat is reserved until we confirm it with you.'
+      : 'Tell us how to reach you. If this cannot wait for the next movie night, check the box and we will treat it that way.';
     document.getElementById('submit').textContent = next ? 'Save my spot' : 'Please call me';
     reviewExtras.hidden = next;
   }
@@ -280,7 +280,7 @@
       urgent: urgent ? 'yes' : 'no',
       notes: note,
       message: next
-        ? 'Requested a spot on the next Retirement Everest dinner (Thursday Aug 27 is full).'
+        ? 'Requested a spot on the next Retirement Everest movie night (Thursday Aug 27 is full).'
         : ('Requested a retirement review. Urgent: ' + (urgent ? 'yes' : 'no') + (note ? '. ' + note : '')),
       brand: 'HAG',
       ghlLocationId: '24UgqDfh5TcJs5IPnA25',
@@ -306,10 +306,10 @@
       form.hidden = true;
       thanks.hidden = false;
       document.getElementById('thanksTitle').textContent = next
-        ? 'You are on the next-dinner list.'
+        ? 'You are on the next movie night list.'
         : 'We will reach out.';
       document.getElementById('thanksBody').textContent = next
-        ? 'Thank you. When the next night is set, we will contact you personally. Please do not plan on a date until we confirm a seat with you.'
+        ? 'Thank you. When the next movie night is set, we will contact you personally. Please do not plan on a date until we confirm a seat with you.'
         : 'Thank you. Someone from our team will be in touch to set a time to look at your current plan.';
     }).catch(function () {
       btn.disabled = false;
