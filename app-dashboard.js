@@ -111,6 +111,7 @@ function renderOverview() {
             <button type="button" class="lock-btn btn-accent" id="heroOpenReport" style="max-width:none;width:100%;padding:12px 18px">Open location report →</button>
             <button type="button" class="btn-sm btn-accent" id="heroContacts">Open Contacts / Event CRM</button>
             <button type="button" class="btn-sm" id="heroInvite" data-invite="${active.slug}">Send guest link</button>
+            <button type="button" class="btn-sm" id="heroFlyers">Guest flyers</button>
             <button type="button" class="btn-sm" id="heroPlanner">Event planner</button>
           </div>
         </div>
@@ -152,6 +153,7 @@ function renderOverview() {
 
   document.getElementById('view-overview').innerHTML = `
     ${hero}
+    ${typeof guestFlyerShortcutsHTML === 'function' ? guestFlyerShortcutsHTML() : ''}
     <div class="stats">
       <div class="stat"><div class="stat-label">${showingAll ? 'Venues shown' : 'Active events'}</div><div class="stat-val">${locs.length}</div></div>
       <div class="stat"><div class="stat-label">Preferences</div><div class="stat-val accent">${totalOrders}</div></div>
@@ -194,6 +196,9 @@ function renderOverview() {
   document.getElementById('heroInvite')?.addEventListener('click', (e) => {
     e.preventDefault();
     openInviteModal(active?.slug);
+  });
+  document.getElementById('heroFlyers')?.addEventListener('click', () => {
+    document.getElementById('guest-flyers')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   document.querySelectorAll('[data-goto="location"], [data-open-report]').forEach((el) => {

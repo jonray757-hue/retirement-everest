@@ -836,6 +836,18 @@ th { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: v
   .stats-row { grid-template-columns: 1fr 1fr !important; }
   .report-fold-meta { white-space: normal; text-align: right; max-width: 45%; }
 }
+.flyer-shortcuts { margin-bottom: 24px; }
+.flyer-shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.flyer-shortcut h4 { margin: 0 0 4px; font-size: 1rem; font-family: var(--heading-font); color: var(--text); }
+.flyer-shortcut p { margin: 0 0 10px; font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
+.flyer-shortcut-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 700px) {
+  .flyer-shortcuts-grid { grid-template-columns: 1fr; }
+}
 .dash-section-title { font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
 .dash-loc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 32px; }
 .dash-loc-card {

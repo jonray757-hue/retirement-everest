@@ -88,6 +88,10 @@ function initHost() {
   document.querySelectorAll('.host-tab').forEach((tab) => {
     tab.addEventListener('click', () => switchHostView(tab.dataset.view));
   });
+  document.getElementById('navGuestFlyers')?.addEventListener('click', () => {
+    switchHostView('outreach');
+    requestAnimationFrame(() => document.getElementById('guest-flyers')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  });
 
   loadChecklistDefaults().then(() => switchHostView(startView));
 }
@@ -1542,6 +1546,36 @@ async function queueInvite() {
   closeInviteModal();
 }
 
+function guestFlyerShortcutsHTML(opts = {}) {
+  const focus = opts.focus || 'all';
+  const full = `
+    <div class="flyer-shortcut">
+      <h4>Not confirmed / no seat</h4>
+      <p>Thursday is full. Send the clickable PDF (as a file) or the live page. Do not flatten to a photo.</p>
+      <div class="flyer-shortcut-actions">
+        <a class="btn-sm btn-accent" href="next.html" target="_blank" rel="noopener">Live page</a>
+        <a class="btn-sm" href="flyers/Thursday-is-full.pdf" target="_blank" rel="noopener">Clickable PDF</a>
+        <a class="btn-sm" href="flyers/Thursday-is-full.jpg" target="_blank" rel="noopener" download>JPG</a>
+      </div>
+    </div>`;
+  const wait = `
+    <div class="flyer-shortcut">
+      <h4>Waitlist</h4>
+      <p>You raised your hand. Talk now, or promise a seat at the next night if Thursday does not open.</p>
+      <div class="flyer-shortcut-actions">
+        <a class="btn-sm btn-accent" href="waitlist.html" target="_blank" rel="noopener">Live page</a>
+        <a class="btn-sm" href="flyers/Waitlist-you-raised-your-hand.pdf" target="_blank" rel="noopener">Clickable PDF</a>
+        <a class="btn-sm" href="flyers/Waitlist-you-raised-your-hand.jpg" target="_blank" rel="noopener" download>JPG</a>
+      </div>
+    </div>`;
+  const grid = focus === 'waitlist' ? wait : focus === 'full' ? full : `${full}${wait}`;
+  return `<div class="card-box flyer-shortcuts" id="guest-flyers">
+    <h3 style="margin-top:0">Guest flyers</h3>
+    <p class="integration-note" style="margin:0 0 14px">7 days out. Email the PDF as an attachment, or text it as a file. On a phone they tap the box.</p>
+    <div class="flyer-shortcuts-grid">${grid}</div>
+  </div>`;
+}
+
 function renderOutreach() {
   const cfg = getIntegrations();
   const queue = typeof getInviteQueue === 'function' ? getInviteQueue() : [];
@@ -1587,6 +1621,7 @@ function renderOutreach() {
     : `<p class="empty" style="padding:16px">No invites in this browser yet. Invites are stored on this device (<code>re_invites_v1</code>) — they are not wiped by focus mode. If you used another browser/computer, open command center there to see that queue.</p>`;
 
   document.getElementById('view-outreach').innerHTML = `
+    ${guestFlyerShortcutsHTML()}
     <div class="card-box" style="margin-bottom:18px">
       <h3 style="margin-top:0">Outreach records</h3>
       <p class="integration-note" style="margin:0">
@@ -1711,6 +1746,7 @@ async function renderWaitlistView() {
       <td><button class="btn-sm" data-wl-release="${esc(c.seatId)}">Release hold</button></td>
     </tr>`).join('');
   body.innerHTML = `
+    ${guestFlyerShortcutsHTML({ focus: 'waitlist' })}
     <div class="rate-note" style="margin-top:8px">
       <strong>Separate waitlist chart.</strong> Holds here do not change confirmed Jordan Room seats.
       If a confirmed seat opens, contact the person on the matching waitlist chair so they can claim it.
@@ -1725,12 +1761,28 @@ async function renderWaitlistView() {
     ${renderUnseatedGuestBox(wlUnseated, { waitlist: true })}
     <div class="card-box" style="padding:10px;min-height:280px" id="wl-map">${RESeating.renderMapSVG(st, { mode: 'host', map: 'waitlist' })}${RESeating.legendHTML('host')}</div>
     <p style="color:var(--muted);font-size:0.8rem;margin:8px 0 16px">Tap an open chair to place a waitlist hold${wlPick.length ? ` · selected <strong>${esc(wlPick.join(', '))}</strong>` : ''}.</p>
-    ${claims.length ? `
-      <h4 style="color:var(--text);margin-bottom:8px">Waitlist holds</h4>
-      <div class="card-box" style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
-        <thead><tr><th>Seat</th><th>Guest</th><th>Party</th><th>Contact</th><th></th></tr></thead>
-        <tbody>${rows}</tbody></table></div>` : '<p style="color:var(--muted);font-size:0.85rem">No waitlist holds yet.</p>'}`;
+    ${claims.length
+      ? reportFoldHTML(
+          'wl-holds',
+          'Waitlist holds',
+          `${claims.length} hold${claims.length === 1 ? '' : 's'} · tap to ${reportFoldState()['wl-holds'] ? 'collapse' : 'expand'}`,
+          `<div style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:0.85rem">
+            <thead><tr><th>Seat</th><th>Guest</th><th>Party</th><th>Contact</th><th></th></tr></thead>
+            <tbody>${rows}</tbody></table></div>`
+        )
+      : '<p style="color:var(--muted);font-size:0.85rem">No waitlist holds yet.</p>'}`;
 
+  wireReportFolds(body);
+  const wlFold = body.querySelector('details[data-report-fold="wl-holds"]');
+  if (wlFold) {
+    const meta = wlFold.querySelector('.report-fold-meta');
+    const n = claims.length;
+    const syncHint = () => {
+      if (meta) meta.textContent = `${n} hold${n === 1 ? '' : 's'} · tap to ${wlFold.open ? 'collapse' : 'expand'}`;
+    };
+    syncHint();
+    wlFold.addEventListener('toggle', syncHint);
+  }
   wireUnseatedPlaceButtons(body, wlUnseated);
   const existingSel = document.getElementById('wlExisting');
   if (existingSel) {
