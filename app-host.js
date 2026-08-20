@@ -1548,6 +1548,16 @@ async function queueInvite() {
 
 function guestFlyerShortcutsHTML(opts = {}) {
   const focus = opts.focus || 'all';
+  const confirmed = `
+    <div class="flyer-shortcut">
+      <h4>Confirmed</h4>
+      <p>You're confirmed. They must tap yes I will for sure be there, or no I need the next showing.</p>
+      <div class="flyer-shortcut-actions">
+        <a class="btn-sm btn-accent" href="confirm.html" target="_blank" rel="noopener">Live page</a>
+        <a class="btn-sm" href="flyers/Youre-confirmed-please-tap.pdf" target="_blank" rel="noopener">Clickable PDF</a>
+        <a class="btn-sm" href="flyers/Youre-confirmed-please-tap.jpg" target="_blank" rel="noopener" download>JPG</a>
+      </div>
+    </div>`;
   const full = `
     <div class="flyer-shortcut">
       <h4>Not confirmed / no seat</h4>
@@ -1568,7 +1578,7 @@ function guestFlyerShortcutsHTML(opts = {}) {
         <a class="btn-sm" href="flyers/Waitlist-you-raised-your-hand.jpg" target="_blank" rel="noopener" download>JPG</a>
       </div>
     </div>`;
-  const grid = focus === 'waitlist' ? wait : focus === 'full' ? full : `${full}${wait}`;
+  const grid = focus === 'waitlist' ? wait : focus === 'full' ? full : focus === 'confirmed' ? confirmed : `${confirmed}${full}${wait}`;
   return `<div class="card-box flyer-shortcuts" id="guest-flyers">
     <h3 style="margin-top:0">Guest flyers</h3>
     <p class="integration-note" style="margin:0 0 14px">7 days out. Email the PDF as an attachment, or text it as a file. On a phone they tap the box.</p>

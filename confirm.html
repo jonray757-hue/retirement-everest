@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You're confirmed — please tap yes or no</title>
+<meta name="description" content="You have a seat Thursday at Kennedy School. Tap yes if you will for sure be there, or no if you need the next showing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050c1c;
+    --panel: #0b1628;
+    --gold: #7eb3d9;
+    --gold-lt: #f4f8fc;
+    --text: #f4f8fc;
+    --muted: #b7c6d8;
+    --line: rgba(126,179,217,0.4);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 0 72px; }
+  .hero img { display: block; width: 100%; height: auto; }
+  .frame { border: 0; padding: 0 12px; }
+  .inner { border: 0; padding: 28px 18px 28px; text-align: center; }
+  .kicker {
+    font-family: Oswald, sans-serif;
+    font-size: 12px; letter-spacing: 0.38em; text-transform: uppercase;
+    color: var(--gold); font-weight: 600; margin-bottom: 16px;
+  }
+  h1 {
+    font-family: Oswald, sans-serif; font-weight: 700;
+    font-size: clamp(36px, 9vw, 52px); line-height: 0.94; margin: 0 0 18px; color: var(--gold-lt);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .rule { width: 72px; height: 2px; background: var(--gold); margin: 0 auto 22px; }
+  .lede { font-size: 1.05rem; line-height: 1.55; color: var(--text); margin: 0 0 12px; }
+  .sorry { font-size: 0.95rem; line-height: 1.55; color: var(--muted); margin: 0 0 28px; }
+  .ask {
+    font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--gold); font-weight: 600; margin: 0 0 14px;
+  }
+  .choice {
+    display: block; width: 100%; text-align: left; background: var(--panel);
+    border: 1px solid var(--line); color: inherit; border-radius: 0;
+    padding: 18px 18px 16px; margin: 0 0 12px; cursor: pointer; font: inherit; text-decoration: none;
+  }
+  .choice:hover, .choice:focus { border-color: var(--gold); outline: none; }
+  .choice h2 {
+    font-family: Oswald, sans-serif; font-size: 1.15rem;
+    margin: 0 0 6px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .choice p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+  .choice .go { color: var(--gold); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; margin-top: 10px; font-weight: 600; }
+  form { text-align: left; margin-top: 8px; }
+  label { display: block; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 12px 0 6px; }
+  input, textarea {
+    width: 100%; background: #08101e; border: 1px solid var(--line);
+    color: var(--text); padding: 12px; font: inherit; font-size: 1rem;
+  }
+  textarea { min-height: 88px; resize: vertical; }
+  .check { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 8px; color: var(--muted); font-size: 0.92rem; line-height: 1.4; }
+  .check input { width: auto; margin-top: 3px; }
+  .actions { display: flex; gap: 10px; margin-top: 20px; }
+  button.primary {
+    flex: 1; background: var(--gold); color: #1c1814; border: 0; padding: 14px 16px;
+    font: inherit; font-weight: 600; letter-spacing: 0.04em; cursor: pointer;
+  }
+  button.ghost {
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    padding: 14px 16px; font: inherit; cursor: pointer;
+  }
+  .err { color: #e08a7a; font-size: 0.9rem; margin-top: 12px; }
+  .thanks h2 { font-family: Oswald, sans-serif; font-size: 1.8rem; margin: 12px 0; text-transform: uppercase; }
+  .thanks p { color: var(--muted); line-height: 1.55; }
+  .foot { margin-top: 28px; font-size: 0.78rem; color: #8a7b66; letter-spacing: 0.04em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero"><img src="assets/flyer-poster.jpg" alt="Retirement Everest"></div>
+    <div class="frame">
+      <div class="inner">
+        <div class="kicker">Kennedy School · this Thursday, August 27</div>
+        <h1>You're<br>confirmed</h1>
+        <div class="rule"></div>
+        <p class="lede">You have a seat this Thursday. We are 7 days out. Dinner is the shared Backyard BBQ. Come a few minutes early so we can walk you to your chair.</p>
+        <p class="sorry">Please tap one so we know you are coming — or if Thursday will not work, we will move you to the next showing.</p>
+
+        <div id="pick">
+          <p class="ask">Please confirm !</p>
+          <button class="choice" type="button" data-intent="yes">
+            <h2>Yes, I will for sure be there</h2>
+            <p>See you Thursday, August 27 at 6:00 PM. McMenamins Kennedy School, Martha Jordan Room.</p>
+            <div class="go">Click here →</div>
+          </button>
+          <button class="choice" type="button" data-intent="next">
+            <h2>No, I need to come to the next showing</h2>
+            <p>Thursday will not work. Hold me a seat at the next movie night instead.</p>
+            <div class="go">Click here →</div>
+          </button>
+        </div>
+
+        <form id="form" hidden>
+          <p class="ask" id="formAsk"></p>
+          <p class="sorry" id="formLead" style="margin-bottom:8px"></p>
+          <label for="first">First name</label>
+          <input id="first" name="first" autocomplete="given-name" required>
+          <label for="last">Last name</label>
+          <input id="last" name="last" autocomplete="family-name">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email">
+          <label for="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel">
+          <div id="noteWrap" hidden>
+            <label for="note">Anything we should know</label>
+            <textarea id="note" placeholder="Optional — who else was coming with you, or a good time to call"></textarea>
+          </div>
+          <div class="err" id="err" hidden></div>
+          <div class="actions">
+            <button class="ghost" type="button" id="back">Back</button>
+            <button class="primary" type="submit" id="submit">Send</button>
+          </div>
+        </form>
+
+        <div class="thanks" id="thanks" hidden>
+          <p class="ask">Thank you</p>
+          <h2 id="thanksTitle"></h2>
+          <p id="thanksBody"></p>
+        </div>
+
+        <p class="foot">Harris Assurance Group · Johnny Harris · 971-570-2438</p>
+      </div>
+    </div>
+  </div>
+<script>
+(function () {
+  var WEBHOOK = 'https://services.leadconnectorhq.com/hooks/24UgqDfh5TcJs5IPnA25/webhook-trigger/bfe13f27-a90b-46ec-ae0c-7744bcec2f8d';
+  var q = new URLSearchParams(location.search);
+  var intent = (q.get('intent') || '').toLowerCase();
+  var pick = document.getElementById('pick');
+  var form = document.getElementById('form');
+  var thanks = document.getElementById('thanks');
+  var noteWrap = document.getElementById('noteWrap');
+  var err = document.getElementById('err');
+  var current = '';
+
+  function usable(v) {
+    v = (v || '').trim();
+    if (!v || /\{\{/.test(v)) return '';
+    return v;
+  }
+  ['first', 'last', 'email', 'phone'].forEach(function (k) {
+    var el = document.getElementById(k);
+    var v = usable(q.get(k) || q.get(k === 'first' ? 'first_name' : k === 'last' ? 'last_name' : k) || '');
+    if (el && v) el.value = v;
+  });
+  var cleanPath = location.pathname.replace(/\/confirm\.html$/i, '/confirm').replace(/\/$/, '') || '/confirm';
+  var cleanSearch = (intent === 'yes' || intent === 'next') ? ('?intent=' + intent) : '';
+  if (location.pathname + location.search !== cleanPath + cleanSearch) {
+    history.replaceState({}, '', cleanPath + cleanSearch);
+  }
+
+  function showForm(which) {
+    current = which;
+    pick.hidden = true;
+    form.hidden = false;
+    thanks.hidden = true;
+    var yes = which === 'yes';
+    document.getElementById('formAsk').textContent = yes ? 'Yes — I will be there' : 'Next showing';
+    document.getElementById('formLead').textContent = yes
+      ? 'Tell us how to reach you so we have you locked in for Thursday.'
+      : 'Tell us how to reach you. We will hold a seat for you at the next movie night and confirm the date.';
+    document.getElementById('submit').textContent = yes ? 'Yes, I will for sure be there' : 'Move me to the next showing';
+    noteWrap.hidden = yes;
+  }
+
+  document.querySelectorAll('[data-intent]').forEach(function (btn) {
+    btn.addEventListener('click', function () { showForm(btn.getAttribute('data-intent')); });
+  });
+  document.getElementById('back').addEventListener('click', function () {
+    form.hidden = true;
+    pick.hidden = false;
+    history.replaceState({}, '', cleanPath);
+  });
+
+  if (intent === 'yes' || intent === 'next') showForm(intent);
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    err.hidden = true;
+    var first = document.getElementById('first').value.trim();
+    var last = document.getElementById('last').value.trim();
+    var email = document.getElementById('email').value.trim();
+    var phone = document.getElementById('phone').value.trim();
+    if (!first) { err.textContent = 'Please add your first name.'; err.hidden = false; return; }
+    if (!email && !phone) { err.textContent = 'Please add an email or a phone number.'; err.hidden = false; return; }
+    var yes = current === 'yes';
+    var note = document.getElementById('note').value.trim();
+    var payload = {
+      firstName: first,
+      lastName: last,
+      email: email,
+      phone: phone,
+      event: yes ? 'confirmed_will_attend' : 'confirmed_move_next_showing',
+      sendLaneComms: 'no',
+      tag: yes ? 're-rsvp-yes' : 're-cannot-attend',
+      tags: yes ? 'seat-confirmed,re-rsvp-yes' : 're-cannot-attend,re-next-event',
+      intent: current,
+      notes: note,
+      message: yes
+        ? 'Confirmed guest: will for sure be there Thursday Aug 27 Kennedy School BBQ.'
+        : ('Confirmed guest cannot make Thursday Aug 27 — needs the next showing. Free their chair.' + (note ? ' ' + note : '')),
+      brand: 'HAG',
+      ghlLocationId: '24UgqDfh5TcJs5IPnA25',
+      source: 'retirement-everest-confirm-flyer',
+      re_event_location: yes ? 'Kennedy School BBQ Aug 27 — RSVP yes' : 'Next showing — could not make Kennedy School BBQ Aug 27',
+      re_event_location_slug: yes ? 'kennedy-school-bbq' : 'next-event'
+    };
+    var btn = document.getElementById('submit');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    fetch(WEBHOOK, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        if (!res.ok || (/invalid data|error/i.test(text) && !/success/i.test(text))) {
+          throw new Error(text || ('HTTP ' + res.status));
+        }
+      });
+    }).then(function () {
+      form.hidden = true;
+      thanks.hidden = false;
+      document.getElementById('thanksTitle').textContent = yes
+        ? 'See you Thursday.'
+        : 'Next showing it is.';
+      document.getElementById('thanksBody').textContent = yes
+        ? 'You are locked in. Thursday, August 27, 6:00 PM, McMenamins Kennedy School, Martha Jordan Room. Come a few minutes early.'
+        : 'Thank you for telling us. We will hold a seat for you at the next movie night and confirm the date with you.';
+    }).catch(function () {
+      btn.disabled = false;
+      btn.textContent = yes ? 'Yes, I will for sure be there' : 'Move me to the next showing';
+      err.textContent = 'That did not go through. Call or text Johnny at 971-570-2438 and we will take care of it.';
+      err.hidden = false;
+    });
+  });
+})();
+</script>
+</body>
+</html>
