@@ -208,7 +208,9 @@
       tag: yes ? 're-rsvp-yes' : 're-cannot-attend',
       tags: yes ? 'seat-confirmed,re-rsvp-yes' : 're-cannot-attend,re-next-event',
       intent: current,
-      notes: note,
+      notes: yes
+        ? ('Yes, I will for sure be there.' + (note ? ' ' + note : ''))
+        : ('No, I need the next showing. Free their Thursday chair.' + (note ? ' ' + note : '')),
       message: yes
         ? 'Confirmed guest: will for sure be there Thursday Aug 27 Kennedy School BBQ.'
         : ('Confirmed guest cannot make Thursday Aug 27 — needs the next showing. Free their chair.' + (note ? ' ' + note : '')),

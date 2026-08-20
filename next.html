@@ -279,7 +279,9 @@
       tags: next ? 're-next-event' : (urgent ? 're-review-request,re-review-urgent' : 're-review-request'),
       intent: current,
       urgent: urgent ? 'yes' : 'no',
-      notes: note,
+      notes: next
+        ? ('Full flyer: save my spot for the next movie night.' + (note ? ' ' + note : ''))
+        : ('Full flyer: wants a retirement review.' + (note ? ' ' + note : '')),
       message: next
         ? 'Requested a spot on the next Retirement Everest movie night (Thursday Aug 27 is full).'
         : ('Requested a retirement review. Urgent: ' + (urgent ? 'yes' : 'no') + (note ? '. ' + note : '')),

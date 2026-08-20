@@ -211,7 +211,9 @@
       tags: seat ? 'on-waitlist,re-next-night-promised' : (urgent ? 'on-waitlist,re-waitlist-review,re-review-urgent' : 'on-waitlist,re-waitlist-review'),
       intent: current,
       urgent: urgent ? 'yes' : 'no',
-      notes: note,
+      notes: seat
+        ? ('Waitlist: promise next movie night.' + (note ? ' ' + note : ''))
+        : ('Waitlist: talk about my plan now.' + (note ? ' ' + note : '')),
       message: seat
         ? 'Waitlist guest: promise a seat at the next movie night if Thursday Aug 27 does not open. Stays on waitlist.'
         : ('Waitlist guest: wants to talk about their plan before the next event. Urgent: ' + (urgent ? 'yes' : 'no') + (note ? '. ' + note : '')),
