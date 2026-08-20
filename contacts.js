@@ -389,8 +389,101 @@ function contactFromInvite(inv) {
   };
 }
 
+function liveSeatingKeys(claim) {
+  const keys = [];
+  const email = normalizeEmail(claim && (claim.email || claim.partnerEmail));
+  const phone = normalizePhone(claim && (claim.phone || claim.partnerPhone));
+  const name = String((claim && (claim.person || claim.name)) || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  if (email) keys.push('e:' + email);
+  if (phone.length >= 10) keys.push('p:' + phone.slice(-10));
+  if (name) keys.push('n:' + name);
+  return keys;
+}
+
+/** Live Jordan / waitlist charts — source of truth for the Contacts pipeline. */
+function liveSeatingIndex() {
+  const st =
+    (typeof window !== 'undefined' && window.RESeating && window.RESeating.getCachedState
+      ? window.RESeating.getCachedState()
+      : null) || {};
+  const main = {};
+  const wait = {};
+  const add = (bucket, map) => {
+    Object.entries((bucket && bucket.seats) || {}).forEach(([id, cl]) => {
+      if (!cl || typeof cl !== 'object') return;
+      liveSeatingKeys(cl).forEach((k) => {
+        if (!map[k]) map[k] = { claim: cl, seats: [] };
+        map[k].seats.push(id);
+      });
+    });
+  };
+  add({ seats: st.seats }, main);
+  add(st.waitlist, wait);
+  return { main, wait };
+}
+
+function liveSeatingLane(rec) {
+  if (!rec) return null;
+  const idx = liveSeatingIndex();
+  const keys = liveSeatingKeys({
+    email: rec.email,
+    phone: rec.phone,
+    person: rec.name || [rec.firstName, rec.lastName].filter(Boolean).join(' ')
+  });
+  if (keys.some((k) => idx.main[k])) return 'seated';
+  if (keys.some((k) => idx.wait[k])) return 'waitlist';
+  return null;
+}
+
+function contactsFromSeatingCharts() {
+  const st =
+    (typeof window !== 'undefined' && window.RESeating && window.RESeating.getCachedState
+      ? window.RESeating.getCachedState()
+      : null) || {};
+  const out = [];
+  const push = (id, cl, lane) => {
+    if (!cl || typeof cl !== 'object') return;
+    const name = cl.person || cl.name || '';
+    const sp = splitContactName(name);
+    const seats = [id].filter(Boolean);
+    out.push({
+      id: 'seat_' + lane + '_' + id,
+      firstName: sp.firstName,
+      lastName: sp.lastName,
+      name,
+      email: cl.email || '',
+      phone: cl.phone || '',
+      locationSlug: 'kennedy-school',
+      locationName: 'Kennedy School',
+      sources: [lane === 'waitlist' ? 'waitlist-chart' : 'seat-chart'],
+      status: lane,
+      preferences: {
+        seats,
+        seatLabel: cl.seatLabel || (window.RESeating && window.RESeating.seatLabel ? window.RESeating.seatLabel(seats) : id),
+        waitlist: lane === 'waitlist',
+        waitlistHold: lane === 'waitlist',
+        partyType: cl.partyType || '',
+        spouse: cl.spouse || '',
+        preferencesSummary:
+          (lane === 'waitlist' ? 'Waitlist hold · ' : 'Seated · ') +
+          (cl.seatLabel || id)
+      },
+      partyType: cl.partyType || '',
+      spouse: cl.spouse || ''
+    });
+  };
+  Object.entries(st.seats || {}).forEach(([id, cl]) => push(id, cl, 'seated'));
+  Object.entries((st.waitlist && st.waitlist.seats) || {}).forEach(([id, cl]) => push(id, cl, 'waitlist'));
+  return out;
+}
+
 function contactPipelineStatus(rec) {
   if (!rec) return 'prospect';
+  const live = liveSeatingLane(rec);
+  if (live) return live;
   const prefs = rec.preferences || {};
   const onWaitlist = !!(
     rec.status === 'waitlist' ||
@@ -504,6 +597,9 @@ function buildContactDirectory() {
   }
 
   getManualContacts().forEach((c) => add({ ...c, sources: uniqueSources([...(c.sources || []), 'manual']) }));
+
+  // Live Jordan + waitlist charts so the pipeline shows holds, not only seated.
+  contactsFromSeatingCharts().forEach((c) => add(c));
 
   let list = [...map.values()].map((c) => ({ ...c, status: contactPipelineStatus(c) }));
   // Optional live enrichment (scores + priority tags) without forcing persist

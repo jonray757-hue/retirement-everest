@@ -1,6 +1,7 @@
 /**
  * Command center — Event CRM (Contacts) tab
- * Pipeline: Talking → Invited → Prefs in → Seated
+ * Pipeline: Registered → Prefs in → Waitlist → Seated
+ * Live waitlist chart is its own column — a hold is not a Jordan Room seat.
  * Host sends preference links through HAG GHL so they land in Conversations.
  */
 let contactsCache = [];
@@ -81,6 +82,13 @@ async function renderContacts() {
     }
   } catch (e) {
     console.warn('[RE] contacts shared refresh', e);
+  }
+  try {
+    if (window.RESeating?.fetchState) {
+      await RESeating.fetchState({ healRemote: false, orders: [] });
+    }
+  } catch (e) {
+    console.warn('[RE] contacts seating fetch', e);
   }
 
   // Always merge latest HAG/seed guests (full list — 30–40+ Producer Autopilot registrants)
@@ -164,7 +172,10 @@ function contactCardHTML(c, opts = {}) {
   const prefs = c.preferences;
   const rank = opts.rank != null ? opts.rank : null;
   const compact = !!opts.compact;
-  const seatBit = prefs?.seatLabel
+  const seatBit =
+    status === 'waitlist'
+      ? `<span class="crm-chip" title="Waitlist hold — not a confirmed Jordan chair">Waitlist${prefs?.seatLabel ? ' · ' + esc(prefs.seatLabel) : ''}</span>`
+      : prefs?.seatLabel
     ? `<span class="crm-chip crm-chip-seat">${esc(prefs.seatLabel)}</span>`
     : status === 'registered'
       ? `<span class="crm-chip">Prefs in · no seat</span>`
