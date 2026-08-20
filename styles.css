@@ -979,7 +979,7 @@ th { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: v
 /* Event CRM pipeline board */
 .crm-board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(200px, 1fr));
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
   gap: 12px;
   margin-top: 8px;
   overflow-x: auto;
